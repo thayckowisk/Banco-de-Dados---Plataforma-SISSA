@@ -1,0 +1,1793 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle de Acessos</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f5f6fa; color: #333; }
+
+    /* ─── SCREENS ─── */
+    .screen { display: none; min-height: 100vh; }
+    .screen.active { display: flex; }
+
+    /* ══════════════════════════════════════════
+       LOGIN
+    ══════════════════════════════════════════ */
+    #login {
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(145deg, #7ba3d8 0%, #9fbde8 45%, #c0d4f0 100%);
+    }
+    .login-box {
+      background: #fff;
+      border-radius: 14px;
+      padding: 52px 44px;
+      text-align: center;
+      box-shadow: 0 6px 28px rgba(0,0,0,.14);
+      width: 340px;
+    }
+    .login-icon { margin: 0 auto 36px; }
+    /* Login form */
+    .login-form { text-align: left; margin-top: 8px; }
+    .login-field { margin-bottom: 14px; }
+    .login-label { font-size: 12px; color: #999; margin-bottom: 5px; display: block; }
+    .login-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      color: #444;
+      outline: none;
+    }
+    .login-input:focus { border-color: #7ba3d8; }
+    .login-submit {
+      width: 100%;
+      padding: 11px;
+      background: #4a8fd4;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    .login-submit:hover { background: #3b7bbf; }
+    .login-submit:disabled { opacity: .6; cursor: not-allowed; }
+    .login-error { color: #e74c3c; font-size: 12px; margin-top: 10px; text-align: center; display: none; }
+    .login-error.visible { display: block; }
+
+    /* Admin-only elements */
+    .user-mode .admin-only { display: none !important; }
+
+    /* Grupo users popup */
+    #grupo-users-popup {
+      display: none;
+      position: fixed;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.12);
+      min-width: 220px;
+      max-width: 300px;
+      max-height: 260px;
+      overflow-y: auto;
+      z-index: 1000;
+    }
+    .popup-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #f0f0f0;
+      padding-bottom: 6px;
+    }
+    .popup-user-item { padding: 6px 0; border-bottom: 1px solid #f5f5f5; }
+    .popup-user-item:last-child { border-bottom: none; }
+
+    /* ══════════════════════════════════════════
+       APP SHELL (SIDEBAR + MAIN)
+    ══════════════════════════════════════════ */
+    .app { display: flex; min-height: 100vh; width: 100%; }
+
+    /* ─── Sidebar ─── */
+    .sidebar {
+      width: 56px;
+      background: #fff;
+      border-right: 1px solid #ebebeb;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px 0;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 50;
+    }
+    .sb-logo {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: #e4eef9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .sb-nav { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+    .sb-bottom { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .sb-item {
+      width: 40px; height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #bbb;
+      transition: all .2s;
+    }
+    .sb-item:hover { background: #e8f1fb; color: #4a8fd4; }
+    .sb-item.active { background: #e8f1fb; color: #4a8fd4; }
+
+    /* ─── Main ─── */
+    .main { margin-left: 56px; flex: 1; padding: 28px 32px; }
+
+    /* ─── Page title ─── */
+    .page-title {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .page-title-icon {
+      width: 32px; height: 32px;
+      background: #e4eef9;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ─── Tabs ─── */
+    .tabs { display: flex; border-bottom: 2px solid #ebebeb; margin-bottom: 20px; }
+    .tab { padding: 8px 18px; font-size: 14px; color: #999; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .tab.active { color: #4a8fd4; border-bottom-color: #4a8fd4; font-weight: 500; }
+    .tab:hover:not(.active) { color: #666; }
+
+    /* ─── Toolbar ─── */
+    .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .search-wrap { position: relative; }
+    .search-wrap .search-icon {
+      position: absolute; left: 9px; top: 50%;
+      transform: translateY(-50%);
+      color: #bbb; pointer-events: none;
+    }
+    .search-input {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 8px 12px 8px 32px;
+      font-size: 13px;
+      width: 220px;
+      color: #555;
+      outline: none;
+    }
+    .search-input:focus { border-color: #4a8fd4; }
+
+    /* ─── Buttons ─── */
+    .btn-primary {
+      background: #4a8fd4;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 9px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background .15s;
+    }
+    .btn-primary:hover { background: #3b7bbf; }
+    .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-cancel {
+      background: #fff;
+      color: #666;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-cancel:hover { background: #f5f5f5; }
+
+    /* ─── Card / Table ─── */
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.07);
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      font-size: 11px;
+      font-weight: 600;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      padding: 10px 16px;
+      text-align: left;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    tbody td {
+      font-size: 13px;
+      color: #555;
+      padding: 12px 16px;
+      border-bottom: 1px solid #f5f5f5;
+      vertical-align: middle;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: #fafcff; }
+
+    .user-name { font-weight: 600; font-size: 14px; color: #333; }
+    .user-email { font-size: 12px; color: #aaa; margin-top: 2px; }
+
+    .actions { display: flex; gap: 6px; }
+    .icon-btn {
+      width: 28px; height: 28px;
+      border: none; background: none;
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ccc;
+      transition: all .15s;
+    }
+    .icon-btn:hover { background: #f0f0f0; color: #666; }
+
+    /* Funcionalidades tooltip */
+    .func-wrap { position: relative; cursor: pointer; display: inline-block; }
+    .func-tag {
+      font-size: 12px;
+      color: #777;
+      background: #f5f5f5;
+      padding: 3px 9px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .func-popup {
+      display: none;
+      position: absolute;
+      top: 110%; left: 0;
+      z-index: 100;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.10);
+      min-width: 280px;
+    }
+    .func-wrap:hover .func-popup { display: block; }
+    .func-popup-title {
+      font-weight: 700;
+      font-size: 11px;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 8px;
+    }
+    .func-popup-list { list-style: none; }
+    .func-popup-list li { padding: 3px 0; color: #555; font-size: 13px; }
+    .func-popup-roles {
+      margin-top: 10px;
+      border-top: 1px solid #f0f0f0;
+      padding-top: 8px;
+      color: #888;
+      font-size: 12px;
+    }
+
+    .badge-num { color: #4a8fd4; font-size: 13px; cursor: pointer; }
+    .badge-num:hover { text-decoration: underline; }
+    .time-text { color: #888; font-size: 13px; }
+    .time-never { color: #ccc; font-size: 13px; font-style: italic; }
+
+    /* ══════════════════════════════════════════
+       MODAL
+    ══════════════════════════════════════════ */
+    .modal-backdrop {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.38);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-box {
+      background: #fff;
+      border-radius: 14px;
+      padding: 36px 32px;
+      width: 420px;
+      position: relative;
+      box-shadow: 0 10px 40px rgba(0,0,0,.15);
+    }
+    .modal-close {
+      position: absolute; top: 14px; right: 16px;
+      border: none; background: none;
+      font-size: 20px; color: #bbb;
+      cursor: pointer; line-height: 1;
+    }
+    .modal-close:hover { color: #888; }
+    .modal-icon {
+      width: 52px; height: 52px;
+      background: #e4eef9;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 14px;
+    }
+    .modal-title { text-align: center; font-size: 17px; font-weight: 600; margin-bottom: 24px; }
+    .form-group { margin-bottom: 14px; }
+    .form-label { font-size: 13px; color: #777; margin-bottom: 5px; display: block; }
+    .form-label .req { color: #e74c3c; }
+    .form-input, .form-select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      color: #444;
+      outline: none;
+      background: #fff;
+    }
+    .form-input:focus, .form-select:focus { border-color: #4a8fd4; }
+    .form-error { font-size: 12px; color: #e74c3c; margin-top: 4px; display: none; }
+    .form-error.visible { display: block; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; }
+
+    /* Multi-checkbox groups */
+    .multi-check-container {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      max-height: 140px;
+      overflow-y: auto;
+      padding: 6px 0;
+      background: #fff;
+    }
+    .multi-check-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #444;
+    }
+    .multi-check-item:hover { background: #f5f9ff; }
+    .multi-check-item input[type="checkbox"] {
+      accent-color: #4a8fd4;
+      cursor: pointer;
+    }
+
+    /* ══════════════════════════════════════════
+       ADICIONAR GRUPO – PERMISSÕES
+    ══════════════════════════════════════════ */
+    .group-name-card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.07);
+      padding: 20px 24px;
+      margin-bottom: 14px;
+    }
+    .group-name-label { font-size: 12px; color: #999; margin-bottom: 8px; display: block; }
+    .group-name-input {
+      width: 100%;
+      border: none;
+      border-bottom: 1px solid #ddd;
+      padding: 6px 0;
+      font-size: 15px;
+      color: #444;
+      outline: none;
+      background: transparent;
+    }
+    .group-name-input::placeholder { color: #ccc; }
+    .group-name-input:focus { border-bottom-color: #4a8fd4; }
+
+    .perm-section {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.07);
+      padding: 20px 24px;
+      margin-bottom: 14px;
+    }
+    .module-header {
+      font-size: 11px;
+      font-weight: 700;
+      color: #bbb;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+    .module-header::after { content: ''; flex: 1; height: 1px; background: #f0f0f0; }
+    .sub-section-title { font-size: 14px; font-weight: 600; color: #444; margin: 14px 0 6px; }
+    .perm-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 0;
+      border-bottom: 1px solid #f5f5f5;
+    }
+    .perm-row:last-child { border-bottom: none; }
+    .perm-name { font-size: 13px; color: #666; }
+
+    /* Toggle */
+    .toggle {
+      width: 36px; height: 20px;
+      border-radius: 10px;
+      background: #e0e0e0;
+      position: relative;
+      cursor: pointer;
+      transition: background .2s;
+      flex-shrink: 0;
+    }
+    .toggle.on { background: #4a8fd4; }
+    .toggle::after {
+      content: '';
+      width: 16px; height: 16px;
+      background: #fff;
+      border-radius: 50%;
+      position: absolute;
+      top: 2px; left: 2px;
+      transition: left .2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    }
+    .toggle.on::after { left: 18px; }
+
+    /* ══════════════════════════════════════════
+       ADICIONAR GRUPO – USUÁRIOS
+    ══════════════════════════════════════════ */
+    .user-list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .user-list-title { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .add-user-link { font-size: 13px; color: #4a8fd4; cursor: pointer; }
+    .add-user-link:hover { text-decoration: underline; }
+    .user-check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid #ebebeb;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .user-check-item:hover { border-color: #c0d4f0; }
+    .user-check-item input[type="checkbox"] {
+      margin-top: 3px;
+      cursor: pointer;
+      accent-color: #4a8fd4;
+      width: 15px; height: 15px;
+      flex-shrink: 0;
+    }
+    .uci-name { font-size: 14px; font-weight: 600; color: #333; }
+    .uci-email { font-size: 13px; color: #999; margin-left: 6px; font-weight: 400; }
+    .uci-groups { font-size: 12px; color: #bbb; margin-top: 3px; }
+    .uci-more { color: #4a8fd4; cursor: pointer; }
+    .form-actions { display: flex; gap: 10px; margin-top: 20px; }
+
+    /* ══════════════════════════════════════════
+       SKELETON / LOADING
+    ══════════════════════════════════════════ */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+    .skeleton-row td div {
+      height: 14px;
+      background: #f0f0f0;
+      border-radius: 4px;
+      animation: pulse 1.5s infinite;
+    }
+
+    /* ══════════════════════════════════════════
+       TOAST
+    ══════════════════════════════════════════ */
+    #toast {
+      display: none;
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: #333;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      z-index: 9999;
+      transition: opacity .3s;
+      max-width: 320px;
+      box-shadow: 0 4px 14px rgba(0,0,0,.2);
+    }
+  </style>
+</head>
+<body>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Grupo users popup -->
+<div id="grupo-users-popup"></div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  TELA 1 – LOGIN                          ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div id="login" class="screen active">
+  <div class="login-box">
+    <svg class="login-icon" width="72" height="64" viewBox="0 0 72 64" fill="none">
+      <circle cx="36" cy="22" r="14" stroke="#c8d8ee" stroke-width="3" fill="none"/>
+      <path d="M6 58c0-14 13-23 30-23s30 9 30 23" stroke="#c8d8ee" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <!-- dois pontos (eyes) -->
+      <circle cx="30" cy="22" r="2" fill="#c8d8ee"/>
+      <circle cx="42" cy="22" r="2" fill="#c8d8ee"/>
+    </svg>
+    <div class="login-form">
+      <div class="login-field">
+        <label class="login-label">E-mail</label>
+        <input type="email" id="login-email" class="login-input" placeholder="ex: admin@gmail.com" autocomplete="email">
+      </div>
+      <div class="login-field">
+        <label class="login-label">Senha</label>
+        <input type="password" id="login-password" class="login-input" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')handleLogin()">
+      </div>
+      <div id="login-error" class="login-error">E-mail ou senha incorretos.</div>
+      <button class="login-submit" id="login-btn" onclick="handleLogin()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  TELA 2 – PERMISSÕES > USUÁRIOS          ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div id="usuarios" class="screen">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4a8fd4" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-item" title="Início" onclick="sidebarNav('inicio')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9,22 9,12 15,12 15,22"/>
+        </svg>
+      </div>
+      <div class="sb-item active" title="Permissões" onclick="sidebarNav('permissoes')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Documentos" onclick="sidebarNav('documentos')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14,2 14,8 20,8"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Pastas" onclick="sidebarNav('pastas')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Editar" onclick="sidebarNav('editar')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Relatórios" onclick="sidebarNav('relatorios')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+      </div>
+    </nav>
+    <div class="sb-bottom">
+      <div class="sb-item" title="Configurações" onclick="sidebarNav('configuracoes')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Sair" onclick="handleLogout()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16,17 21,12 16,7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-title">
+      <div class="page-title-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a8fd4" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      Permissões
+    </div>
+
+    <div class="tabs">
+      <div class="tab active">Usuários</div>
+      <div class="tab" onclick="showScreen('grupos')">Grupos</div>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-wrap">
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="text" id="search-usuarios" class="search-input" placeholder="Buscar por usuário" oninput="filterUsuarios(this.value)">
+      </div>
+      <button class="btn-primary admin-only" onclick="openAddUserModal()">Adicionar usuário</button>
+    </div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Usuário</th>
+            <th>Funcionalidades</th>
+            <th>Papel</th>
+            <th>Último acesso</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody-usuarios">
+          <tr class="skeleton-row"><td colspan="5"><div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  TELA 3 – PERMISSÕES > GRUPOS            ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div id="grupos" class="screen">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4a8fd4" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-item" title="Início" onclick="sidebarNav('inicio')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9,22 9,12 15,12 15,22"/>
+        </svg>
+      </div>
+      <div class="sb-item active" title="Permissões" onclick="sidebarNav('permissoes')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Documentos" onclick="sidebarNav('documentos')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14,2 14,8 20,8"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Pastas" onclick="sidebarNav('pastas')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Editar" onclick="sidebarNav('editar')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Relatórios" onclick="sidebarNav('relatorios')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+      </div>
+    </nav>
+    <div class="sb-bottom">
+      <div class="sb-item" title="Configurações" onclick="sidebarNav('configuracoes')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Sair" onclick="handleLogout()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16,17 21,12 16,7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-title">
+      <div class="page-title-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a8fd4" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      Permissões
+    </div>
+
+    <div class="tabs">
+      <div class="tab" onclick="showScreen('usuarios')">Usuários</div>
+      <div class="tab active">Grupos</div>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-wrap">
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="text" id="search-grupos" class="search-input" placeholder="Buscar por grupo" oninput="filterGrupos(this.value)">
+      </div>
+      <button class="btn-primary admin-only" onclick="showScreen('add-group-perms')">Adicionar grupo</button>
+    </div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Grupo</th>
+            <th>Permissões</th>
+            <th>Usuários</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-grupos">
+          <tr class="skeleton-row"><td colspan="3"><div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  TELA 4 – ADICIONAR GRUPO > PERMISSÕES   ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div id="add-group-perms" class="screen">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4a8fd4" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9,22 9,12 15,12 15,22"/>
+        </svg>
+      </div>
+      <div class="sb-item active" onclick="sidebarNav('permissoes')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <div class="sb-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14,2 14,8 20,8"/>
+        </svg>
+      </div>
+      <div class="sb-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div class="sb-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </div>
+      <div class="sb-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+      </div>
+    </nav>
+    <div class="sb-bottom">
+      <div class="sb-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+        </svg>
+      </div>
+      <div class="sb-item" onclick="handleLogout()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16,17 21,12 16,7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-title">
+      <div class="page-title-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a8fd4" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="16"/>
+          <line x1="8" y1="12" x2="16" y2="12"/>
+        </svg>
+      </div>
+      Adicionar grupo
+    </div>
+
+    <div class="tabs">
+      <div class="tab active">Permissões</div>
+      <div class="tab" onclick="showScreen('add-group-users')">Usuários</div>
+    </div>
+
+    <div class="group-name-card">
+      <label class="group-name-label">Nome do grupo</label>
+      <input type="text" id="new-group-name" class="group-name-input" placeholder="Digite o nome do grupo">
+    </div>
+
+    <!-- MÓDULO EDITAIS -->
+    <div class="perm-section">
+      <div class="module-header">
+        <span>Editais</span>
+      </div>
+
+      <div class="sub-section-title">Seleção de editais</div>
+      <div class="perm-row">
+        <span class="perm-name">Visualizar editais</span>
+        <div class="toggle on" data-funcionalidade-id="1" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="perm-row">
+        <span class="perm-name">Gerenciar anexos do edital</span>
+        <div class="toggle" data-funcionalidade-id="2" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="perm-row">
+        <span class="perm-name">Gerenciar status</span>
+        <div class="toggle" data-funcionalidade-id="3" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="perm-row">
+        <span class="perm-name">Adicionar edital manualmente</span>
+        <div class="toggle" data-funcionalidade-id="4" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="perm-row">
+        <span class="perm-name">Gerenciar grupos de editais</span>
+        <div class="toggle" data-funcionalidade-id="5" onclick="this.classList.toggle('on')"></div>
+      </div>
+
+      <div class="sub-section-title">Análise de editais</div>
+      <div class="perm-row">
+        <span class="perm-name">Gerenciar análise de edital</span>
+        <div class="toggle on" data-funcionalidade-id="6" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="perm-row">
+        <span class="perm-name">Visualizar histórico de análise de edital</span>
+        <div class="toggle on" data-funcionalidade-id="7" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="perm-row">
+        <span class="perm-name">Realizar pré-análise técnica</span>
+        <div class="toggle" data-funcionalidade-id="8" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="perm-row">
+        <span class="perm-name">Realizar análise de edital</span>
+        <div class="toggle" data-funcionalidade-id="9" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="perm-row">
+        <span class="perm-name">Gerenciar etapas do edital</span>
+        <div class="toggle" data-funcionalidade-id="10" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="perm-row">
+        <span class="perm-name">Realizar proposta</span>
+        <div class="toggle" data-funcionalidade-id="11" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="perm-row">
+        <span class="perm-name">Gerenciar histórico de análise de edital</span>
+        <div class="toggle on" data-funcionalidade-id="12" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </div>
+
+    <!-- MÓDULO CONTRATOS -->
+    <div class="perm-section">
+      <div class="module-header">
+        <span>Contratos</span>
+      </div>
+
+      <div class="sub-section-title">Consulta de CNPJ</div>
+      <div class="perm-row">
+        <span class="perm-name">Gerenciar consulta</span>
+        <div class="toggle on" data-funcionalidade-id="13" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-primary" id="btn-add-group" onclick="submitAddGroup()">Adicionar</button>
+      <button class="btn-cancel" onclick="showScreen('grupos')">Cancelar</button>
+    </div>
+  </main>
+</div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  TELA 5 – ADICIONAR GRUPO > USUÁRIOS     ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div id="add-group-users" class="screen">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4a8fd4" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9,22 9,12 15,12 15,22"/>
+        </svg>
+      </div>
+      <div class="sb-item active" onclick="sidebarNav('permissoes')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <div class="sb-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14,2 14,8 20,8"/>
+        </svg>
+      </div>
+      <div class="sb-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div class="sb-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </div>
+      <div class="sb-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+      </div>
+    </nav>
+    <div class="sb-bottom">
+      <div class="sb-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+        </svg>
+      </div>
+      <div class="sb-item" onclick="handleLogout()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16,17 21,12 16,7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-title">
+      <div class="page-title-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a8fd4" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="16"/>
+          <line x1="8" y1="12" x2="16" y2="12"/>
+        </svg>
+      </div>
+      Adicionar grupo
+    </div>
+
+    <div class="tabs">
+      <div class="tab" onclick="showScreen('add-group-perms')">Permissões</div>
+      <div class="tab active">Usuários</div>
+    </div>
+
+    <div class="card" style="padding: 20px 24px;">
+      <div class="user-list-header">
+        <div class="user-list-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+          </svg>
+          Usuários
+        </div>
+        <a class="add-user-link" onclick="openAddUserModal()">Adicionar usuário</a>
+      </div>
+
+      <div id="add-group-user-list">
+        <!-- populated dynamically -->
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-primary" id="btn-add-group-users" onclick="submitAddGroupFromUsers()">Adicionar</button>
+        <button class="btn-cancel" onclick="showScreen('grupos')">Cancelar</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL – ADICIONAR USUÁRIO
+══════════════════════════════════════════ -->
+<div id="modal-add-user" class="modal-backdrop" onclick="backdropClose(event, 'modal-add-user')">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-add-user')">×</button>
+    <div class="modal-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4a8fd4" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+    </div>
+    <div class="modal-title">Adicionar usuário</div>
+
+    <div class="form-group">
+      <label class="form-label">E-mail <span class="req">*</span></label>
+      <input type="email" id="add-user-email" class="form-input" placeholder="exemplo@empresa.com.br">
+      <div id="add-user-email-error" class="form-error">Informe um e-mail válido.</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Grupos <span class="req">*</span></label>
+      <div id="add-user-grupos" class="multi-check-container">
+        <!-- populated dynamically -->
+      </div>
+      <div id="add-user-grupo-error" class="form-error">Selecione pelo menos um grupo.</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Papel</label>
+      <select id="add-user-papel" class="form-select">
+        <option value="">Selecione um papel</option>
+      </select>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-add-user')">Cancelar</button>
+      <button class="btn-primary" id="btn-add-user-submit" onclick="submitAddUser()">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL – EDITAR USUÁRIO
+══════════════════════════════════════════ -->
+<div id="modal-edit-user" class="modal-backdrop" onclick="backdropClose(event, 'modal-edit-user')">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-edit-user')">×</button>
+    <div class="modal-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4a8fd4" stroke-width="2">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+      </svg>
+    </div>
+    <div class="modal-title">Editar usuário</div>
+
+    <input type="hidden" id="edit-user-id">
+
+    <div class="form-group">
+      <label class="form-label">E-mail <span class="req">*</span></label>
+      <input type="email" id="edit-user-email" class="form-input" placeholder="exemplo@empresa.com.br">
+      <div id="edit-user-email-error" class="form-error">Informe um e-mail válido.</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Grupos <span class="req">*</span></label>
+      <div id="edit-user-grupos" class="multi-check-container">
+        <!-- populated dynamically -->
+      </div>
+      <div id="edit-user-grupo-error" class="form-error">Selecione pelo menos um grupo.</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Papel</label>
+      <select id="edit-user-papel" class="form-select">
+        <option value="">Selecione um papel</option>
+      </select>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-edit-user')">Cancelar</button>
+      <button class="btn-primary" id="btn-edit-user-submit" onclick="submitEditUser()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ══════════════════════════════════════════
+     API HELPER
+  ══════════════════════════════════════════ */
+  const API = 'http://localhost:3000/api';
+
+  async function apiFetch(path, opts = {}) {
+    const r = await fetch(API + path, {
+      headers: { 'Content-Type': 'application/json' },
+      ...opts
+    });
+    return r.json();
+  }
+
+  /* ══════════════════════════════════════════
+     STATE
+  ══════════════════════════════════════════ */
+  const state = {
+    usuarios: [],
+    grupos: [],
+    papeis: [],
+    funcionalidades: [],
+    isAdmin: false,
+    currentUserEmail: ''
+  };
+
+  /* ══════════════════════════════════════════
+     TOAST
+  ══════════════════════════════════════════ */
+  let toastTimer = null;
+
+  function showToast(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.style.background = type === 'error' ? '#e74c3c' : type === 'info' ? '#4a8fd4' : '#27ae60';
+    el.style.display = 'block';
+    el.style.opacity = '1';
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      el.style.opacity = '0';
+      setTimeout(() => { el.style.display = 'none'; }, 300);
+    }, 3000);
+  }
+
+  /* ══════════════════════════════════════════
+     SCREEN NAVIGATION
+  ══════════════════════════════════════════ */
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0, 0);
+    const popup = document.getElementById('grupo-users-popup');
+    if (popup) popup.style.display = 'none';
+    if (id === 'add-group-users') {
+      renderAddGroupUserList();
+    }
+  }
+
+  function openModal(id) {
+    document.getElementById(id).classList.add('open');
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+  }
+
+  function backdropClose(event, id) {
+    if (event.target === event.currentTarget) closeModal(id);
+  }
+
+  /* ══════════════════════════════════════════
+     LOAD ALL DATA
+  ══════════════════════════════════════════ */
+  async function loadAll() {
+    try {
+      const [uRes, gRes, pRes, fRes] = await Promise.all([
+        apiFetch('/usuarios'),
+        apiFetch('/grupos'),
+        apiFetch('/papeis'),
+        apiFetch('/funcionalidades')
+      ]);
+
+      if (uRes.success) state.usuarios = uRes.data || [];
+      if (gRes.success) state.grupos = gRes.data || [];
+      if (pRes.success) state.papeis = pRes.data || [];
+      if (fRes.success) state.funcionalidades = fRes.data || [];
+
+      renderUsuarios(state.usuarios);
+      renderGrupos(state.grupos);
+    } catch (err) {
+      showToast('Erro ao carregar dados. Verifique a conexão com o servidor.', 'error');
+    }
+  }
+
+  async function reloadUsuarios() {
+    try {
+      const res = await apiFetch('/usuarios');
+      if (res.success) {
+        state.usuarios = res.data || [];
+        renderUsuarios(state.usuarios);
+      }
+    } catch (err) {
+      showToast('Erro ao recarregar usuários.', 'error');
+    }
+  }
+
+  async function reloadGrupos() {
+    try {
+      const res = await apiFetch('/grupos');
+      if (res.success) {
+        state.grupos = res.data || [];
+        renderGrupos(state.grupos);
+      }
+    } catch (err) {
+      showToast('Erro ao recarregar grupos.', 'error');
+    }
+  }
+
+  /* ══════════════════════════════════════════
+     LOGIN
+  ══════════════════════════════════════════ */
+  const CONTAS = {
+    'admin@gmail.com': { senha: 'admin', isAdmin: true },
+    'user@gmail.com':  { senha: 'user',  isAdmin: false }
+  };
+
+  async function handleLogin() {
+    const email    = (document.getElementById('login-email').value || '').trim().toLowerCase();
+    const senha    = document.getElementById('login-password').value || '';
+    const errorEl  = document.getElementById('login-error');
+    const btn      = document.getElementById('login-btn');
+
+    errorEl.classList.remove('visible');
+
+    const conta = CONTAS[email];
+    if (!conta || conta.senha !== senha) {
+      errorEl.classList.add('visible');
+      return;
+    }
+
+    state.isAdmin = conta.isAdmin;
+    state.currentUserEmail = email;
+    document.body.classList.toggle('user-mode', !state.isAdmin);
+
+    btn.disabled = true;
+    btn.textContent = 'Carregando...';
+    try {
+      await loadAll();
+      showScreen('usuarios');
+    } catch (err) {
+      showToast('Falha ao carregar dados.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Entrar';
+    }
+  }
+
+  function handleLogout() {
+    state.isAdmin = false;
+    state.currentUserEmail = '';
+    document.body.classList.remove('user-mode');
+    const emailEl = document.getElementById('login-email');
+    const passEl  = document.getElementById('login-password');
+    if (emailEl) emailEl.value = '';
+    if (passEl)  passEl.value  = '';
+    document.getElementById('login-error').classList.remove('visible');
+    showScreen('login');
+  }
+
+  function sidebarNav(mod) {
+    if (mod === 'inicio' || mod === 'permissoes') {
+      showScreen('usuarios');
+    } else {
+      showToast('Módulo não disponível nesta versão.', 'info');
+    }
+  }
+
+  /* ══════════════════════════════════════════
+     RENDER ICONS (shared SVGs)
+  ══════════════════════════════════════════ */
+  const editIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+  const deleteIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
+
+  /* ══════════════════════════════════════════
+     RENDER USUARIOS TABLE
+  ══════════════════════════════════════════ */
+  function buildFuncCell(grupos, papeis) {
+    if (!grupos) return '<span class="time-text">-</span>';
+
+    const grupoStr = typeof grupos === 'string' ? grupos : (Array.isArray(grupos) ? grupos.join(', ') : '');
+    if (!grupoStr) return '<span class="time-text">-</span>';
+
+    const MAX_DISPLAY = 40;
+    const papeiStr = typeof papeis === 'string' ? papeis : (Array.isArray(papeis) ? papeis.join(', ') : '');
+    const grupoList = grupoStr.split(',').map(s => s.trim()).filter(Boolean);
+
+    if (grupoStr.length <= MAX_DISPLAY) {
+      return `<span class="func-tag">${escHtml(grupoStr)}</span>`;
+    }
+
+    const preview = grupoStr.substring(0, MAX_DISPLAY) + '...';
+    const listItems = grupoList.map(g => `<li>${escHtml(g)}</li>`).join('');
+    const rolesHtml = papeiStr ? `<div class="func-popup-roles"><strong>Papéis:</strong> ${escHtml(papeiStr)}</div>` : '';
+
+    return `
+      <div class="func-wrap">
+        <span class="func-tag">${escHtml(preview)}</span>
+        <div class="func-popup">
+          <div class="func-popup-title">Grupos</div>
+          <ul class="func-popup-list">${listItems}</ul>
+          ${rolesHtml}
+        </div>
+      </div>`;
+  }
+
+  function renderUsuarios(list) {
+    const tbody = document.getElementById('tbody-usuarios');
+    if (!list || list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#aaa; padding:24px;">Nenhum usuário encontrado.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = list.map(u => {
+      const nome = u.nome || '-';
+      const email = u.email || '';
+      const funcCell = buildFuncCell(u.grupos, u.papeis);
+      const papelCell = u.papeis
+        ? `<span class="time-text">${escHtml(u.papeis)}</span>`
+        : '';
+      const acessoCell = u.ultimo_acesso_fmt
+        ? `<span class="time-text">${escHtml(u.ultimo_acesso_fmt)}</span>`
+        : `<span class="time-never">Nunca acessou</span>`;
+
+      const actionsCell = state.isAdmin
+        ? `<div class="actions">
+             <button class="icon-btn" title="Editar" onclick="openEditUserModal(${u.id})">${editIcon}</button>
+             <button class="icon-btn" title="Excluir" onclick="deleteUsuario(${u.id}, '${escAttr(nome)}')">${deleteIcon}</button>
+           </div>`
+        : '';
+
+      return `
+        <tr>
+          <td>
+            <div class="user-name">${escHtml(nome)}</div>
+            <div class="user-email">${escHtml(email)}</div>
+          </td>
+          <td>${funcCell}</td>
+          <td>${papelCell}</td>
+          <td>${acessoCell}</td>
+          <td>${actionsCell}</td>
+        </tr>`;
+    }).join('');
+  }
+
+  function filterUsuarios(term) {
+    const q = term.toLowerCase().trim();
+    if (!q) {
+      renderUsuarios(state.usuarios);
+      return;
+    }
+    const filtered = state.usuarios.filter(u =>
+      (u.nome || '').toLowerCase().includes(q) ||
+      (u.email || '').toLowerCase().includes(q)
+    );
+    renderUsuarios(filtered);
+  }
+
+  /* ══════════════════════════════════════════
+     RENDER GRUPOS TABLE
+  ══════════════════════════════════════════ */
+  function renderGrupos(list) {
+    const tbody = document.getElementById('tbody-grupos');
+    if (!list || list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#aaa; padding:24px;">Nenhum grupo encontrado.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = list.map(g => `
+      <tr>
+        <td style="font-weight:500;">${escHtml(g.nome)}</td>
+        <td>${g.total_permissoes != null ? g.total_permissoes : '-'}</td>
+        <td><span class="badge-num" onclick="showGrupoUsersPopup(${g.id}, '${escAttr(g.nome)}', event)">${g.total_usuarios != null ? g.total_usuarios : 0} ↗</span></td>
+      </tr>`
+    ).join('');
+  }
+
+  function filterGrupos(term) {
+    const q = term.toLowerCase().trim();
+    if (!q) {
+      renderGrupos(state.grupos);
+      return;
+    }
+    const filtered = state.grupos.filter(g =>
+      (g.nome || '').toLowerCase().includes(q)
+    );
+    renderGrupos(filtered);
+  }
+
+  /* ══════════════════════════════════════════
+     ADD USER MODAL
+  ══════════════════════════════════════════ */
+  function openAddUserModal() {
+    // Reset form
+    document.getElementById('add-user-email').value = '';
+    document.getElementById('add-user-email-error').classList.remove('visible');
+    document.getElementById('add-user-grupo-error').classList.remove('visible');
+
+    // Populate grupos
+    const gruposContainer = document.getElementById('add-user-grupos');
+    gruposContainer.innerHTML = state.grupos.map(g => `
+      <label class="multi-check-item">
+        <input type="checkbox" value="${g.id}">
+        ${escHtml(g.nome)}
+      </label>`
+    ).join('');
+
+    // Populate papeis
+    const papelSelect = document.getElementById('add-user-papel');
+    papelSelect.innerHTML = '<option value="">Selecione um papel</option>' +
+      state.papeis.map(p => `<option value="${p.id}">${escHtml(p.nome)}</option>`).join('');
+
+    openModal('modal-add-user');
+  }
+
+  async function submitAddUser() {
+    const emailEl = document.getElementById('add-user-email');
+    const emailErrEl = document.getElementById('add-user-email-error');
+    const grupoErrEl = document.getElementById('add-user-grupo-error');
+    const submitBtn = document.getElementById('btn-add-user-submit');
+
+    const email = emailEl.value.trim();
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    emailErrEl.classList.toggle('visible', !emailValid);
+
+    const checkedGrupos = [...document.querySelectorAll('#add-user-grupos input[type="checkbox"]:checked')];
+    const grupoIds = checkedGrupos.map(cb => parseInt(cb.value));
+    grupoErrEl.classList.toggle('visible', grupoIds.length === 0);
+
+    if (!emailValid || grupoIds.length === 0) return;
+
+    const papelId = document.getElementById('add-user-papel').value;
+    const papelIds = papelId ? [parseInt(papelId)] : [];
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Salvando...';
+
+    try {
+      const res = await apiFetch('/usuarios', {
+        method: 'POST',
+        body: JSON.stringify({ email, grupo_ids: grupoIds, papel_ids: papelIds })
+      });
+
+      if (res.success || res.id || (res.data && res.data.id)) {
+        showToast('Usuário adicionado com sucesso!');
+        closeModal('modal-add-user');
+        await reloadUsuarios();
+        await reloadGrupos();
+      } else {
+        showToast(res.message || res.error || 'Erro ao adicionar usuário.', 'error');
+      }
+    } catch (err) {
+      showToast('Erro de conexão ao adicionar usuário.', 'error');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Adicionar';
+    }
+  }
+
+  /* ══════════════════════════════════════════
+     EDIT USER MODAL
+  ══════════════════════════════════════════ */
+  async function openEditUserModal(userId) {
+    try {
+      const res = await apiFetch(`/usuarios/${userId}`);
+      const user = res.data || res;
+
+      document.getElementById('edit-user-id').value = userId;
+      document.getElementById('edit-user-email').value = user.email || '';
+      document.getElementById('edit-user-email-error').classList.remove('visible');
+      document.getElementById('edit-user-grupo-error').classList.remove('visible');
+
+      // Get current group IDs for this user
+      let currentGrupoIds = [];
+      if (user.grupo_ids) {
+        currentGrupoIds = user.grupo_ids;
+      } else if (user.grupos && typeof user.grupos === 'string') {
+        // Try to match group names to IDs from state
+        const userGroupNames = user.grupos.split(',').map(s => s.trim().toLowerCase());
+        currentGrupoIds = state.grupos
+          .filter(g => userGroupNames.includes(g.nome.toLowerCase()))
+          .map(g => g.id);
+      }
+
+      // Populate grupos
+      const gruposContainer = document.getElementById('edit-user-grupos');
+      gruposContainer.innerHTML = state.grupos.map(g => `
+        <label class="multi-check-item">
+          <input type="checkbox" value="${g.id}" ${currentGrupoIds.includes(g.id) ? 'checked' : ''}>
+          ${escHtml(g.nome)}
+        </label>`
+      ).join('');
+
+      // Get current papel ID
+      let currentPapelId = '';
+      if (user.papel_ids && user.papel_ids.length > 0) {
+        currentPapelId = user.papel_ids[0];
+      } else if (user.papeis && typeof user.papeis === 'string') {
+        const match = state.papeis.find(p => p.nome.toLowerCase() === user.papeis.toLowerCase().trim());
+        if (match) currentPapelId = match.id;
+      }
+
+      // Populate papeis
+      const papelSelect = document.getElementById('edit-user-papel');
+      papelSelect.innerHTML = '<option value="">Selecione um papel</option>' +
+        state.papeis.map(p => `<option value="${p.id}" ${p.id == currentPapelId ? 'selected' : ''}>${escHtml(p.nome)}</option>`).join('');
+
+      openModal('modal-edit-user');
+    } catch (err) {
+      showToast('Erro ao carregar dados do usuário.', 'error');
+    }
+  }
+
+  async function submitEditUser() {
+    const userId = document.getElementById('edit-user-id').value;
+    const emailEl = document.getElementById('edit-user-email');
+    const emailErrEl = document.getElementById('edit-user-email-error');
+    const grupoErrEl = document.getElementById('edit-user-grupo-error');
+    const submitBtn = document.getElementById('btn-edit-user-submit');
+
+    const email = emailEl.value.trim();
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    emailErrEl.classList.toggle('visible', !emailValid);
+
+    const checkedGrupos = [...document.querySelectorAll('#edit-user-grupos input[type="checkbox"]:checked')];
+    const grupoIds = checkedGrupos.map(cb => parseInt(cb.value));
+    grupoErrEl.classList.toggle('visible', grupoIds.length === 0);
+
+    if (!emailValid || grupoIds.length === 0) return;
+
+    const papelId = document.getElementById('edit-user-papel').value;
+    const papelIds = papelId ? [parseInt(papelId)] : [];
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Salvando...';
+
+    try {
+      const res = await apiFetch(`/usuarios/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ email, grupo_ids: grupoIds, papel_ids: papelIds })
+      });
+
+      if (res.success || res.id || (res.data && res.data.id)) {
+        showToast('Usuário atualizado com sucesso!');
+        closeModal('modal-edit-user');
+        await reloadUsuarios();
+      } else {
+        showToast(res.message || res.error || 'Erro ao atualizar usuário.', 'error');
+      }
+    } catch (err) {
+      showToast('Erro de conexão ao atualizar usuário.', 'error');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Salvar';
+    }
+  }
+
+  /* ══════════════════════════════════════════
+     DELETE USER
+  ══════════════════════════════════════════ */
+  async function deleteUsuario(userId, nome) {
+    if (!window.confirm(`Tem certeza que deseja excluir o usuário "${nome}"?`)) return;
+
+    try {
+      const res = await apiFetch(`/usuarios/${userId}`, { method: 'DELETE' });
+
+      if (res.success) {
+        showToast('Usuário excluído com sucesso!');
+        await reloadUsuarios();
+        await reloadGrupos();
+      } else {
+        showToast(res.message || res.error || 'Erro ao excluir usuário.', 'error');
+      }
+    } catch (err) {
+      showToast('Erro de conexão ao excluir usuário.', 'error');
+    }
+  }
+
+  /* ══════════════════════════════════════════
+     ADD GROUP – USERS LIST (screen 5)
+  ══════════════════════════════════════════ */
+  function renderAddGroupUserList() {
+    const container = document.getElementById('add-group-user-list');
+    if (!state.usuarios.length) {
+      container.innerHTML = '<p style="color:#aaa; font-size:13px; padding:10px 0;">Nenhum usuário disponível.</p>';
+      return;
+    }
+
+    container.innerHTML = state.usuarios.map((u, i) => {
+      const nome = u.nome || u.email || 'Sem nome';
+      const email = u.email || '';
+      const grupos = u.grupos || '';
+      const uid = `agu-${u.id}`;
+
+      let gruposHtml = '';
+      if (grupos) {
+        const grupoList = grupos.split(',').map(s => s.trim()).filter(Boolean);
+        const displayed = grupoList.slice(0, 3).join(', ');
+        const extra = grupoList.length > 3 ? ` <span class="uci-more">+${grupoList.length - 3}</span>` : '';
+        gruposHtml = `<div class="uci-groups">Grupos: ${escHtml(displayed)}${extra}</div>`;
+      }
+
+      return `
+        <div class="user-check-item">
+          <input type="checkbox" id="${uid}" value="${u.id}">
+          <label for="${uid}" style="cursor:pointer; flex:1;">
+            <div><span class="uci-name">${escHtml(nome)}</span><span class="uci-email">${escHtml(email)}</span></div>
+            ${gruposHtml}
+          </label>
+        </div>`;
+    }).join('');
+  }
+
+  /* ══════════════════════════════════════════
+     ADD GROUP – SUBMIT
+  ══════════════════════════════════════════ */
+  async function submitAddGroup() {
+    const nameInput = document.getElementById('new-group-name');
+    const nome = nameInput.value.trim();
+
+    if (!nome) {
+      showToast('Informe o nome do grupo.', 'error');
+      nameInput.focus();
+      return;
+    }
+
+    // Collect toggle states
+    const toggles = document.querySelectorAll('#add-group-perms .toggle[data-funcionalidade-id]');
+    const permissoes = [...toggles].map(t => ({
+      funcionalidade_id: parseInt(t.getAttribute('data-funcionalidade-id')),
+      habilitado: t.classList.contains('on')
+    }));
+
+    // Collect checked users from screen 5 (if user visited it)
+    const userCheckboxes = document.querySelectorAll('#add-group-user-list input[type="checkbox"]:checked');
+    const usuario_ids = [...userCheckboxes].map(cb => parseInt(cb.value));
+
+    const btn = document.getElementById('btn-add-group');
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
+    try {
+      const res = await apiFetch('/grupos', {
+        method: 'POST',
+        body: JSON.stringify({ nome, permissoes, usuario_ids })
+      });
+
+      if (res.success || res.id || (res.data && res.data.id)) {
+        showToast('Grupo criado com sucesso!');
+        // Reset form
+        nameInput.value = '';
+        document.querySelectorAll('#add-group-perms .toggle').forEach(t => t.classList.remove('on'));
+        // Reset toggles to defaults matching original
+        [1, 6, 7, 12, 13].forEach(id => {
+          const el = document.querySelector(`.toggle[data-funcionalidade-id="${id}"]`);
+          if (el) el.classList.add('on');
+        });
+        await reloadGrupos();
+        showScreen('grupos');
+      } else {
+        showToast(res.message || res.error || 'Erro ao criar grupo.', 'error');
+      }
+    } catch (err) {
+      showToast('Erro de conexão ao criar grupo.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Adicionar';
+    }
+  }
+
+  async function submitAddGroupFromUsers() {
+    // Sync user selections from screen 5 then submit from screen 4 logic
+    await submitAddGroup();
+  }
+
+  /* ══════════════════════════════════════════
+     UTILS
+  ══════════════════════════════════════════ */
+  function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function escAttr(str) {
+    if (!str) return '';
+    return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  }
+
+  /* ══════════════════════════════════════════
+     GRUPO USERS POPUP
+  ══════════════════════════════════════════ */
+  async function showGrupoUsersPopup(grupoId, grupoNome, event) {
+    event.stopPropagation();
+    const popup = document.getElementById('grupo-users-popup');
+    const rect  = event.target.getBoundingClientRect();
+    popup.style.top  = (rect.bottom + 6) + 'px';
+    popup.style.left = Math.min(rect.left, window.innerWidth - 320) + 'px';
+    popup.innerHTML  = `<div class="popup-title">${escHtml(grupoNome)}</div><div style="color:#bbb;font-size:13px;padding:4px 0;">Carregando...</div>`;
+    popup.style.display = 'block';
+
+    try {
+      const res = await apiFetch(`/grupos/${grupoId}`);
+      const usuarios = res.data?.usuarios || [];
+      const usersHtml = usuarios.length === 0
+        ? '<p style="color:#aaa;font-size:13px;padding:4px 0;">Nenhum usuário neste grupo.</p>'
+        : usuarios.map(u => `
+            <div class="popup-user-item">
+              <div style="font-weight:600;font-size:13px;color:#333;">${escHtml(u.nome || u.email)}</div>
+              <div style="font-size:12px;color:#aaa;">${escHtml(u.email)}</div>
+            </div>`).join('');
+      popup.innerHTML = `<div class="popup-title">${escHtml(grupoNome)}</div>${usersHtml}`;
+    } catch {
+      popup.innerHTML = `<div class="popup-title">${escHtml(grupoNome)}</div><div style="color:#e74c3c;font-size:12px;">Erro ao carregar.</div>`;
+    }
+  }
+
+  document.addEventListener('click', function(e) {
+    const popup = document.getElementById('grupo-users-popup');
+    if (popup && popup.style.display !== 'none' && !popup.contains(e.target)) {
+      popup.style.display = 'none';
+    }
+  });
+</script>
+</body>
+</html>
