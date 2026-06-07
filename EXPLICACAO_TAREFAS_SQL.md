@@ -1,7 +1,8 @@
 # Explicação técnica — Tarefas A1 e A2
 
 Disciplina: **Banco de Dados (N2) — UFG**
-Aluno: **Thiago Honorato Ferreira** — thiago.honorato@discente.ufg.br
+Autores: **Thayckowisk Correia Campos** — thayckowisk@discente.ufg.br  
+&emsp;&emsp;&emsp;&emsp;&ensp;**Thiago Honorato Ferreira** — thiago.honorato@discente.ufg.br
 Projeto: **Plataforma SISSA — Módulo de Controle de Acesso**
 
 Este documento contém **todo o código SQL** das atividades avaliativas N2.A1 (funções e procedimentos) e N2.A2 (triggers e views), acompanhado da justificativa de **por que cada objeto atende aos requisitos impostos nos PDFs**.

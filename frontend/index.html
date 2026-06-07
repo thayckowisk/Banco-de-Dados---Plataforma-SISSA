@@ -517,6 +517,27 @@
       max-width: 320px;
       box-shadow: 0 4px 14px rgba(0,0,0,.2);
     }
+
+    /* ── Engajamento badges ── */
+    .badge-eng {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-alto       { background: #e8f8f0; color: #27ae60; }
+    .badge-medio      { background: #fef9e7; color: #c07d00; }
+    .badge-baixo      { background: #fef0e6; color: #e67e22; }
+    .badge-inexistente{ background: #f5f5f5; color: #aaa; }
+
+    /* ── Auditoria op badges ── */
+    .op-insert { color: #27ae60; font-weight: 600; font-size: 12px; }
+    .op-update { color: #4a8fd4; font-weight: 600; font-size: 12px; }
+    .op-delete { color: #e74c3c; font-weight: 600; font-size: 12px; }
+
+    /* ── Toolbar gap ── */
+    .toolbar-actions { display: flex; gap: 8px; }
   </style>
 </head>
 <body>
@@ -593,13 +614,12 @@
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
         </svg>
       </div>
-      <div class="sb-item" title="Editar" onclick="sidebarNav('editar')">
+      <div class="sb-item" title="Engajamento" onclick="sidebarNav('engajamento')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/>
         </svg>
       </div>
-      <div class="sb-item" title="Relatórios" onclick="sidebarNav('relatorios')">
+      <div class="sb-item" title="Auditoria" onclick="sidebarNav('auditoria')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
           <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
@@ -648,7 +668,10 @@
         </svg>
         <input type="text" id="search-usuarios" class="search-input" placeholder="Buscar por usuário" oninput="filterUsuarios(this.value)">
       </div>
-      <button class="btn-primary admin-only" onclick="openAddUserModal()">Adicionar usuário</button>
+      <div class="toolbar-actions">
+        <button class="btn-primary admin-only" onclick="openMigrarModal()">Migrar usuários</button>
+        <button class="btn-primary admin-only" onclick="openAddUserModal()">Adicionar usuário</button>
+      </div>
     </div>
 
     <div class="card">
@@ -709,13 +732,12 @@
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
         </svg>
       </div>
-      <div class="sb-item" title="Editar" onclick="sidebarNav('editar')">
+      <div class="sb-item" title="Engajamento" onclick="sidebarNav('engajamento')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/>
         </svg>
       </div>
-      <div class="sb-item" title="Relatórios" onclick="sidebarNav('relatorios')">
+      <div class="sb-item" title="Auditoria" onclick="sidebarNav('auditoria')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
           <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
@@ -774,6 +796,7 @@
             <th>Grupo</th>
             <th>Permissões</th>
             <th>Usuários</th>
+            <th class="admin-only"></th>
           </tr>
         </thead>
         <tbody id="tbody-grupos">
@@ -862,7 +885,7 @@
           <line x1="8" y1="12" x2="16" y2="12"/>
         </svg>
       </div>
-      Adicionar grupo
+      <span id="group-form-title">Adicionar grupo</span>
     </div>
 
     <div class="tabs">
@@ -875,81 +898,13 @@
       <input type="text" id="new-group-name" class="group-name-input" placeholder="Digite o nome do grupo">
     </div>
 
-    <!-- MÓDULO EDITAIS -->
-    <div class="perm-section">
-      <div class="module-header">
-        <span>Editais</span>
-      </div>
-
-      <div class="sub-section-title">Seleção de editais</div>
-      <div class="perm-row">
-        <span class="perm-name">Visualizar editais</span>
-        <div class="toggle on" data-funcionalidade-id="1" onclick="this.classList.toggle('on')"></div>
-      </div>
-      <div class="perm-row">
-        <span class="perm-name">Gerenciar anexos do edital</span>
-        <div class="toggle" data-funcionalidade-id="2" onclick="this.classList.toggle('on')"></div>
-      </div>
-      <div class="perm-row">
-        <span class="perm-name">Gerenciar status</span>
-        <div class="toggle" data-funcionalidade-id="3" onclick="this.classList.toggle('on')"></div>
-      </div>
-      <div class="perm-row">
-        <span class="perm-name">Adicionar edital manualmente</span>
-        <div class="toggle" data-funcionalidade-id="4" onclick="this.classList.toggle('on')"></div>
-      </div>
-      <div class="perm-row">
-        <span class="perm-name">Gerenciar grupos de editais</span>
-        <div class="toggle" data-funcionalidade-id="5" onclick="this.classList.toggle('on')"></div>
-      </div>
-
-      <div class="sub-section-title">Análise de editais</div>
-      <div class="perm-row">
-        <span class="perm-name">Gerenciar análise de edital</span>
-        <div class="toggle on" data-funcionalidade-id="6" onclick="this.classList.toggle('on')"></div>
-      </div>
-      <div class="perm-row">
-        <span class="perm-name">Visualizar histórico de análise de edital</span>
-        <div class="toggle on" data-funcionalidade-id="7" onclick="this.classList.toggle('on')"></div>
-      </div>
-      <div class="perm-row">
-        <span class="perm-name">Realizar pré-análise técnica</span>
-        <div class="toggle" data-funcionalidade-id="8" onclick="this.classList.toggle('on')"></div>
-      </div>
-      <div class="perm-row">
-        <span class="perm-name">Realizar análise de edital</span>
-        <div class="toggle" data-funcionalidade-id="9" onclick="this.classList.toggle('on')"></div>
-      </div>
-      <div class="perm-row">
-        <span class="perm-name">Gerenciar etapas do edital</span>
-        <div class="toggle" data-funcionalidade-id="10" onclick="this.classList.toggle('on')"></div>
-      </div>
-      <div class="perm-row">
-        <span class="perm-name">Realizar proposta</span>
-        <div class="toggle" data-funcionalidade-id="11" onclick="this.classList.toggle('on')"></div>
-      </div>
-      <div class="perm-row">
-        <span class="perm-name">Gerenciar histórico de análise de edital</span>
-        <div class="toggle on" data-funcionalidade-id="12" onclick="this.classList.toggle('on')"></div>
-      </div>
-    </div>
-
-    <!-- MÓDULO CONTRATOS -->
-    <div class="perm-section">
-      <div class="module-header">
-        <span>Contratos</span>
-      </div>
-
-      <div class="sub-section-title">Consulta de CNPJ</div>
-      <div class="perm-row">
-        <span class="perm-name">Gerenciar consulta</span>
-        <div class="toggle on" data-funcionalidade-id="13" onclick="this.classList.toggle('on')"></div>
-      </div>
+    <div id="perm-container">
+      <p style="color:#bbb; font-size:13px; padding:16px 0;">Carregando funcionalidades...</p>
     </div>
 
     <div class="form-actions">
       <button class="btn-primary" id="btn-add-group" onclick="submitAddGroup()">Adicionar</button>
-      <button class="btn-cancel" onclick="showScreen('grupos')">Cancelar</button>
+      <button class="btn-cancel" onclick="cancelGroupForm()">Cancelar</button>
     </div>
   </main>
 </div>
@@ -1032,7 +987,7 @@
           <line x1="8" y1="12" x2="16" y2="12"/>
         </svg>
       </div>
-      Adicionar grupo
+      <span id="group-form-title-users">Adicionar grupo</span>
     </div>
 
     <div class="tabs">
@@ -1058,8 +1013,200 @@
 
       <div class="form-actions">
         <button class="btn-primary" id="btn-add-group-users" onclick="submitAddGroupFromUsers()">Adicionar</button>
-        <button class="btn-cancel" onclick="showScreen('grupos')">Cancelar</button>
+        <button class="btn-cancel" onclick="cancelGroupForm()">Cancelar</button>
       </div>
+    </div>
+  </main>
+</div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  TELA 6 – ENGAJAMENTO                    ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div id="engajamento" class="screen">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4a8fd4" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-item" title="Início" onclick="sidebarNav('inicio')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9,22 9,12 15,12 15,22"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Permissões" onclick="sidebarNav('permissoes')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Documentos" onclick="sidebarNav('documentos')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14,2 14,8 20,8"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Pastas" onclick="sidebarNav('pastas')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div class="sb-item active" title="Engajamento" onclick="sidebarNav('engajamento')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Auditoria" onclick="sidebarNav('auditoria')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+      </div>
+    </nav>
+    <div class="sb-bottom">
+      <div class="sb-item" title="Configurações" onclick="sidebarNav('configuracoes')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Sair" onclick="handleLogout()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16,17 21,12 16,7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-title">
+      <div class="page-title-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a8fd4" stroke-width="2">
+          <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/>
+        </svg>
+      </div>
+      Engajamento
+    </div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Usuário</th>
+            <th>E-mail</th>
+            <th>Último Acesso</th>
+            <th>Engajamento</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-engajamento">
+          <tr class="skeleton-row"><td colspan="4"><div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  TELA 7 – AUDITORIA                      ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div id="auditoria" class="screen">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4a8fd4" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-item" title="Início" onclick="sidebarNav('inicio')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9,22 9,12 15,12 15,22"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Permissões" onclick="sidebarNav('permissoes')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Documentos" onclick="sidebarNav('documentos')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14,2 14,8 20,8"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Pastas" onclick="sidebarNav('pastas')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Engajamento" onclick="sidebarNav('engajamento')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/>
+        </svg>
+      </div>
+      <div class="sb-item active" title="Auditoria" onclick="sidebarNav('auditoria')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+      </div>
+    </nav>
+    <div class="sb-bottom">
+      <div class="sb-item" title="Configurações" onclick="sidebarNav('configuracoes')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+        </svg>
+      </div>
+      <div class="sb-item" title="Sair" onclick="handleLogout()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16,17 21,12 16,7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-title">
+      <div class="page-title-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a8fd4" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+      </div>
+      Auditoria
+    </div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Data / Hora</th>
+            <th>Tabela</th>
+            <th>Operação</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-auditoria">
+          <tr class="skeleton-row"><td colspan="3"><div></div></td></tr>
+        </tbody>
+      </table>
     </div>
   </main>
 </div>
@@ -1150,6 +1297,64 @@
   </div>
 </div>
 
+<!-- ══════════════════════════════════════════
+     MODAL – MIGRAR USUÁRIOS
+══════════════════════════════════════════ -->
+<div id="modal-migrar" class="modal-backdrop" onclick="backdropClose(event, 'modal-migrar')">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-migrar')">×</button>
+    <div class="modal-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4a8fd4" stroke-width="2">
+        <path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+        <path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+      </svg>
+    </div>
+    <div class="modal-title">Migrar usuários entre grupos</div>
+    <div class="form-group">
+      <label class="form-label">Grupo origem <span class="req">*</span></label>
+      <select id="migrar-origem" class="form-select"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Grupo destino <span class="req">*</span></label>
+      <select id="migrar-destino" class="form-select"></select>
+    </div>
+    <div id="migrar-result" style="display:none; font-size:13px; color:#555; margin-top:10px; padding:10px; background:#f5f9ff; border-radius:6px;"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-migrar')">Fechar</button>
+      <button class="btn-primary" id="btn-migrar-submit" onclick="submitMigrar()">Migrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL – COPIAR GRUPO
+══════════════════════════════════════════ -->
+<div id="modal-copiar-grupo" class="modal-backdrop" onclick="backdropClose(event, 'modal-copiar-grupo')">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-copiar-grupo')">×</button>
+    <div class="modal-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4a8fd4" stroke-width="2">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+      </svg>
+    </div>
+    <div class="modal-title">Copiar grupo</div>
+    <input type="hidden" id="copiar-grupo-origem-id">
+    <div class="form-group">
+      <label class="form-label">Origem: <strong id="copiar-grupo-origem-nome" style="color:#333;"></strong></label>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nome do novo grupo <span class="req">*</span></label>
+      <input type="text" id="copiar-novo-nome" class="form-input" placeholder="Nome do novo grupo">
+      <div id="copiar-nome-error" class="form-error">Informe um nome para o novo grupo.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-copiar-grupo')">Cancelar</button>
+      <button class="btn-primary" id="btn-copiar-submit" onclick="submitCopiarGrupo()">Copiar</button>
+    </div>
+  </div>
+</div>
+
 <script>
   /* ══════════════════════════════════════════
      API HELPER
@@ -1173,7 +1378,10 @@
     papeis: [],
     funcionalidades: [],
     isAdmin: false,
-    currentUserEmail: ''
+    currentUserEmail: '',
+    editingGroupId: null,
+    editingGroupNome: '',
+    editingGroupUsuarioIds: []
   };
 
   /* ══════════════════════════════════════════
@@ -1205,6 +1413,26 @@
     if (popup) popup.style.display = 'none';
     if (id === 'add-group-users') {
       renderAddGroupUserList();
+    }
+    if (id === 'add-group-perms') {
+      const isEdit = !!state.editingGroupId;
+      const label = isEdit ? 'Editar grupo' : 'Adicionar grupo';
+      const titleEl = document.getElementById('group-form-title');
+      const titleUsersEl = document.getElementById('group-form-title-users');
+      const btnEl = document.getElementById('btn-add-group');
+      const btnUsersEl = document.getElementById('btn-add-group-users');
+      if (titleEl) titleEl.textContent = label;
+      if (titleUsersEl) titleUsersEl.textContent = label;
+      if (btnEl) btnEl.textContent = isEdit ? 'Salvar' : 'Adicionar';
+      if (btnUsersEl) btnUsersEl.textContent = isEdit ? 'Salvar' : 'Adicionar';
+      document.getElementById('new-group-name').value = isEdit ? state.editingGroupNome : '';
+      loadPermissoesForm(state.editingGroupId || null);
+    }
+    if (id === 'engajamento') {
+      loadEngajamento();
+    }
+    if (id === 'auditoria') {
+      loadAuditoria();
     }
   }
 
@@ -1322,6 +1550,10 @@
   function sidebarNav(mod) {
     if (mod === 'inicio' || mod === 'permissoes') {
       showScreen('usuarios');
+    } else if (mod === 'engajamento') {
+      showScreen('engajamento');
+    } else if (mod === 'auditoria') {
+      showScreen('auditoria');
     } else {
       showToast('Módulo não disponível nesta versão.', 'info');
     }
@@ -1427,13 +1659,24 @@
       return;
     }
 
-    tbody.innerHTML = list.map(g => `
+    const copyIcon   = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+
+    tbody.innerHTML = list.map(g => {
+      const actionsCell = state.isAdmin
+        ? `<div class="actions">
+             <button class="icon-btn" title="Editar" onclick="openEditGroup(${g.id}, '${escAttr(g.nome)}')">${editIcon}</button>
+             <button class="icon-btn" title="Copiar" onclick="openCopiarModal(${g.id}, '${escAttr(g.nome)}')">${copyIcon}</button>
+             <button class="icon-btn" title="Excluir" onclick="deleteGrupo(${g.id}, '${escAttr(g.nome)}')">${deleteIcon}</button>
+           </div>`
+        : '';
+      return `
       <tr>
         <td style="font-weight:500;">${escHtml(g.nome)}</td>
         <td>${g.total_permissoes != null ? g.total_permissoes : '-'}</td>
         <td><span class="badge-num" onclick="showGrupoUsersPopup(${g.id}, '${escAttr(g.nome)}', event)">${g.total_usuarios != null ? g.total_usuarios : 0} ↗</span></td>
-      </tr>`
-    ).join('');
+        <td>${actionsCell}</td>
+      </tr>`;
+    }).join('');
   }
 
   function filterGrupos(term) {
@@ -1649,11 +1892,12 @@
       return;
     }
 
-    container.innerHTML = state.usuarios.map((u, i) => {
+    container.innerHTML = state.usuarios.map((u) => {
       const nome = u.nome || u.email || 'Sem nome';
       const email = u.email || '';
       const grupos = u.grupos || '';
       const uid = `agu-${u.id}`;
+      const preChecked = state.editingGroupUsuarioIds.includes(u.id);
 
       let gruposHtml = '';
       if (grupos) {
@@ -1665,7 +1909,7 @@
 
       return `
         <div class="user-check-item">
-          <input type="checkbox" id="${uid}" value="${u.id}">
+          <input type="checkbox" id="${uid}" value="${u.id}" ${preChecked ? 'checked' : ''}>
           <label for="${uid}" style="cursor:pointer; flex:1;">
             <div><span class="uci-name">${escHtml(nome)}</span><span class="uci-email">${escHtml(email)}</span></div>
             ${gruposHtml}
@@ -1687,8 +1931,8 @@
       return;
     }
 
-    // Collect toggle states
-    const toggles = document.querySelectorAll('#add-group-perms .toggle[data-funcionalidade-id]');
+    // Collect toggle states from dynamic perm-container
+    const toggles = document.querySelectorAll('#perm-container .toggle[data-funcionalidade-id]');
     const permissoes = [...toggles].map(t => ({
       funcionalidade_id: parseInt(t.getAttribute('data-funcionalidade-id')),
       habilitado: t.classList.contains('on')
@@ -1703,31 +1947,33 @@
     btn.textContent = 'Salvando...';
 
     try {
-      const res = await apiFetch('/grupos', {
-        method: 'POST',
-        body: JSON.stringify({ nome, permissoes, usuario_ids })
-      });
+      const isEdit = !!state.editingGroupId;
+      const res = isEdit
+        ? await apiFetch(`/grupos/${state.editingGroupId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ nome, permissoes, usuario_ids })
+          })
+        : await apiFetch('/grupos', {
+            method: 'POST',
+            body: JSON.stringify({ nome, permissoes, usuario_ids })
+          });
 
       if (res.success || res.id || (res.data && res.data.id)) {
-        showToast('Grupo criado com sucesso!');
-        // Reset form
+        showToast(isEdit ? 'Grupo atualizado com sucesso!' : 'Grupo criado com sucesso!');
+        state.editingGroupId = null;
+        state.editingGroupNome = '';
+        state.editingGroupUsuarioIds = [];
         nameInput.value = '';
-        document.querySelectorAll('#add-group-perms .toggle').forEach(t => t.classList.remove('on'));
-        // Reset toggles to defaults matching original
-        [1, 6, 7, 12, 13].forEach(id => {
-          const el = document.querySelector(`.toggle[data-funcionalidade-id="${id}"]`);
-          if (el) el.classList.add('on');
-        });
         await reloadGrupos();
         showScreen('grupos');
       } else {
-        showToast(res.message || res.error || 'Erro ao criar grupo.', 'error');
+        showToast(res.message || res.error || 'Erro ao salvar grupo.', 'error');
       }
     } catch (err) {
-      showToast('Erro de conexão ao criar grupo.', 'error');
+      showToast('Erro de conexão ao salvar grupo.', 'error');
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Adicionar';
+      btn.textContent = state.editingGroupId ? 'Salvar' : 'Adicionar';
     }
   }
 
@@ -1788,6 +2034,261 @@
       popup.style.display = 'none';
     }
   });
+
+  /* ══════════════════════════════════════════
+     EDITAR / EXCLUIR GRUPO
+  ══════════════════════════════════════════ */
+  async function openEditGroup(grupoId, grupoNome) {
+    // Load group's current users before navigating
+    try {
+      const res = await apiFetch(`/grupos/${grupoId}`);
+      const usuarios = res.data?.usuarios || [];
+      state.editingGroupUsuarioIds = usuarios.map(u => u.id);
+    } catch {
+      state.editingGroupUsuarioIds = [];
+    }
+    state.editingGroupId = grupoId;
+    state.editingGroupNome = grupoNome;
+    showScreen('add-group-perms');
+  }
+
+  async function deleteGrupo(grupoId, nome) {
+    if (!window.confirm(`Excluir o grupo "${nome}"?\n\nAtenção: o grupo não pode ter usuários vinculados.`)) return;
+    try {
+      const res = await apiFetch(`/grupos/${grupoId}`, { method: 'DELETE' });
+      if (res.success) {
+        showToast('Grupo excluído com sucesso!');
+        await reloadGrupos();
+      } else {
+        showToast(res.error || 'Erro ao excluir grupo.', 'error');
+      }
+    } catch (err) {
+      showToast('Erro de conexão ao excluir grupo.', 'error');
+    }
+  }
+
+  function cancelGroupForm() {
+    state.editingGroupId = null;
+    state.editingGroupNome = '';
+    state.editingGroupUsuarioIds = [];
+    showScreen('grupos');
+  }
+
+  /* ══════════════════════════════════════════
+     PERMISSÕES DINÂMICAS (vw_consulta_permissoes_grupo)
+  ══════════════════════════════════════════ */
+  async function loadPermissoesForm(grupoId = null) {
+    const container = document.getElementById('perm-container');
+    container.innerHTML = '<p style="color:#bbb;font-size:13px;padding:16px 0;">Carregando funcionalidades...</p>';
+
+    try {
+      const funcsRes = await apiFetch('/funcionalidades');
+      const funcionalidades = funcsRes.data || [];
+
+      let estadoMap = {};
+      if (grupoId) {
+        const permsRes = await apiFetch(`/grupos/permissoes/${grupoId}`);
+        (permsRes.data || []).forEach(p => { estadoMap[p.funcionalidade_id] = p.habilitado; });
+      }
+
+      // Group: modulo → categoria → [funcs]
+      const modulos = {};
+      funcionalidades.forEach(f => {
+        if (!modulos[f.modulo]) modulos[f.modulo] = {};
+        if (!modulos[f.modulo][f.categoria]) modulos[f.modulo][f.categoria] = [];
+        modulos[f.modulo][f.categoria].push(f);
+      });
+
+      let html = '';
+      for (const [modulo, categorias] of Object.entries(modulos)) {
+        html += `<div class="perm-section"><div class="module-header"><span>${escHtml(modulo)}</span></div>`;
+        for (const [categoria, funcs] of Object.entries(categorias)) {
+          html += `<div class="sub-section-title">${escHtml(categoria)}</div>`;
+          funcs.forEach(f => {
+            const on = grupoId ? (estadoMap[f.id] === true) : false;
+            html += `<div class="perm-row">
+              <span class="perm-name">${escHtml(f.nome)}</span>
+              <div class="toggle${on ? ' on' : ''}" data-funcionalidade-id="${f.id}" onclick="this.classList.toggle('on')"></div>
+            </div>`;
+          });
+        }
+        html += '</div>';
+      }
+
+      container.innerHTML = html || '<p style="color:#aaa;padding:16px;">Nenhuma funcionalidade cadastrada.</p>';
+    } catch (err) {
+      container.innerHTML = '<p style="color:#e74c3c;font-size:13px;padding:16px 0;">Erro ao carregar funcionalidades.</p>';
+    }
+  }
+
+  /* ══════════════════════════════════════════
+     ENGAJAMENTO (fu_verificar_engajamento)
+  ══════════════════════════════════════════ */
+  async function loadEngajamento() {
+    const tbody = document.getElementById('tbody-engajamento');
+    tbody.innerHTML = '<tr class="skeleton-row"><td colspan="4"><div></div></td></tr>';
+    try {
+      const res = await apiFetch('/engajamento');
+      const data = res.data || [];
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:24px;">Nenhum dado de engajamento.</td></tr>';
+        return;
+      }
+
+      const badgeClass = { 'Alto': 'badge-alto', 'Médio': 'badge-medio', 'Baixo': 'badge-baixo', 'Inexistente': 'badge-inexistente' };
+
+      tbody.innerHTML = data.map(u => {
+        const cls = badgeClass[u.engajamento] || 'badge-inexistente';
+        const acesso = u.ultimo_acesso
+          ? new Date(u.ultimo_acesso).toLocaleString('pt-BR')
+          : '<span style="color:#ccc;font-style:italic;">Nunca acessou</span>';
+        return `<tr>
+          <td style="font-weight:600;color:#333;">${escHtml(u.nome || '-')}</td>
+          <td style="color:#aaa;font-size:12px;">${escHtml(u.email || '')}</td>
+          <td class="time-text">${acesso}</td>
+          <td><span class="badge-eng ${cls}">${escHtml(u.engajamento)}</span></td>
+        </tr>`;
+      }).join('');
+    } catch (err) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#e74c3c;padding:24px;">Erro ao carregar engajamento.</td></tr>';
+    }
+  }
+
+  /* ══════════════════════════════════════════
+     AUDITORIA (tg_fn_auditoria)
+  ══════════════════════════════════════════ */
+  async function loadAuditoria() {
+    const tbody = document.getElementById('tbody-auditoria');
+    tbody.innerHTML = '<tr class="skeleton-row"><td colspan="3"><div></div></td></tr>';
+    try {
+      const res = await apiFetch('/auditoria');
+      const data = res.data || [];
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#aaa;padding:24px;">Nenhum registro de auditoria.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.map(a => {
+        const opCls = a.operacao === 'INSERT' ? 'op-insert' : a.operacao === 'UPDATE' ? 'op-update' : 'op-delete';
+        const dt = new Date(a.data_hora).toLocaleString('pt-BR');
+        return `<tr>
+          <td class="time-text">${dt}</td>
+          <td style="font-weight:500;color:#444;">${escHtml(a.nome_entidade || '-')}</td>
+          <td><span class="${opCls}">${escHtml(a.operacao)}</span></td>
+        </tr>`;
+      }).join('');
+    } catch (err) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#e74c3c;padding:24px;">Erro ao carregar auditoria.</td></tr>';
+    }
+  }
+
+  /* ══════════════════════════════════════════
+     MIGRAR USUÁRIOS (fu_migrar_usuarios_grupo)
+  ══════════════════════════════════════════ */
+  function openMigrarModal() {
+    const origemSel = document.getElementById('migrar-origem');
+    const destinoSel = document.getElementById('migrar-destino');
+    const resultDiv = document.getElementById('migrar-result');
+    resultDiv.style.display = 'none';
+
+    const opts = state.grupos.map(g => `<option value="${escHtml(g.nome)}">${escHtml(g.nome)}</option>`).join('');
+    origemSel.innerHTML = opts;
+    destinoSel.innerHTML = opts;
+    if (state.grupos.length > 1) destinoSel.selectedIndex = 1;
+
+    openModal('modal-migrar');
+  }
+
+  async function submitMigrar() {
+    const origem  = document.getElementById('migrar-origem').value;
+    const destino = document.getElementById('migrar-destino').value;
+    const resultDiv = document.getElementById('migrar-result');
+    const btn = document.getElementById('btn-migrar-submit');
+
+    if (origem === destino) {
+      showToast('Origem e destino não podem ser o mesmo grupo.', 'error');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Migrando...';
+    resultDiv.style.display = 'none';
+
+    try {
+      const res = await apiFetch('/usuarios/migrar', {
+        method: 'POST',
+        body: JSON.stringify({ grupo_origem: origem, grupo_destino: destino })
+      });
+
+      if (res.success) {
+        const migrados = res.data || [];
+        if (migrados.length === 0) {
+          resultDiv.textContent = `Nenhum usuário encontrado em "${origem}".`;
+        } else {
+          const nomes = migrados.map(u => u.nome || u.email).join(', ');
+          resultDiv.textContent = `${migrados.length} usuário(s) migrado(s) para "${destino}": ${nomes}`;
+        }
+        resultDiv.style.display = 'block';
+        showToast('Migração realizada com sucesso!');
+        await reloadUsuarios();
+        await reloadGrupos();
+      } else {
+        showToast(res.error || 'Erro ao migrar.', 'error');
+      }
+    } catch (err) {
+      showToast('Erro de conexão ao migrar.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Migrar';
+    }
+  }
+
+  /* ══════════════════════════════════════════
+     COPIAR GRUPO (pr_copiar_grupo)
+  ══════════════════════════════════════════ */
+  function openCopiarModal(grupoId, grupoNome) {
+    document.getElementById('copiar-grupo-origem-id').value = grupoNome;
+    document.getElementById('copiar-grupo-origem-nome').textContent = grupoNome;
+    document.getElementById('copiar-novo-nome').value = '';
+    document.getElementById('copiar-nome-error').classList.remove('visible');
+    openModal('modal-copiar-grupo');
+  }
+
+  async function submitCopiarGrupo() {
+    const origem   = document.getElementById('copiar-grupo-origem-id').value;
+    const novoNome = document.getElementById('copiar-novo-nome').value.trim();
+    const erroEl   = document.getElementById('copiar-nome-error');
+    const btn      = document.getElementById('btn-copiar-submit');
+
+    if (!novoNome) {
+      erroEl.classList.add('visible');
+      return;
+    }
+    erroEl.classList.remove('visible');
+
+    btn.disabled = true;
+    btn.textContent = 'Copiando...';
+
+    try {
+      const res = await apiFetch('/grupos/copiar', {
+        method: 'POST',
+        body: JSON.stringify({ grupo_origem: origem, novo_grupo: novoNome })
+      });
+
+      if (res.success) {
+        showToast(`Grupo "${novoNome}" criado com ${res.data.total_habilitadas} permissões habilitadas.`);
+        closeModal('modal-copiar-grupo');
+        await reloadGrupos();
+      } else {
+        showToast(res.error || 'Erro ao copiar grupo.', 'error');
+      }
+    } catch (err) {
+      showToast('Erro de conexão ao copiar grupo.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Copiar';
+    }
+  }
 </script>
 </body>
 </html>

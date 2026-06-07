@@ -11,7 +11,7 @@ app.use(express.json());
 
 // Serve static frontend
 app.use(express.static(
-  path.join(__dirname, '..', 'Banco-de-Dados---Plataforma-SISSA')
+  path.join(__dirname, '..', 'frontend')
 ));
 
 // Routes
