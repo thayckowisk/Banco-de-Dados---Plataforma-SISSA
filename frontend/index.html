@@ -60,6 +60,131 @@
     .login-error { color: #e74c3c; font-size: 12px; margin-top: 10px; text-align: center; display: none; }
     .login-error.visible { display: block; }
 
+    /* ══════════════════════════════════════════
+       CAFe Institution Login Flow
+    ══════════════════════════════════════════ */
+    .cafe-outer {
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh; padding: 40px 20px 60px; background: #f1f3f5;
+    }
+    .cafe-service-header { text-align: center; margin-bottom: 18px; }
+    .cafe-service-label { display: block; font-size: 14px; color: #555; margin-bottom: 3px; }
+    .cafe-service-name { display: block; font-size: 26px; font-weight: 700; color: #222; }
+    .cafe-card {
+      background: #fff; border-radius: 8px;
+      box-shadow: 0 2px 14px rgba(0,0,0,.13);
+      padding: 32px 36px; width: 100%; max-width: 620px; margin-bottom: 24px;
+    }
+    .cafe-card-top {
+      display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;
+    }
+    .cafe-find-title { font-size: 27px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
+    .cafe-find-sub   { font-size: 14px; color: #666; }
+    .cafe-fed-badge  { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .cafe-chimarro-ico { font-size: 30px; line-height: 1; }
+    .cafe-fed-name   { display: flex; flex-direction: column; font-size: 11px; font-weight: 700; color: #444; line-height: 1.4; }
+    .cafe-hr         { height: 1px; background: #e0e0e0; margin-bottom: 16px; }
+    .cafe-search-row { position: relative; margin-bottom: 14px; }
+    .cafe-search-inp {
+      width: 100%; padding: 10px 40px 10px 14px;
+      border: 1px solid #ccc; border-radius: 4px;
+      font-size: 14px; color: #333; outline: none;
+    }
+    .cafe-search-inp:focus { border-color: #888; }
+    .cafe-search-ico {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none;
+    }
+    /* dropdown suggestion */
+    .cafe-dropdown {
+      position: absolute; top: 100%; left: 0; right: 0;
+      background: #fff; border: 1px solid #ddd; border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.1); z-index: 20; margin-top: 2px;
+    }
+    .cafe-dropdown-item {
+      padding: 10px 14px; font-size: 14px; color: #333; cursor: pointer;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .cafe-dropdown-item:last-child { border-bottom: none; }
+    .cafe-dropdown-item:hover { background: #f5f5f5; }
+    /* UFG result block */
+    .cafe-result-block { padding: 14px 0 4px; border-top: 1px solid #e0e0e0; margin-bottom: 14px; }
+    .cafe-result-short { font-size: 16px; font-weight: 700; color: #1a1a1a; margin-bottom: 2px; }
+    .cafe-result-full  { font-size: 13px; color: #666; margin-bottom: 14px; }
+    .cafe-prosseguir-btn {
+      background: #1a56d9; color: #fff; border: none; border-radius: 4px;
+      padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: background .15s;
+    }
+    .cafe-prosseguir-btn:hover { background: #1344b0; }
+    .cafe-terms-text { font-size: 12px; color: #888; margin-top: 6px; }
+    .cafe-terms-link { color: #1a56d9; text-decoration: none; }
+    .cafe-terms-link:hover { text-decoration: underline; }
+    /* Footer RNP */
+    .cafe-rnp-footer {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      justify-content: center; max-width: 640px;
+    }
+    .cafe-rnp-text      { font-size: 16px; font-weight: 900; color: #005aa7; letter-spacing: -.3px; }
+    .cafe-ministry-text { font-size: 8px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .3px; line-height: 1.3; text-align: center; }
+    .cafe-govbr-text    { font-size: 8px; font-weight: 900; color: #1a3a8a; text-transform: uppercase; text-align: center; }
+
+    /* Step 3 – Redirect card */
+    .cafe-redirect-card {
+      background: #fff; border-radius: 8px; box-shadow: 0 2px 14px rgba(0,0,0,.13);
+      padding: 44px 40px; width: 100%; max-width: 400px; text-align: center;
+    }
+    .cafe-redir-label  { font-size: 13px; color: #888; margin-bottom: 4px; }
+    .cafe-redir-inst   { font-size: 20px; font-weight: 700; color: #222; margin-bottom: 28px; }
+    .cafe-redir-logos  { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 28px; }
+    .cafe-redir-fed    { display: flex; align-items: center; gap: 6px; }
+    .cafe-redir-to-inst{ font-size: 22px; font-weight: 700; color: #222; }
+    .cafe-progress-outer { height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; margin-bottom: 22px; }
+    .cafe-progress-inner {
+      height: 100%; background: #1a56d9; border-radius: 4px;
+      width: 0%; transition: width 2s ease;
+    }
+    .cafe-redir-support { font-size: 13px; color: #666; line-height: 1.6; }
+
+    /* Step 4 – UFG Login card */
+    .cafe-s4-wrap {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; min-height: 100vh; background: #f1f3f5; padding: 24px 16px;
+    }
+    .cafe-ufg-login-card {
+      background: #fff; border-radius: 8px; box-shadow: 0 2px 18px rgba(0,0,0,.14);
+      padding: 40px 44px; width: 100%; max-width: 400px; text-align: center;
+    }
+    .cafe-ufg-access    { font-size: 13px; color: #888; margin-bottom: 18px; }
+    .cafe-ufg-logo-row  { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 30px; }
+    .cafe-ufg-name      { text-align: left; }
+    .cafe-ufg-abbr      { display: block; font-size: 30px; font-weight: 900; color: #1a2e5a; line-height: 1; }
+    .cafe-ufg-fullname  { display: block; font-size: 8.5px; font-weight: 700; color: #1a2e5a; text-transform: uppercase; letter-spacing: .6px; line-height: 1.5; }
+    .cafe-ufg-field-label { display: block; font-size: 13px; color: #555; text-align: left; margin-bottom: 6px; margin-top: 14px; }
+    .cafe-ufg-input {
+      width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 4px;
+      font-size: 14px; color: #333; outline: none; box-sizing: border-box;
+    }
+    .cafe-ufg-input:focus { border-color: #1a56d9; }
+    .cafe-ufg-checkbox-wrap {
+      display: flex; align-items: center; gap: 7px; font-size: 13px; color: #555;
+      cursor: pointer; text-align: left; margin: 14px 0 10px;
+    }
+    .cafe-ufg-error {
+      color: #e74c3c; font-size: 12px; text-align: center; margin-bottom: 8px; display: none;
+    }
+    .cafe-ufg-error.visible { display: block; }
+    .cafe-ufg-entrar-btn {
+      width: 100%; padding: 12px; background: #1a56d9; color: #fff;
+      border: none; border-radius: 4px; font-size: 15px; font-weight: 700;
+      cursor: pointer; transition: background .15s;
+    }
+    .cafe-ufg-entrar-btn:hover { background: #1344b0; }
+    .cafe-ufg-entrar-btn:disabled { opacity: .6; cursor: not-allowed; }
+    .cafe-ufg-links-row { display: flex; justify-content: space-between; margin-top: 16px; }
+    .cafe-ufg-link { font-size: 13px; color: #1a56d9; text-decoration: none; font-weight: 600; }
+    .cafe-ufg-link:hover { text-decoration: underline; }
+    .cafe-version-text { font-size: 12px; color: #bbb; margin-top: 14px; }
+
     /* Admin-only elements */
     .user-mode .admin-only { display: none !important; }
 
@@ -571,6 +696,12 @@
       </div>
       <div id="login-error" class="login-error">E-mail ou senha incorretos.</div>
       <button class="login-submit" id="login-btn" onclick="handleLogin()">Entrar</button>
+    </div>
+    <div style="text-align:right; margin-top:18px; padding-top:14px; border-top:1px solid #f0f0f0;">
+      <a href="#" onclick="showScreen('sissa-login'); return false;"
+         style="font-size:11px; color:#aaa; text-decoration:none; letter-spacing:.3px;">
+        Sistema Sissa &rarr;
+      </a>
     </div>
   </div>
 </div>
@@ -1355,6 +1486,1394 @@
   </div>
 </div>
 
+<style>
+/* ══════════════════════════════════════════
+   SISSA DOMAIN – CSS (purple theme)
+══════════════════════════════════════════ */
+:root {
+  --s-primary:   #7c3aed;
+  --s-primary-d: #6d28d9;
+  --s-primary-l: #f5f3ff;
+  --s-primary-m: #ede9fe;
+  --s-text:      #1e1b4b;
+  --s-muted:     #6b7280;
+  --s-border:    #e5e7eb;
+  --s-bg:        #f9fafb;
+}
+
+/* Sissa login – CAFe style */
+#sissa-login {
+  align-items: stretch;
+  justify-content: flex-start;
+  background: #f1f3f5;
+  flex-direction: column;
+}
+.sissa-login-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 40px 44px 36px;
+  width: 440px;
+  box-shadow: 0 8px 32px rgba(124,58,237,.25);
+}
+.sissa-login-logo {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 24px; justify-content: center;
+}
+.sissa-login-logo-icon {
+  width: 36px; height: 36px;
+  background: var(--s-primary);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.sissa-login-appname {
+  font-size: 18px; font-weight: 700; color: var(--s-text);
+  letter-spacing: -.3px;
+}
+.sissa-login-title {
+  font-size: 13px; color: var(--s-muted);
+  text-align: center; margin-bottom: 20px;
+}
+.sissa-search-label {
+  font-size: 12px; color: var(--s-muted); margin-bottom: 8px; display: block;
+}
+.sissa-search-input {
+  width: 100%; padding: 9px 12px;
+  border: 1px solid var(--s-border); border-radius: 8px;
+  font-size: 14px; color: #333; outline: none; margin-bottom: 12px;
+}
+.sissa-search-input:focus { border-color: var(--s-primary); }
+.sissa-inst-list { list-style: none; margin-bottom: 20px; }
+.sissa-inst-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border: 1px solid var(--s-border);
+  border-radius: 8px; margin-bottom: 6px; cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.sissa-inst-item:hover,
+.sissa-inst-item.selected { border-color: var(--s-primary); background: var(--s-primary-l); }
+.sissa-inst-item svg { flex-shrink: 0; }
+.sissa-inst-name { font-size: 13px; font-weight: 500; color: #333; }
+.sissa-inst-code { font-size: 11px; color: #aaa; }
+.sissa-login-sep {
+  text-align: center; font-size: 11px; color: #ccc;
+  margin: 14px 0; position: relative;
+}
+.sissa-login-sep::before, .sissa-login-sep::after {
+  content: ''; position: absolute; top: 50%; width: 38%; height: 1px; background: #eee;
+}
+.sissa-login-sep::before { left: 0; }
+.sissa-login-sep::after  { right: 0; }
+.sissa-btn-cafe {
+  width: 100%; padding: 11px;
+  background: var(--s-primary); color: #fff;
+  border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: background .15s;
+}
+.sissa-btn-cafe:hover    { background: var(--s-primary-d); }
+.sissa-btn-cafe:disabled { opacity:.6; cursor:not-allowed; }
+.sissa-btn-back {
+  margin-top: 14px; text-align: center;
+  font-size: 12px; color: var(--s-muted);
+}
+.sissa-btn-back a { color: var(--s-primary); text-decoration: none; cursor: pointer; }
+
+/* Login Step 2 – CAFe */
+.sissa-cafe-header {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--s-primary-l); border-radius: 10px;
+  padding: 10px 14px; margin-bottom: 20px;
+}
+.sissa-cafe-seal {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--s-primary);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.sissa-cafe-inst-name { font-size: 13px; font-weight: 600; color: var(--s-text); }
+.sissa-cafe-inst-type { font-size: 11px; color: var(--s-muted); }
+.sissa-cafe-title {
+  text-align: center; font-size: 15px; font-weight: 700;
+  color: var(--s-text); margin-bottom: 6px;
+}
+.sissa-cafe-subtitle {
+  text-align: center; font-size: 12px; color: var(--s-muted);
+  margin-bottom: 18px;
+}
+.sissa-cafe-field { margin-bottom: 12px; }
+.sissa-cafe-label {
+  font-size: 11px; font-weight: 600; color: var(--s-muted);
+  text-transform: uppercase; letter-spacing: .5px;
+  margin-bottom: 5px; display: block;
+}
+.sissa-cafe-input {
+  width: 100%; padding: 10px 12px;
+  border: 1px solid var(--s-border); border-radius: 8px;
+  font-size: 14px; color: #333; outline: none;
+}
+.sissa-cafe-input:focus {
+  border-color: var(--s-primary);
+  box-shadow: 0 0 0 3px rgba(124,58,237,.12);
+}
+.sissa-cafe-error {
+  font-size: 12px; color: #dc2626;
+  background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 6px; padding: 8px 12px;
+  margin-bottom: 12px; display: none;
+}
+.sissa-cafe-error.visible { display: block; }
+.sissa-cafe-hint {
+  font-size: 11px; color: var(--s-muted); text-align: center; margin-top: 6px;
+}
+.sissa-cafe-hint a { color: var(--s-primary); cursor: pointer; }
+.sissa-publica-link {
+  text-align: center; font-size: 12px; color: var(--s-muted); margin-top: 10px;
+}
+.sissa-publica-link a { color: var(--s-primary); cursor: pointer; }
+.sissa-publica-link a:hover { text-decoration: underline; }
+.sissa-rnp-badge {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-top: 16px; padding-top: 14px;
+  border-top: 1px solid var(--s-border);
+  font-size: 11px; color: #bbb;
+}
+.sissa-rnp-logo { font-weight: 900; font-size: 13px; color: #005aa7; letter-spacing: -.5px; }
+
+/* Area pública */
+.sissa-publica-banner {
+  background: linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%);
+  color: #fff; padding: 20px 28px;
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 24px; border-radius: 12px;
+}
+.sissa-publica-banner-icon {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: rgba(255,255,255,.2);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.sissa-publica-banner h2 { font-size: 20px; font-weight: 700; margin-bottom: 3px; }
+.sissa-publica-banner p  { font-size: 13px; opacity: .85; }
+.sissa-publica-notice {
+  background: #fffbeb; border: 1px solid #fde68a;
+  border-radius: 10px; padding: 14px 18px;
+  font-size: 13px; color: #92400e;
+  display: flex; align-items: flex-start; gap: 10px; margin-bottom: 24px;
+}
+.sissa-curso-card {
+  background: #fff; border: 1px solid var(--s-border);
+  border-radius: 10px; padding: 14px 18px; margin-bottom: 8px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.sissa-curso-card-name { font-size: 14px; font-weight: 600; color: var(--s-text); }
+.sissa-curso-card-inst { font-size: 12px; color: var(--s-muted); margin-top: 2px; }
+
+/* Sissa app shell */
+.sissa-app { display: flex; min-height: 100vh; width: 100%; }
+
+/* Sissa sidebar */
+.sissa-sidebar {
+  width: 56px; background: #fff;
+  border-right: 1px solid #ebebeb;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 14px 0; position: fixed; top: 0; left: 0; bottom: 0; z-index: 50;
+}
+.sissa-sb-logo {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--s-primary);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 20px; cursor: pointer;
+}
+.sissa-sb-nav { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+.sissa-sb-bottom { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.sissa-sb-item {
+  width: 40px; height: 40px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: #bbb; transition: all .2s;
+}
+.sissa-sb-item:hover { background: var(--s-primary-l); color: var(--s-primary); }
+.sissa-sb-item.active { background: var(--s-primary-l); color: var(--s-primary); }
+
+/* Sissa main */
+.sissa-main { margin-left: 56px; flex: 1; padding: 28px 32px; background: var(--s-bg); min-height: 100vh; }
+
+/* Sissa page header */
+.sissa-breadcrumb { font-size: 11px; color: var(--s-muted); margin-bottom: 2px; }
+.sissa-page-title { font-size: 28px; font-weight: 700; color: var(--s-text); margin-bottom: 4px; }
+.sissa-page-sub   { font-size: 12px; color: var(--s-muted); margin-bottom: 20px; }
+
+/* Sissa toolbar */
+.sissa-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; gap: 10px;
+}
+.sissa-toolbar-left { display: flex; align-items: center; gap: 8px; }
+.sissa-toolbar-right { display: flex; align-items: center; gap: 8px; }
+.sissa-search-wrap { position: relative; }
+.sissa-search-wrap .sissa-search-icon {
+  position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+  color: #bbb; pointer-events: none;
+}
+.sissa-search-inp {
+  border: 1px solid var(--s-border); border-radius: 8px;
+  padding: 8px 12px 8px 32px; font-size: 13px; width: 220px;
+  color: #555; outline: none; background: #fff;
+}
+.sissa-search-inp:focus { border-color: var(--s-primary); }
+.sissa-select {
+  border: 1px solid var(--s-border); border-radius: 8px;
+  padding: 8px 28px 8px 12px; font-size: 13px; color: #555;
+  outline: none; background: #fff; cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23aaa'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
+
+/* Sissa buttons */
+.sissa-btn-primary {
+  background: var(--s-primary); color: #fff;
+  border: none; border-radius: 8px;
+  padding: 9px 16px; font-size: 13px; font-weight: 500;
+  cursor: pointer; display: flex; align-items: center; gap: 6px;
+  transition: background .15s; white-space: nowrap;
+}
+.sissa-btn-primary:hover { background: var(--s-primary-d); }
+.sissa-btn-primary:disabled { opacity:.6; cursor:not-allowed; }
+.sissa-btn-secondary {
+  background: #fff; color: #666;
+  border: 1px solid var(--s-border); border-radius: 8px;
+  padding: 8px 16px; font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  transition: background .15s;
+}
+.sissa-btn-secondary:hover { background: #f5f5f5; }
+.sissa-btn-ghost {
+  background: none; border: none; padding: 6px 8px;
+  font-size: 13px; color: var(--s-primary); cursor: pointer;
+}
+
+/* Sissa card / table */
+.sissa-card {
+  background: #fff; border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07); overflow: hidden;
+}
+.sissa-table { width: 100%; border-collapse: collapse; }
+.sissa-table thead th {
+  font-size: 11px; font-weight: 600; color: #9ca3af;
+  text-transform: uppercase; letter-spacing: .5px;
+  padding: 10px 16px; text-align: left; border-bottom: 1px solid #f0f0f0;
+}
+.sissa-table tbody td {
+  font-size: 13px; color: #555; padding: 12px 16px;
+  border-bottom: 1px solid #f5f5f5; vertical-align: middle;
+}
+.sissa-table tbody tr:last-child td { border-bottom: none; }
+.sissa-table tbody tr:hover td { background: #faf9ff; }
+.sissa-table tbody tr.selected-row td { background: var(--s-primary-l); }
+.sissa-table .cb-col { width: 40px; text-align: center; }
+.sissa-table input[type="checkbox"] { accent-color: var(--s-primary); cursor: pointer; }
+
+/* Risco badges */
+.sissa-risco {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 600;
+}
+.sissa-risco-alto   { color: #dc2626; }
+.sissa-risco-medio  { color: #d97706; }
+.sissa-risco-baixo  { color: #16a34a; }
+.sissa-risco-bar { display: flex; align-items: flex-end; gap: 1px; }
+.sissa-risco-bar span {
+  width: 4px; border-radius: 1px;
+  background: currentColor; opacity: .3;
+}
+.sissa-risco-bar span.active { opacity: 1; }
+
+/* Risk gauge (top-right) */
+.sissa-gauge-wrap {
+  display: flex; align-items: center; gap: 6px;
+  background: #fff; border: 1px solid var(--s-border);
+  border-radius: 10px; padding: 8px 14px;
+  font-size: 12px; color: var(--s-muted);
+}
+.sissa-gauge-wrap strong { color: var(--s-text); font-size: 13px; margin-right: 4px; }
+.sissa-gauge-bar {
+  display: flex; height: 8px; border-radius: 4px; overflow: hidden;
+  width: 120px; gap: 2px;
+}
+.sissa-gauge-bar div { height: 100%; border-radius: 2px; position: relative; overflow: visible; }
+.sissa-gauge-alto  { background: #dc2626; }
+.sissa-gauge-medio { background: #f59e0b; }
+.sissa-gauge-baixo { background: #10b981; }
+.sissa-gauge-zero  { background: #e5e7eb; }
+.gauge-pct {
+  position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+  font-size: 10px; font-weight: 600; color: #555; white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Status badges */
+.sissa-status {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 500;
+}
+.sissa-status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; }
+.sissa-status-ativo   { color: #16a34a; }
+.sissa-status-ativo::before { background: #16a34a; }
+.sissa-status-inativo { color: #d97706; }
+.sissa-status-inativo::before { background: #d97706; }
+
+/* Autoria badge */
+.sissa-autoria {
+  font-size: 11px; font-weight: 700; letter-spacing: .5px;
+  padding: 2px 8px; border-radius: 4px; text-transform: uppercase;
+  background: var(--s-primary-m); color: var(--s-primary);
+}
+
+/* Action icons */
+.sissa-icon-btn {
+  width: 30px; height: 30px; border: none; background: none;
+  cursor: pointer; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: #ccc; transition: all .15s;
+}
+.sissa-icon-btn:hover { background: #f0f0f0; color: #666; }
+.sissa-actions { display: flex; gap: 4px; }
+
+/* Sissa modal */
+.sissa-modal-backdrop {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.4); z-index: 300;
+  align-items: center; justify-content: center;
+}
+.sissa-modal-backdrop.open { display: flex; }
+.sissa-modal-box {
+  background: #fff; border-radius: 16px;
+  padding: 32px 28px; width: 500px;
+  max-height: 90vh; overflow-y: auto;
+  position: relative; box-shadow: 0 12px 48px rgba(0,0,0,.18);
+}
+.sissa-modal-box.wide { width: 640px; }
+.sissa-modal-close {
+  position: absolute; top: 14px; right: 16px;
+  border: none; background: none; font-size: 20px; color: #bbb;
+  cursor: pointer; line-height: 1;
+}
+.sissa-modal-close:hover { color: #888; }
+.sissa-modal-title { font-size: 18px; font-weight: 700; color: var(--s-text); margin-bottom: 24px; }
+
+/* Sissa form */
+.sissa-form-group { margin-bottom: 14px; }
+.sissa-form-label { font-size: 12px; color: var(--s-muted); margin-bottom: 5px; display: block; }
+.sissa-form-label .req { color: #dc2626; }
+.sissa-form-input, .sissa-form-select, .sissa-form-textarea {
+  width: 100%; padding: 9px 12px;
+  border: 1px solid var(--s-border); border-radius: 8px;
+  font-size: 14px; color: #333; outline: none; background: #fff;
+  font-family: inherit;
+}
+.sissa-form-input:focus,
+.sissa-form-select:focus,
+.sissa-form-textarea:focus { border-color: var(--s-primary); }
+.sissa-form-textarea { resize: vertical; min-height: 72px; }
+.sissa-form-row { display: flex; gap: 12px; }
+.sissa-form-row > * { flex: 1; }
+.sissa-form-error { font-size: 12px; color: #dc2626; margin-top: 4px; display: none; }
+.sissa-form-error.visible { display: block; }
+.sissa-form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; }
+
+/* Radio groups */
+.sissa-radio-group { display: flex; gap: 16px; align-items: center; }
+.sissa-radio-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; color: #444; cursor: pointer;
+}
+.sissa-radio-label input[type="radio"] { accent-color: var(--s-primary); cursor: pointer; }
+
+/* Tags input (students selection) */
+.sissa-tags-wrap {
+  border: 1px solid var(--s-border); border-radius: 8px;
+  padding: 6px 10px; min-height: 44px;
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  background: #fff; cursor: text;
+}
+.sissa-tag {
+  background: var(--s-primary-m); color: var(--s-primary);
+  padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 500;
+  display: flex; align-items: center; gap: 4px;
+}
+.sissa-tag-remove {
+  cursor: pointer; opacity: .7; font-size: 14px; line-height: 1;
+  background: none; border: none; color: inherit; padding: 0;
+}
+.sissa-tag-remove:hover { opacity: 1; }
+
+/* Sissa tabs */
+.sissa-tabs { display: flex; border-bottom: 2px solid #ebebeb; margin-bottom: 20px; }
+.sissa-tab {
+  padding: 8px 18px; font-size: 14px; color: #999;
+  cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;
+}
+.sissa-tab.active { color: var(--s-primary); border-bottom-color: var(--s-primary); font-weight: 500; }
+.sissa-tab:hover:not(.active) { color: #666; }
+
+/* Sissa notification toast */
+.sissa-notif {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff; border: 1px solid var(--s-border);
+  border-radius: 10px; padding: 12px 16px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.1);
+  font-size: 13px; color: var(--s-text);
+  position: fixed; top: 20px; right: 20px;
+  z-index: 9999; max-width: 320px;
+  transform: translateY(-20px); opacity: 0;
+  transition: all .3s;
+}
+.sissa-notif.show { transform: translateY(0); opacity: 1; }
+.sissa-notif-icon {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: #d1fae5; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.sissa-notif-close {
+  margin-left: auto; background: none; border: none;
+  color: #aaa; cursor: pointer; font-size: 16px; padding: 0;
+}
+
+/* Intervenção expandable row */
+.sissa-expand-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--s-muted); padding: 0; font-size: 13px;
+  display: flex; align-items: center; gap: 4px;
+}
+.sissa-expand-btn svg { transition: transform .2s; }
+.sissa-expand-btn.expanded svg { transform: rotate(90deg); }
+.sissa-sub-row { display: none; }
+.sissa-sub-row.open { display: table-row; }
+.sissa-sub-row td { background: var(--s-primary-l) !important; padding: 10px 16px !important; font-size: 12px; }
+
+/* Sissa usuarios table */
+.sissa-user-email { font-size: 12px; color: #9ca3af; }
+
+/* Inline checkbox filter for Estudantes */
+.sissa-selection-bar {
+  display: none; background: var(--s-primary-l);
+  border: 1px solid var(--s-primary-m);
+  border-radius: 8px; padding: 10px 14px;
+  margin-bottom: 14px; align-items: center; gap: 12px;
+  font-size: 13px; color: var(--s-text);
+}
+.sissa-selection-bar.visible { display: flex; }
+</style>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  SISSA – TELA LOGIN / INSTITUIÇÃO         ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div id="sissa-login" class="screen">
+
+  <!-- ── Etapa 1 & 2: Busca de instituição (CAFe) ── -->
+  <div id="cafe-s12" class="cafe-outer">
+    <div class="cafe-service-header">
+      <span class="cafe-service-label">Acessando serviço:</span>
+      <span class="cafe-service-name">Plataforma - SISSA</span>
+    </div>
+
+    <div class="cafe-card">
+      <div class="cafe-card-top">
+        <div>
+          <h2 class="cafe-find-title">Encontre sua instituição</h2>
+          <p class="cafe-find-sub">Faça login em sua instituição para acessar.</p>
+        </div>
+        <div class="cafe-fed-badge">
+          <span class="cafe-chimarro-ico">🧉</span>
+          <div class="cafe-fed-name"><span>Federação</span><span>Chimarrão</span></div>
+        </div>
+      </div>
+      <div class="cafe-hr"></div>
+
+      <div class="cafe-search-row">
+        <input type="text" id="cafe-search" class="cafe-search-inp"
+               oninput="cafeSearch(this.value)" autocomplete="off" spellcheck="false">
+        <svg class="cafe-search-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <div id="cafe-dropdown" class="cafe-dropdown" style="display:none;">
+          <div class="cafe-dropdown-item" onclick="cafeSelectUFG()">
+            UFG - Universidade Federal de Goias
+          </div>
+        </div>
+      </div>
+
+      <div id="cafe-ufg-result" class="cafe-result-block" style="display:none;">
+        <p class="cafe-result-short">UFG</p>
+        <p class="cafe-result-full">Universidade Federal de Goias</p>
+        <button class="cafe-prosseguir-btn" onclick="cafeProsseguir()">
+          Prosseguir para login em UFG
+        </button>
+      </div>
+
+      <p class="cafe-terms-text">
+        A CAFe não armazena suas informações. Mais informações nos
+        <a href="#" class="cafe-terms-link" onclick="return false;">Termos de uso</a>
+      </p>
+    </div>
+
+    <div class="cafe-rnp-footer">
+      <span class="cafe-rnp-text">RNP</span>
+      <span class="cafe-ministry-text">MINISTÉRIO DA<br>CULTURA</span>
+      <span class="cafe-ministry-text">MINISTÉRIO DA<br>DEFESA</span>
+      <span class="cafe-ministry-text">MINISTÉRIO DA<br>SAÚDE</span>
+      <span class="cafe-ministry-text">MINISTÉRIO DAS<br>COMUNICAÇÕES</span>
+      <span class="cafe-ministry-text">MINISTÉRIO DA<br>EDUCAÇÃO</span>
+      <span class="cafe-ministry-text">MINISTÉRIO DA<br>CIÊNCIA, TECNOLOGIA<br>E INOVAÇÃO</span>
+      <span class="cafe-govbr-text">GOVERNO DO<br>BRASIL</span>
+    </div>
+
+    <div style="margin-top:12px; font-size:12px;">
+      <a onclick="showScreen('login')" style="color:#888; text-decoration:none; cursor:pointer;">
+        ← Voltar ao sistema principal
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Etapa 3: Redirecionando / Loading ── -->
+  <div id="cafe-s3" class="cafe-outer" style="display:none;">
+    <div class="cafe-service-header">
+      <span class="cafe-service-label">Acessando serviço:</span>
+      <span class="cafe-service-name">Plataforma - SISSA</span>
+    </div>
+    <div class="cafe-redirect-card">
+      <p class="cafe-redir-label">Redirecionando para:</p>
+      <p class="cafe-redir-inst">UFG</p>
+      <div class="cafe-redir-logos">
+        <div class="cafe-redir-fed">
+          <span class="cafe-chimarro-ico" style="font-size:22px;">🧉</span>
+          <div class="cafe-fed-name" style="font-size:10px;"><span>Federação</span><span>Chimarrão</span></div>
+        </div>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1a56d9" stroke-width="2.5">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+        <span class="cafe-redir-to-inst">UFG</span>
+      </div>
+      <div class="cafe-progress-outer">
+        <div class="cafe-progress-inner" id="cafe-progress"></div>
+      </div>
+      <p class="cafe-redir-support">
+        Em caso de problemas,<br>
+        contate o <strong>suporte de sua instituição</strong>
+      </p>
+    </div>
+  </div>
+
+  <!-- ── Etapa 4: Formulário de login UFG ── -->
+  <div id="cafe-s4" class="cafe-s4-wrap" style="display:none;">
+    <div class="cafe-ufg-login-card">
+      <p class="cafe-ufg-access">Acesso pela instituição:</p>
+
+      <div class="cafe-ufg-logo-row">
+        <!-- Logo UFG aproximado em SVG -->
+        <svg width="70" height="64" viewBox="0 0 70 64" fill="#1a4080">
+          <polygon points="35,3 43.7,8 43.7,18 35,23 26.3,18 26.3,8"/>
+          <polygon points="18,13 26.7,18 26.7,28 18,33 9.3,28 9.3,18"/>
+          <polygon points="52,13 60.7,18 60.7,28 52,33 43.3,28 43.3,18"/>
+          <polygon points="18,35 26.7,40 26.7,50 18,55 9.3,50 9.3,40"/>
+          <polygon points="35,25 43.7,30 43.7,40 35,45 26.3,40 26.3,30"/>
+          <polygon points="52,35 60.7,40 60.7,50 52,55 43.3,50 43.3,40"/>
+        </svg>
+        <div class="cafe-ufg-name">
+          <span class="cafe-ufg-abbr">UFG</span>
+          <span class="cafe-ufg-fullname">UNIVERSIDADE<br>FEDERAL DE GOIAS</span>
+        </div>
+      </div>
+
+      <label class="cafe-ufg-field-label">Digite aqui seu login unico</label>
+      <input type="email" id="sissa-cafe-login" class="cafe-ufg-input"
+             autocomplete="username" onkeydown="if(event.key==='Enter')sissaDoAuth()">
+
+      <label class="cafe-ufg-field-label">Senha</label>
+      <input type="password" id="sissa-cafe-senha" class="cafe-ufg-input"
+             autocomplete="current-password" onkeydown="if(event.key==='Enter')sissaDoAuth()">
+
+      <label class="cafe-ufg-checkbox-wrap">
+        <input type="checkbox"> Salvar meu login
+      </label>
+
+      <div id="sissa-cafe-error" class="sissa-cafe-error">
+        Credenciais inválidas. Verifique seu login e senha.
+      </div>
+
+      <button class="cafe-ufg-entrar-btn" id="sissa-cafe-entrar-btn" onclick="sissaDoAuth()">Entrar</button>
+
+      <div class="cafe-ufg-links-row">
+        <a href="#" class="cafe-ufg-link" onclick="return false;">Esqueci minha senha</a>
+        <a href="#" class="cafe-ufg-link" onclick="return false;">Painel de Segurança 🔒</a>
+      </div>
+    </div>
+    <p class="cafe-version-text">Versão 2.0.0</p>
+  </div>
+
+</div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  SISSA – ÁREA PÚBLICA                    ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div id="sissa-area-publica" class="screen">
+  <div class="sissa-app">
+    <aside class="sissa-sidebar">
+      <div class="sissa-sb-logo" onclick="showScreen('sissa-login')" title="Sissa">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+        </svg>
+      </div>
+      <nav class="sissa-sb-nav">
+        <div class="sissa-sb-item active" title="Área Pública">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+        </div>
+      </nav>
+      <div class="sissa-sb-bottom">
+        <div class="sissa-sb-item" title="Sair" onclick="sissaLogout()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </div>
+      </div>
+    </aside>
+
+    <main class="sissa-main">
+      <!-- Banner -->
+      <div class="sissa-publica-banner">
+        <div class="sissa-publica-banner-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+        </div>
+        <div>
+          <h2>Área Pública – Plataforma Sissa</h2>
+          <p id="sissa-publica-user-info">Autenticado via Rede Federada</p>
+        </div>
+      </div>
+
+      <!-- Aviso de acesso limitado -->
+      <div class="sissa-publica-notice">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" style="flex-shrink:0;margin-top:1px;">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <div>
+          <strong>Acesso limitado.</strong> Você está na área pública da plataforma Sissa.
+          Para visualizar dados de estudantes, risco de evasão e intervenções, você precisa estar
+          <strong>cadastrado na plataforma</strong> por uma das instituições participantes do projeto piloto.
+          <br><br>
+          <a href="#" onclick="sissaLogout(); return false;"
+             style="color:#92400e; font-weight:600; text-decoration:underline;">
+            Entrar com outra conta →
+          </a>
+        </div>
+      </div>
+
+      <!-- Cursos participantes -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <h2 style="font-size:17px; font-weight:700; color:var(--s-text);">
+          Cursos participantes do projeto piloto
+        </h2>
+        <span style="font-size:12px;color:var(--s-muted);" id="sissa-publica-inst-nome"></span>
+      </div>
+      <div id="sissa-publica-cursos-list">
+        <!-- populated by JS -->
+      </div>
+
+      <!-- Info pública -->
+      <div style="margin-top:28px; background:#fff; border-radius:12px; padding:20px 24px; border:1px solid var(--s-border);">
+        <h3 style="font-size:15px; font-weight:600; color:var(--s-text); margin-bottom:10px;">
+          Sobre a plataforma Sissa
+        </h3>
+        <p style="font-size:13px; color:var(--s-muted); line-height:1.7;">
+          A plataforma Sissa (Sistema de Identificação de Situações de risco de evasão de Alunos) é uma
+          ferramenta de gestão de risco de evasão para instituições públicas de ensino superior.
+          Permite que coordenadores e tutores monitorem indicadores de risco e registrem intervenções
+          pedagógicas de forma integrada.
+        </p>
+        <p style="font-size:13px; color:var(--s-muted); line-height:1.7; margin-top:8px;">
+          Para solicitar acesso à área privada, entre em contato com o coordenador da sua unidade acadêmica.
+        </p>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  SISSA – ESTUDANTES (risco de evasão)    ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div id="sissa-estudantes" class="screen">
+  <div class="sissa-app">
+    <!-- Sidebar -->
+    <aside class="sissa-sidebar">
+      <div class="sissa-sb-logo" onclick="showScreen('sissa-login')" title="Sissa">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+        </svg>
+      </div>
+      <nav class="sissa-sb-nav">
+        <div class="sissa-sb-item" title="Início" onclick="showScreen('sissa-estudantes')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9,22 9,12 15,12 15,22"/>
+          </svg>
+        </div>
+        <div class="sissa-sb-item" title="Permissões de usuários" onclick="showScreen('sissa-usuarios')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div class="sissa-sb-item active" title="Estudantes">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="sissa-sb-item" title="Intervenções" onclick="showScreen('sissa-intervencoes')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+        </div>
+        <div class="sissa-sb-item" title="Grupos" onclick="showScreen('sissa-grupos')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+      </nav>
+      <div class="sissa-sb-bottom">
+        <div class="sissa-sb-item" title="Sair do Sissa" onclick="sissaLogout()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </div>
+      </div>
+    </aside>
+
+    <main class="sissa-main">
+      <p class="sissa-breadcrumb" id="sissa-est-breadcrumb">Licenciatura em Física – IFSP</p>
+      <h1 class="sissa-page-title">Estudantes</h1>
+      <p class="sissa-page-sub" id="sissa-est-sub">Carregando...</p>
+
+      <!-- Selection bar -->
+      <div class="sissa-selection-bar" id="sissa-sel-bar">
+        <span id="sissa-sel-count">0 selecionado(s)</span>
+        <button class="sissa-btn-primary" onclick="openNovaIntervencao()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+          Nova intervenção
+        </button>
+        <button class="sissa-btn-secondary" onclick="openNovoGrupo()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          Novo grupo
+        </button>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="sissa-toolbar">
+        <div class="sissa-toolbar-left">
+          <div class="sissa-search-wrap">
+            <svg class="sissa-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input type="text" id="sissa-search-est" class="sissa-search-inp"
+                   placeholder="Pesquisar estudantes" oninput="filterSissaEstudantes(this.value)">
+          </div>
+          <select class="sissa-select" id="sissa-turma-filter" onchange="filterSissaEstudantes()">
+            <option value="">Turma</option>
+          </select>
+        </div>
+        <div class="sissa-toolbar-right">
+          <div id="sissa-gauge-wrapper" class="sissa-gauge-wrap">
+            <strong>Risco de evasão</strong>
+            <div class="sissa-gauge-bar" id="sissa-gauge-bar">
+              <div class="sissa-gauge-alto" style="flex:2"></div>
+              <div class="sissa-gauge-medio" style="flex:3"></div>
+              <div class="sissa-gauge-baixo" style="flex:3"></div>
+              <div class="sissa-gauge-zero" style="flex:1"></div>
+            </div>
+          </div>
+          <button class="sissa-btn-primary" onclick="openNovoEstudante()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+            </svg>
+            Novo estudante
+          </button>
+          <button class="sissa-btn-secondary" onclick="exportarEstudantes()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Exportar dados
+          </button>
+        </div>
+      </div>
+
+      <div class="sissa-card">
+        <table class="sissa-table">
+          <thead>
+            <tr>
+              <th class="cb-col"><input type="checkbox" id="sissa-chk-all" onchange="toggleAllEstudantes(this)"></th>
+              <th>Risco</th>
+              <th>Semestre Saída</th>
+              <th>Matrícula</th>
+              <th>Nome</th>
+              <th>Média Global</th>
+              <th>Semestre</th>
+              <th>Reprovações</th>
+              <th>CH. Semestre</th>
+              <th>Maior Influência de Evasão</th>
+              <th>Turmas</th>
+            </tr>
+          </thead>
+          <tbody id="sissa-tbody-estudantes">
+            <tr><td colspan="11" style="text-align:center;color:#ccc;padding:24px;">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  SISSA – GRUPOS DE INTERVENÇÃO           ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div id="sissa-grupos" class="screen">
+  <div class="sissa-app">
+    <aside class="sissa-sidebar">
+      <div class="sissa-sb-logo" onclick="showScreen('sissa-login')" title="Sissa">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+        </svg>
+      </div>
+      <nav class="sissa-sb-nav">
+        <div class="sissa-sb-item" title="Início" onclick="showScreen('sissa-estudantes')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/>
+          </svg>
+        </div>
+        <div class="sissa-sb-item" title="Usuários" onclick="showScreen('sissa-usuarios')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div class="sissa-sb-item" title="Estudantes" onclick="showScreen('sissa-estudantes')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="sissa-sb-item" title="Intervenções" onclick="showScreen('sissa-intervencoes')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+        </div>
+        <div class="sissa-sb-item active" title="Grupos">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+      </nav>
+      <div class="sissa-sb-bottom">
+        <div class="sissa-sb-item" title="Sair" onclick="sissaLogout()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </div>
+      </div>
+    </aside>
+    <main class="sissa-main">
+      <p class="sissa-breadcrumb">Licenciatura em Física – IFSP</p>
+      <h1 class="sissa-page-title">Grupos</h1>
+      <p class="sissa-page-sub">Coordenação: Kalebe Xavier, Coordenador Física, Juliana Moraes, Beatriz Cardoso</p>
+
+      <div class="sissa-toolbar">
+        <div class="sissa-search-wrap">
+          <svg class="sissa-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input type="text" id="sissa-search-grupos" class="sissa-search-inp"
+                 placeholder="Pesquisar grupos de intervenções" oninput="filterSissaGrupos(this.value)">
+        </div>
+        <button class="sissa-btn-primary" onclick="openNovoGrupo()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+          </svg>
+          Novo grupo
+        </button>
+      </div>
+
+      <div class="sissa-card">
+        <table class="sissa-table">
+          <thead>
+            <tr>
+              <th style="width:28px;"></th>
+              <th>Título</th>
+              <th>Semestre</th>
+              <th>Estudantes</th>
+              <th>Criação</th>
+              <th>Observações</th>
+              <th>Autoria</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="sissa-tbody-grupos">
+            <tr><td colspan="9" style="text-align:center;color:#ccc;padding:24px;">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  SISSA – INTERVENÇÕES                    ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div id="sissa-intervencoes" class="screen">
+  <div class="sissa-app">
+    <aside class="sissa-sidebar">
+      <div class="sissa-sb-logo" onclick="showScreen('sissa-login')" title="Sissa">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+        </svg>
+      </div>
+      <nav class="sissa-sb-nav">
+        <div class="sissa-sb-item" title="Início" onclick="showScreen('sissa-estudantes')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/>
+          </svg>
+        </div>
+        <div class="sissa-sb-item" title="Usuários" onclick="showScreen('sissa-usuarios')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div class="sissa-sb-item" title="Estudantes" onclick="showScreen('sissa-estudantes')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="sissa-sb-item active" title="Intervenções">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+        </div>
+        <div class="sissa-sb-item" title="Grupos" onclick="showScreen('sissa-grupos')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+      </nav>
+      <div class="sissa-sb-bottom">
+        <div class="sissa-sb-item" title="Sair" onclick="sissaLogout()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </div>
+      </div>
+    </aside>
+    <main class="sissa-main">
+      <p class="sissa-breadcrumb">Técnico em mecânica integrado ao Ensino Médio</p>
+      <h1 class="sissa-page-title">Intervenções</h1>
+      <p class="sissa-page-sub">19 turmas · 44 estudantes</p>
+
+      <div class="sissa-tabs" id="sissa-int-tabs">
+        <div class="sissa-tab active" onclick="switchIntTab('pedidos', this)">Pedidos de Intervenção <span id="sissa-pedidos-count">(0)</span></div>
+        <div class="sissa-tab" onclick="switchIntTab('realizadas', this)">Intervenções realizadas</div>
+      </div>
+
+      <div class="sissa-toolbar">
+        <div class="sissa-toolbar-left">
+          <div class="sissa-search-wrap">
+            <svg class="sissa-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input type="text" id="sissa-search-int" class="sissa-search-inp"
+                   placeholder="Pesquisar por grupo" oninput="filterSissaIntervencoes()">
+          </div>
+          <input type="date" id="sissa-int-data-filter" class="sissa-form-input"
+                 style="width:160px;" onchange="filterSissaIntervencoes()">
+        </div>
+        <button class="sissa-btn-primary" onclick="openNovaIntervencao()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+          Nova intervenção
+        </button>
+      </div>
+
+      <div class="sissa-card">
+        <table class="sissa-table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Formato</th>
+              <th>Interação</th>
+              <th>Tipo</th>
+              <th>Acompanhamento</th>
+              <th>Observação</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="sissa-tbody-intervencoes">
+            <tr><td colspan="7" style="text-align:center;color:#ccc;padding:24px;">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  SISSA – GESTÃO DE USUÁRIOS              ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div id="sissa-usuarios" class="screen">
+  <div class="sissa-app">
+    <aside class="sissa-sidebar">
+      <div class="sissa-sb-logo" onclick="showScreen('sissa-login')" title="Sissa">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+        </svg>
+      </div>
+      <nav class="sissa-sb-nav">
+        <div class="sissa-sb-item" title="Início" onclick="showScreen('sissa-estudantes')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/>
+          </svg>
+        </div>
+        <div class="sissa-sb-item active" title="Usuários">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div class="sissa-sb-item" title="Estudantes" onclick="showScreen('sissa-estudantes')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="sissa-sb-item" title="Intervenções" onclick="showScreen('sissa-intervencoes')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+        </div>
+        <div class="sissa-sb-item" title="Grupos" onclick="showScreen('sissa-grupos')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+      </nav>
+      <div class="sissa-sb-bottom">
+        <div class="sissa-sb-item" title="Sair" onclick="sissaLogout()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </div>
+      </div>
+    </aside>
+    <main class="sissa-main">
+      <p class="sissa-breadcrumb">IFSP</p>
+      <h1 class="sissa-page-title">Permissões de usuários</h1>
+
+      <div class="sissa-toolbar">
+        <div class="sissa-toolbar-left">
+          <div class="sissa-search-wrap">
+            <svg class="sissa-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input type="text" id="sissa-search-usr" class="sissa-search-inp"
+                   placeholder="Pesquise por usuário" oninput="filterSissaUsuarios(this.value)">
+          </div>
+          <select class="sissa-select" id="sissa-perfil-filter" onchange="filterSissaUsuarios()">
+            <option value="">Perfil</option>
+          </select>
+          <select class="sissa-select" id="sissa-curso-filter" onchange="filterSissaUsuarios()">
+            <option value="">Curso</option>
+          </select>
+        </div>
+        <button class="sissa-btn-primary" onclick="openCriarUsuario()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+          </svg>
+          Criar usuário
+        </button>
+      </div>
+
+      <div class="sissa-card">
+        <table class="sissa-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>E-mail Institucional</th>
+              <th>Perfil</th>
+              <th>Curso</th>
+              <th>Último Acesso</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="sissa-tbody-usuarios">
+            <tr><td colspan="6" style="text-align:center;color:#ccc;padding:24px;">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL – NOVA / EDITAR INTERVENÇÃO
+══════════════════════════════════════════ -->
+<div id="sissa-modal-intervencao" class="sissa-modal-backdrop" onclick="sissaBackdropClose(event,'sissa-modal-intervencao')">
+  <div class="sissa-modal-box wide">
+    <button class="sissa-modal-close" onclick="sissaCloseModal('sissa-modal-intervencao')">×</button>
+    <div class="sissa-modal-title" id="sissa-int-modal-title">Registro de nova intervenção</div>
+
+    <input type="hidden" id="sissa-int-id">
+
+    <div class="sissa-form-group">
+      <label class="sissa-form-label">Estudantes <span class="req">*</span></label>
+      <div class="sissa-tags-wrap" id="sissa-int-estudantes-tags">
+        <input type="text" id="sissa-int-estudante-input" class="sissa-form-input"
+               style="border:none;padding:0;width:180px;" placeholder="Adicionar estudantes"
+               list="sissa-est-datalist" oninput="handleEstudanteTagInput(this)">
+        <datalist id="sissa-est-datalist"></datalist>
+      </div>
+    </div>
+
+    <div class="sissa-form-row">
+      <div class="sissa-form-group">
+        <label class="sissa-form-label">Data <span class="req">*</span></label>
+        <input type="date" id="sissa-int-data" class="sissa-form-input">
+      </div>
+      <div class="sissa-form-group">
+        <label class="sissa-form-label">Semestre <span class="req">*</span></label>
+        <select id="sissa-int-semestre" class="sissa-form-select">
+          <option value="">Selecione</option>
+          <option>2024/2</option><option>2024/1</option>
+          <option>2023/2</option><option>2023/1</option>
+          <option>2025/1</option><option>2025/2</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sissa-form-group">
+      <label class="sissa-form-label">Disciplina</label>
+      <select id="sissa-int-disciplina" class="sissa-form-select">
+        <option value="">Selecione</option>
+        <option>Física Geral I</option><option>Física Geral II</option>
+        <option>Cálculo I</option><option>Eletromagnetismo</option>
+        <option>Mecânica Clássica</option>
+      </select>
+    </div>
+
+    <div class="sissa-form-row">
+      <div class="sissa-form-group">
+        <label class="sissa-form-label">Forma/meio <span class="req">*</span></label>
+        <select id="sissa-int-forma" class="sissa-form-select">
+          <option value="">Selecione</option>
+          <option>Vídeo aula</option><option>Chat</option>
+          <option>E-mail</option><option>Reunião online</option>
+          <option>Presencial</option><option>Ligação</option>
+        </select>
+      </div>
+      <div class="sissa-form-group">
+        <label class="sissa-form-label">Assunto <span class="req">*</span></label>
+        <select id="sissa-int-assunto" class="sissa-form-select">
+          <option value="">Selecione</option>
+          <option>Cinemática</option><option>Orientação</option>
+          <option>Apoio acadêmico</option><option>Acolhimento</option>
+          <option>Conteúdo</option><option>Avaliação</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sissa-form-group">
+      <label class="sissa-form-label">Formato <span class="req">*</span></label>
+      <div class="sissa-radio-group">
+        <label class="sissa-radio-label"><input type="radio" name="sissa-int-formato" value="Individual"> Individual</label>
+        <label class="sissa-radio-label"><input type="radio" name="sissa-int-formato" value="Grupo"> Grupo</label>
+      </div>
+    </div>
+
+    <div class="sissa-form-group">
+      <label class="sissa-form-label">Interação <span class="req">*</span></label>
+      <div class="sissa-radio-group">
+        <label class="sissa-radio-label"><input type="radio" name="sissa-int-interacao" value="Pró-ativa"> Pró-ativa</label>
+        <label class="sissa-radio-label"><input type="radio" name="sissa-int-interacao" value="Reativa"> Reativa</label>
+      </div>
+    </div>
+
+    <div class="sissa-form-group">
+      <label class="sissa-form-label">Tipo <span class="req">*</span></label>
+      <div class="sissa-radio-group">
+        <label class="sissa-radio-label"><input type="radio" name="sissa-int-tipo" value="Conteúdo"> Conteúdo</label>
+        <label class="sissa-radio-label"><input type="radio" name="sissa-int-tipo" value="Acolhimento"> Acolhimento</label>
+        <label class="sissa-radio-label"><input type="radio" name="sissa-int-tipo" value="Outro"> Outro</label>
+      </div>
+    </div>
+
+    <div class="sissa-form-row">
+      <div class="sissa-form-group">
+        <label class="sissa-form-label">Acompanhamento <span class="req">*</span></label>
+        <div class="sissa-radio-group">
+          <label class="sissa-radio-label"><input type="radio" name="sissa-int-acomp" value="Assíncrono"> Assíncrono</label>
+          <label class="sissa-radio-label"><input type="radio" name="sissa-int-acomp" value="Síncrono"> Síncrono</label>
+        </div>
+      </div>
+      <div class="sissa-form-group">
+        <label class="sissa-form-label">Duração</label>
+        <input type="text" id="sissa-int-duracao" class="sissa-form-input" placeholder="ex: 1:30">
+      </div>
+    </div>
+
+    <div class="sissa-form-group">
+      <label class="sissa-form-label">Objetivo alcançado <span class="req">*</span></label>
+      <div class="sissa-radio-group">
+        <label class="sissa-radio-label"><input type="radio" name="sissa-int-obj" value="Sim"> Sim</label>
+        <label class="sissa-radio-label"><input type="radio" name="sissa-int-obj" value="Não"> Não</label>
+        <label class="sissa-radio-label"><input type="radio" name="sissa-int-obj" value="Parcialmente"> Parcialmente</label>
+      </div>
+    </div>
+
+    <div class="sissa-form-group">
+      <label class="sissa-form-label">Observações</label>
+      <textarea id="sissa-int-obs" class="sissa-form-textarea" rows="2" placeholder="Observações..."></textarea>
+    </div>
+
+    <div class="sissa-form-group" style="display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="sissa-int-encaminhado" style="accent-color:var(--s-primary);"
+             onchange="document.getElementById('sissa-int-encaminhar-wrap').style.display=this.checked?'block':'none'">
+      <label for="sissa-int-encaminhado" style="font-size:13px;color:#555;cursor:pointer;">
+        Estudante encaminhado para outros órgãos da instituição
+      </label>
+    </div>
+    <div id="sissa-int-encaminhar-wrap" style="display:none;" class="sissa-form-group">
+      <input type="text" id="sissa-int-encaminhar" class="sissa-form-input" placeholder="Encaminhar para">
+    </div>
+
+    <div class="sissa-form-actions">
+      <button class="sissa-btn-secondary" onclick="sissaCloseModal('sissa-modal-intervencao')">Cancelar</button>
+      <button class="sissa-btn-primary" id="sissa-int-btn-submit" onclick="submitSissaIntervencao()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL – NOVO GRUPO DE INTERVENÇÃO
+══════════════════════════════════════════ -->
+<div id="sissa-modal-grupo" class="sissa-modal-backdrop" onclick="sissaBackdropClose(event,'sissa-modal-grupo')">
+  <div class="sissa-modal-box">
+    <button class="sissa-modal-close" onclick="sissaCloseModal('sissa-modal-grupo')">×</button>
+    <div class="sissa-modal-title" id="sissa-grupo-modal-title">Novo grupo</div>
+    <input type="hidden" id="sissa-grupo-id">
+
+    <div class="sissa-form-group">
+      <input type="text" id="sissa-grupo-titulo" class="sissa-form-input" placeholder="Título">
+      <div id="sissa-grupo-titulo-error" class="sissa-form-error">Informe o título do grupo.</div>
+    </div>
+
+    <div class="sissa-form-group">
+      <label class="sissa-form-label">Estudantes</label>
+      <div class="sissa-tags-wrap" id="sissa-grupo-est-tags">
+        <input type="text" id="sissa-grupo-est-input" class="sissa-form-input"
+               style="border:none;padding:0;width:180px;" placeholder="Adicionar estudante"
+               list="sissa-est-datalist2" oninput="handleGrupoEstudanteInput(this)">
+        <datalist id="sissa-est-datalist2"></datalist>
+      </div>
+    </div>
+
+    <div class="sissa-form-group">
+      <label class="sissa-form-label">Semestre</label>
+      <select id="sissa-grupo-semestre" class="sissa-form-select">
+        <option value="">Selecione</option>
+        <option>2024/2</option><option>2024/1</option>
+        <option>2023/2</option><option>2023/1</option>
+        <option>2025/1</option><option>2025/2</option>
+      </select>
+    </div>
+
+    <div class="sissa-form-group">
+      <label class="sissa-form-label">Observações</label>
+      <textarea id="sissa-grupo-obs" class="sissa-form-textarea" rows="2" placeholder="Observações..."></textarea>
+    </div>
+
+    <div class="sissa-form-actions">
+      <button class="sissa-btn-secondary" onclick="sissaCloseModal('sissa-modal-grupo')">Cancelar</button>
+      <button class="sissa-btn-primary" id="sissa-grupo-btn-submit" onclick="submitSissaGrupo()">Criar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL – CRIAR / EDITAR USUÁRIO SISSA
+══════════════════════════════════════════ -->
+<div id="sissa-modal-usuario" class="sissa-modal-backdrop" onclick="sissaBackdropClose(event,'sissa-modal-usuario')">
+  <div class="sissa-modal-box">
+    <button class="sissa-modal-close" onclick="sissaCloseModal('sissa-modal-usuario')">×</button>
+    <div class="sissa-modal-title" id="sissa-usr-modal-title">Criar usuário</div>
+    <input type="hidden" id="sissa-usr-id">
+
+    <div class="sissa-form-group">
+      <label class="sissa-form-label">E-mail institucional <span class="req">*</span></label>
+      <input type="email" id="sissa-usr-email" class="sissa-form-input" placeholder="email@instituicao.edu.br">
+      <div id="sissa-usr-email-error" class="sissa-form-error">Informe um e-mail válido.</div>
+    </div>
+
+    <div class="sissa-form-group">
+      <label class="sissa-form-label">Perfil <span class="req">*</span></label>
+      <select id="sissa-usr-perfil" class="sissa-form-select">
+        <option value="">Selecione um perfil</option>
+      </select>
+    </div>
+
+    <div class="sissa-form-group">
+      <label class="sissa-form-label">Curso</label>
+      <div id="sissa-usr-cursos" style="border:1px solid var(--s-border);border-radius:8px;max-height:130px;overflow-y:auto;padding:6px 0;">
+        <!-- populated -->
+      </div>
+    </div>
+
+    <div class="sissa-form-actions">
+      <button class="sissa-btn-secondary" onclick="sissaCloseModal('sissa-modal-usuario')">Cancelar</button>
+      <button class="sissa-btn-primary" id="sissa-usr-btn-submit" onclick="submitSissaUsuario()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- SISSA notification element -->
+<div id="sissa-notif" class="sissa-notif">
+  <div class="sissa-notif-icon">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg>
+  </div>
+  <span id="sissa-notif-text"></span>
+  <button class="sissa-notif-close" onclick="hideSissaNotif()">×</button>
+</div>
+
 <script>
   /* ══════════════════════════════════════════
      API HELPER
@@ -1411,6 +2930,7 @@
     window.scrollTo(0, 0);
     const popup = document.getElementById('grupo-users-popup');
     if (popup) popup.style.display = 'none';
+    if (typeof sissaScreenHook === 'function') sissaScreenHook(id);
     if (id === 'add-group-users') {
       renderAddGroupUserList();
     }
@@ -1533,6 +3053,60 @@
       btn.disabled = false;
       btn.textContent = 'Entrar';
     }
+  }
+
+  /* ══════════════════════════════════════════
+     CAFe INSTITUTION FLOW
+  ══════════════════════════════════════════ */
+  function cafeSearch(val) {
+    const q = val.toLowerCase().trim();
+    const dropdown = document.getElementById('cafe-dropdown');
+    const result   = document.getElementById('cafe-ufg-result');
+    if (q.length === 0) {
+      dropdown.style.display = 'none';
+      result.style.display   = 'none';
+      return;
+    }
+    const matches = 'ufg'.startsWith(q) ||
+                    'universidade federal de goias'.includes(q) ||
+                    q.includes('ufg');
+    if (matches) {
+      dropdown.style.display = 'block';
+      result.style.display   = 'none';
+    } else {
+      dropdown.style.display = 'none';
+      result.style.display   = 'none';
+    }
+  }
+
+  function cafeSelectUFG() {
+    document.getElementById('cafe-search').value = 'UFG - Universidade Federal de Goias';
+    document.getElementById('cafe-dropdown').style.display = 'none';
+    document.getElementById('cafe-ufg-result').style.display = 'block';
+  }
+
+  function cafeProsseguir() {
+    document.getElementById('cafe-s12').style.display = 'none';
+    document.getElementById('cafe-s3').style.display  = 'flex';
+    const bar = document.getElementById('cafe-progress');
+    bar.style.width = '0%';
+    setTimeout(() => { bar.style.width = '100%'; }, 80);
+    setTimeout(() => {
+      document.getElementById('cafe-s3').style.display = 'none';
+      document.getElementById('cafe-s4').style.display = 'flex';
+      document.getElementById('sissa-cafe-login').focus();
+    }, 2600);
+  }
+
+  function cafeReset() {
+    document.getElementById('cafe-s12').style.display = 'flex';
+    document.getElementById('cafe-s3').style.display  = 'none';
+    document.getElementById('cafe-s4').style.display  = 'none';
+    document.getElementById('cafe-search').value = '';
+    document.getElementById('cafe-dropdown').style.display   = 'none';
+    document.getElementById('cafe-ufg-result').style.display = 'none';
+    const bar = document.getElementById('cafe-progress');
+    if (bar) bar.style.width = '0%';
   }
 
   function handleLogout() {
@@ -2252,6 +3826,1205 @@
     document.getElementById('copiar-novo-nome').value = '';
     document.getElementById('copiar-nome-error').classList.remove('visible');
     openModal('modal-copiar-grupo');
+  }
+
+  /* ══════════════════════════════════════════
+     SISSA – STATE
+  ══════════════════════════════════════════ */
+  const sissaState = {
+    estudantes: [],
+    grupos: [],
+    intervencoes: [],
+    usuarios: [],
+    cursos: [],
+    perfis: [],
+    instituicoes: [],
+    riscoestat: null,          // dados da API /estatisticas/risco
+    selectedEstudanteIds: new Set(),
+    intEstudanteTags: [],   // [{id, nome, matricula}]
+    grupoEstudanteTags: []  // [{id, nome, matricula}]
+  };
+
+  const SISSA_API = 'http://localhost:3000/api/sissa';
+
+  async function sissaFetch(path, opts = {}) {
+    const r = await fetch(SISSA_API + path, {
+      headers: { 'Content-Type': 'application/json' },
+      ...opts
+    });
+    return r.json();
+  }
+
+  /* ══════════════════════════════════════════
+     SISSA – NOTIFICATION
+  ══════════════════════════════════════════ */
+  let sissaNotifTimer = null;
+  function showSissaNotif(msg) {
+    const el = document.getElementById('sissa-notif');
+    document.getElementById('sissa-notif-text').textContent = msg;
+    el.classList.add('show');
+    if (sissaNotifTimer) clearTimeout(sissaNotifTimer);
+    sissaNotifTimer = setTimeout(() => hideSissaNotif(), 3500);
+  }
+  function hideSissaNotif() {
+    document.getElementById('sissa-notif').classList.remove('show');
+  }
+
+  /* ══════════════════════════════════════════
+     SISSA – MODAL HELPERS
+  ══════════════════════════════════════════ */
+  function sissaOpenModal(id) { document.getElementById(id).classList.add('open'); }
+  function sissaCloseModal(id) { document.getElementById(id).classList.remove('open'); }
+  function sissaBackdropClose(e, id) { if (e.target === e.currentTarget) sissaCloseModal(id); }
+
+  /* ══════════════════════════════════════════
+     SISSA – STATE DE SESSÃO
+  ══════════════════════════════════════════ */
+  const sissaSession = {
+    instSelecionada: null,   // { id, nome, tipo, code_mec }
+    usuario: null,            // objeto do usuário logado (null = área pública)
+    tipo: null                // 'privado' | 'publico'
+  };
+
+  /* ══════════════════════════════════════════
+     SISSA – PASSO 1: SELEÇÃO DE INSTITUIÇÃO
+  ══════════════════════════════════════════ */
+  async function loadSissaInst() {
+    const ul = document.getElementById('sissa-inst-list');
+    if (ul) ul.innerHTML = '<li style="text-align:center;color:#ccc;font-size:13px;padding:16px 0;">Carregando...</li>';
+    try {
+      const res = await sissaFetch('/instituicoes');
+      sissaState.instituicoes = res.data || [];
+    } catch {
+      sissaState.instituicoes = [
+        { id:1, code_mec:'26358', nome:'Instituto Federal de São Paulo',  tipo:'Instituto Federal' },
+        { id:2, code_mec:'579',   nome:'Universidade Federal de Goiás',    tipo:'Universidade' },
+        { id:3, code_mec:'12075', nome:'Instituto Federal de Rondônia',    tipo:'Instituto Federal' }
+      ];
+    }
+    renderSissaInstList(sissaState.instituicoes);
+    // Reset ao chegar na tela
+    sissaSession.instSelecionada = null;
+    document.getElementById('sissa-btn-entrar-fed').disabled = true;
+    sissaVoltarStep1();
+  }
+
+  function renderSissaInstList(list) {
+    const ul = document.getElementById('sissa-inst-list');
+    if (!ul) return;
+    if (!list.length) {
+      ul.innerHTML = '<li style="text-align:center;color:#ccc;font-size:13px;padding:16px 0;">Nenhuma instituição encontrada.</li>';
+      return;
+    }
+    ul.innerHTML = list.map(i => `
+      <li class="sissa-inst-item" data-id="${i.id}"
+          data-nome="${escAttr(i.nome)}" data-tipo="${escAttr(i.tipo||'')}" data-code="${escAttr(i.code_mec||'')}"
+          onclick="selectSissaInst(this, ${i.id}, '${escAttr(i.nome)}', '${escAttr(i.tipo||'')}', '${escAttr(i.code_mec||'')}')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--s-primary)" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9,22 9,12 15,12 15,22"/>
+        </svg>
+        <div>
+          <div class="sissa-inst-name">${escHtml(i.nome)}</div>
+          <div class="sissa-inst-code">${escHtml(i.tipo||'')} · Cód. MEC: ${escHtml(i.code_mec||'')}</div>
+        </div>
+      </li>`).join('');
+  }
+
+  function selectSissaInst(el, id, nome, tipo, code_mec) {
+    document.querySelectorAll('.sissa-inst-item').forEach(li => li.classList.remove('selected'));
+    el.classList.add('selected');
+    sissaSession.instSelecionada = { id, nome, tipo, code_mec };
+    document.getElementById('sissa-btn-entrar-fed').disabled = false;
+  }
+
+  function filterSissaInst(term) {
+    const q = term.toLowerCase().trim();
+    const filtered = q
+      ? sissaState.instituicoes.filter(i => i.nome.toLowerCase().includes(q) || (i.code_mec||'').includes(q))
+      : sissaState.instituicoes;
+    renderSissaInstList(filtered);
+  }
+
+  function sissaGoToStep2() {
+    if (!sissaSession.instSelecionada) return;
+    // Preenche header do passo 2
+    document.getElementById('sissa-cafe-inst-display').textContent      = sissaSession.instSelecionada.nome;
+    document.getElementById('sissa-cafe-inst-type-display').textContent = sissaSession.instSelecionada.tipo || '';
+    document.getElementById('sissa-cafe-login').value = '';
+    document.getElementById('sissa-cafe-senha').value = '';
+    document.getElementById('sissa-cafe-error').classList.remove('visible');
+    // Troca os painéis
+    document.getElementById('sissa-step1').classList.add('hidden');
+    document.getElementById('sissa-step2').classList.remove('hidden');
+    document.getElementById('sissa-cafe-login').focus();
+  }
+
+  function sissaVoltarStep1() {
+    document.getElementById('sissa-step1').classList.remove('hidden');
+    document.getElementById('sissa-step2').classList.add('hidden');
+    document.getElementById('sissa-cafe-error').classList.remove('visible');
+  }
+
+  /* ══════════════════════════════════════════
+     SISSA – PASSO 2: AUTENTICAÇÃO CAFe
+  ══════════════════════════════════════════ */
+  async function sissaDoAuth() {
+    const email = (document.getElementById('sissa-cafe-login').value || '').trim();
+    const senha = document.getElementById('sissa-cafe-senha').value || '';
+    const errEl = document.getElementById('sissa-cafe-error');
+    const btn   = document.getElementById('sissa-cafe-entrar-btn');
+
+    errEl.classList.remove('visible');
+
+    if (!email || !senha) {
+      errEl.textContent = 'Informe seu login e senha da rede federada.';
+      errEl.classList.add('visible');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errEl.textContent = 'Informe um e-mail institucional válido.';
+      errEl.classList.add('visible');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Autenticando...';
+
+    try {
+      const res = await sissaFetch('/auth', {
+        method: 'POST',
+        body: JSON.stringify({ email, senha, instituicao_id: sissaSession.instSelecionada?.id })
+      });
+
+      if (!res.success) {
+        errEl.textContent = res.error || 'Erro ao autenticar.';
+        errEl.classList.add('visible');
+        return;
+      }
+
+      sissaSession.tipo    = res.tipo;
+      sissaSession.usuario = res.usuario;
+
+      if (res.tipo === 'privado') {
+        // Área privada – carrega dados e vai para estudantes
+        await loadSissaAllData();
+        showScreen('sissa-estudantes');
+      } else {
+        // Área pública
+        sissaCarregarAreaPublica();
+        showScreen('sissa-area-publica');
+      }
+
+    } catch (err) {
+      // Sem banco: simula autenticação pelo e-mail
+      const emailsPrivados = [
+        'adailton@ufg.com',
+        'beatriz.de.bastos.vianna@gmail.com',
+        'laishcandido@gmail.com',
+        'kalebe.xavier@ifsp.edu.br',
+        'juliana.moraes@ifsp.edu.br',
+        'beatriz.cardoso@ifsp.edu.br'
+      ];
+      const isPrivado = emailsPrivados.includes(email.toLowerCase());
+      sissaSession.tipo    = isPrivado ? 'privado' : 'publico';
+      sissaSession.usuario = { email, nome: email.split('@')[0] };
+
+      if (isPrivado) {
+        loadSissaMockData();
+        showScreen('sissa-estudantes');
+      } else {
+        sissaCarregarAreaPublica();
+        showScreen('sissa-area-publica');
+      }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Entrar';
+    }
+  }
+
+  function sissaEntrarPublico() {
+    // Acessa área pública sem verificar cadastro
+    sissaSession.tipo    = 'publico';
+    sissaSession.usuario = { email: '(visitante)', nome: 'Visitante' };
+    sissaCarregarAreaPublica();
+    showScreen('sissa-area-publica');
+  }
+
+  function sissaCarregarAreaPublica() {
+    // Info do usuário no banner
+    const infoEl = document.getElementById('sissa-publica-user-info');
+    if (infoEl) {
+      const u = sissaSession.usuario;
+      const inst = sissaSession.instSelecionada?.nome || '';
+      infoEl.textContent = `Autenticado: ${u?.email || u?.nome || 'visitante'}${inst ? ' · ' + inst : ''}`;
+    }
+    const instNomeEl = document.getElementById('sissa-publica-inst-nome');
+    if (instNomeEl) instNomeEl.textContent = sissaSession.instSelecionada?.nome || '';
+
+    // Lista de cursos públicos
+    const container = document.getElementById('sissa-publica-cursos-list');
+    if (!container) return;
+    const cursos = sissaState.cursos.length ? sissaState.cursos : [
+      { nome:'Licenciatura em Física',        codigo:'LFI',   instituicao_nome:'Instituto Federal de São Paulo' },
+      { nome:'Licenciatura em Matemática',    codigo:'LMA',   instituicao_nome:'Instituto Federal de São Paulo' },
+      { nome:'Bacharelado em Agronomia',      codigo:'52921', instituicao_nome:'Universidade Federal de Goiás' },
+      { nome:'Técnico em Agroecologia',       codigo:'12075', instituicao_nome:'Instituto Federal de Rondônia' },
+      { nome:'Técnico em Administração',      codigo:'50',    instituicao_nome:'Instituto Federal de Rondônia' }
+    ];
+    container.innerHTML = cursos.map(c => `
+      <div class="sissa-curso-card">
+        <div>
+          <div class="sissa-curso-card-name">${escHtml(c.nome)}</div>
+          <div class="sissa-curso-card-inst">${escHtml(c.instituicao_nome || '')} · Cód.: ${escHtml(c.codigo||'')}</div>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+      </div>`).join('');
+
+    // Carrega cursos do servidor em background
+    sissaFetch('/cursos').then(r => {
+      if (r.success && r.data?.length) {
+        sissaState.cursos = r.data;
+        container.innerHTML = r.data.map(c => `
+          <div class="sissa-curso-card">
+            <div>
+              <div class="sissa-curso-card-name">${escHtml(c.nome)}</div>
+              <div class="sissa-curso-card-inst">${escHtml(c.instituicao_nome||'')} · Cód.: ${escHtml(c.codigo||'')}</div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2">
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+          </div>`).join('');
+      }
+    }).catch(() => {});
+  }
+
+  function sissaLogout() {
+    sissaSession.instSelecionada = null;
+    sissaSession.usuario = null;
+    sissaSession.tipo = null;
+    sissaState.estudantes = [];
+    sissaState.grupos = [];
+    sissaState.intervencoes = [];
+    sissaState.usuarios = [];
+    sissaState.cursos = [];
+    sissaState.perfis = [];
+    sissaState.riscoestat = null;
+    sissaState.selectedEstudanteIds.clear();
+    sissaState.intEstudanteTags = [];
+    sissaState.grupoEstudanteTags = [];
+    // Reset filter dropdowns
+    const pf = document.getElementById('sissa-perfil-filter');
+    const cf = document.getElementById('sissa-curso-filter');
+    if (pf) pf.innerHTML = '<option value="">Perfil</option>';
+    if (cf) cf.innerHTML = '<option value="">Curso</option>';
+    cafeReset();
+    showScreen('sissa-login');
+  }
+
+  /* ══════════════════════════════════════════
+     SISSA – LOAD ALL
+  ══════════════════════════════════════════ */
+  async function loadSissaAllData() {
+    try {
+      const [eRes, gRes, iRes, uRes, cRes, pRes, statRes] = await Promise.all([
+        sissaFetch('/estudantes'),
+        sissaFetch('/grupos'),
+        sissaFetch('/intervencoes'),
+        sissaFetch('/usuarios'),
+        sissaFetch('/cursos'),
+        sissaFetch('/perfis'),
+        sissaFetch('/estatisticas/risco')
+      ]);
+      if (eRes.success)    sissaState.estudantes   = eRes.data    || [];
+      if (gRes.success)    sissaState.grupos       = gRes.data    || [];
+      if (iRes.success)    sissaState.intervencoes = iRes.data    || [];
+      if (uRes.success)    sissaState.usuarios     = uRes.data    || [];
+      if (cRes.success)    sissaState.cursos       = cRes.data    || [];
+      if (pRes.success)    sissaState.perfis       = pRes.data    || [];
+      if (statRes.success) sissaState.riscoestat   = statRes.data || null;
+
+      renderSissaEstudantes(sissaState.estudantes);
+      renderSissaGrupos(sissaState.grupos);
+      renderSissaIntervencoes(sissaState.intervencoes);
+      renderSissaUsuarios(sissaState.usuarios);
+      if (sissaState.riscoestat) {
+        updateSissaGaugeFromStats(sissaState.riscoestat);
+      } else {
+        updateSissaGauge(sissaState.estudantes);
+      }
+      updateEstSub(sissaState.estudantes);
+      populateSissaFilters();
+    } catch (err) {
+      console.warn('Sissa API unavailable, using mock data:', err.message);
+      loadSissaMockData();
+    }
+  }
+
+  async function reloadSissaEstudantes() {
+    try {
+      const eRes = await sissaFetch('/estudantes');
+      if (eRes.success) { sissaState.estudantes = eRes.data || []; }
+      const sRes = await sissaFetch('/estatisticas/risco');
+      if (sRes.success) { sissaState.riscoestat = sRes.data; updateSissaGaugeFromStats(sissaState.riscoestat); }
+      else { updateSissaGauge(sissaState.estudantes); }
+      renderSissaEstudantes(sissaState.estudantes);
+      updateEstSub(sissaState.estudantes);
+    } catch { renderSissaEstudantes(sissaState.estudantes); }
+  }
+
+  async function reloadSissaGrupos() {
+    try {
+      const r = await sissaFetch('/grupos');
+      if (r.success) { sissaState.grupos = r.data || []; renderSissaGrupos(sissaState.grupos); }
+    } catch {}
+  }
+
+  async function reloadSissaIntervencoes() {
+    try {
+      const r = await sissaFetch('/intervencoes');
+      if (r.success) { sissaState.intervencoes = r.data || []; renderSissaIntervencoes(sissaState.intervencoes); }
+    } catch {}
+  }
+
+  async function reloadSissaUsuarios() {
+    try {
+      const r = await sissaFetch('/usuarios');
+      if (r.success) { sissaState.usuarios = r.data || []; renderSissaUsuarios(sissaState.usuarios); }
+    } catch {}
+  }
+
+  function populateSissaFilters() {
+    // Populate Perfil filter in usuarios screen
+    const pf = document.getElementById('sissa-perfil-filter');
+    if (pf && sissaState.perfis.length) {
+      const existing = [...pf.options].map(o => o.value);
+      sissaState.perfis.forEach(p => {
+        if (!existing.includes(String(p.id))) {
+          const opt = document.createElement('option');
+          opt.value = p.id; opt.textContent = p.nome;
+          pf.appendChild(opt);
+        }
+      });
+    }
+    // Populate Curso filter in usuarios screen
+    const cf = document.getElementById('sissa-curso-filter');
+    if (cf && sissaState.cursos.length) {
+      const existing = [...cf.options].map(o => o.value);
+      sissaState.cursos.forEach(c => {
+        if (!existing.includes(String(c.id))) {
+          const opt = document.createElement('option');
+          opt.value = c.id; opt.textContent = c.nome;
+          cf.appendChild(opt);
+        }
+      });
+    }
+  }
+
+  function loadSissaMockData() {
+    sissaState.estudantes = [
+      { id:1, matricula:'2021108020001', nome:'Andria De Oliveira Sebastiao',           risco:'Alto',  semestre_saida:1, media_global:0.0, semestre_atual:2, reprovacoes:2, ch_semestre:600, maior_influencia:'Forma de ingresso', turmas:5 },
+      { id:2, matricula:'2021108020002', nome:'Denny Ryu De Carvalho Nacano',           risco:'Médio', semestre_saida:1, media_global:3.2, semestre_atual:2, reprovacoes:1, ch_semestre:600, maior_influencia:'Forma de ingresso', turmas:5 },
+      { id:3, matricula:'2021108023001', nome:'Isabelly Victoria De Freitas Formitani', risco:'Médio', semestre_saida:1, media_global:4.5, semestre_atual:1, reprovacoes:0, ch_semestre:600, maior_influencia:'UF naturalidade',    turmas:5 },
+      { id:4, matricula:'2021108024001', nome:'Carlos Eduardo Santos Ferreira',          risco:'Alto',  semestre_saida:2, media_global:2.1, semestre_atual:3, reprovacoes:3, ch_semestre:480, maior_influencia:'Reprovações',        turmas:4 },
+      { id:5, matricula:'2021108025001', nome:'Maria Fernanda Alves Costa',              risco:'Baixo', semestre_saida:4, media_global:7.8, semestre_atual:2, reprovacoes:0, ch_semestre:600, maior_influencia:'Sem risco',          turmas:5 },
+      { id:6, matricula:'2021108026001', nome:'João Pedro Rodrigues Lima',               risco:'Médio', semestre_saida:2, media_global:5.0, semestre_atual:1, reprovacoes:1, ch_semestre:360, maior_influencia:'Forma de ingresso', turmas:3 }
+    ];
+    sissaState.grupos = [
+      { id:1, titulo:'Grupo A', semestre:'2024/2', total_estudantes:2, created_at:'2024-02-01', observacoes:'Grupo com estudantes que necessitam de intervenção proativa...', autoria_nome:'Kalebe Xavier', autoria_perfil:'Tutor Físico', status:'Ativo' },
+      { id:2, titulo:'Grupo B', semestre:'2024/1', total_estudantes:5, created_at:'2023-05-20', observacoes:'Grupo que requer atenção em eletromagnetismo', autoria_nome:'Adailton Araújo', autoria_perfil:'Coordenador de curso', status:'Inativo' }
+    ];
+    sissaState.intervencoes = [
+      { id:1, data_intervencao:'2023-05-30', semestre:'2023/1', formato:'Grupo',      interacao:'Reativa',   tipo:'Conteúdo',    acompanhamento:'Assíncrono', observacoes:'Aula sobre como montar rotina de estudos...', grupo_titulo:'Grupo A', estudante_nomes:['Andria De Oliveira Sebastiao','Isabelly Victoria De Freitas Formitani'] },
+      { id:2, data_intervencao:'2023-07-06', semestre:'2023/1', formato:'Individual', interacao:'Pró-ativa', tipo:'Acolhimento', acompanhamento:'Assíncrono', observacoes:'Dicas sobre eletromagnetismo', grupo_titulo:'Grupo A', estudante_nomes:['Andria De Oliveira Sebastiao'] }
+    ];
+    sissaState.usuarios = [
+      { id:1, nome:'Adailton Araújo',                  email_institucional:'adailton@ufg.com',                  perfil_nome:'Coordenador de curso',   cursos:['Licenciatura em Física'], ultimo_acesso: new Date(Date.now()-7200000).toISOString() },
+      { id:2, nome:'Beatriz de Barros Vianna Cardoso', email_institucional:'beatriz.de.bastos.vianna@gmail.com', perfil_nome:'Coordenador de ensino',  cursos:['Licenciatura em Física'], ultimo_acesso: new Date(Date.now()-86400000*30).toISOString() },
+      { id:3, nome:'Laís Hauptli Cândido',             email_institucional:'laishcandido@gmail.com',             perfil_nome:'Coordenador de unidade', cursos:['Licenciatura em Física','Licenciatura em Matemática'], ultimo_acesso: null }
+    ];
+    sissaState.cursos = [
+      { id:1, nome:'Licenciatura em Física',        codigo:'LFI',   instituicao_nome:'Instituto Federal de São Paulo' },
+      { id:2, nome:'Licenciatura em Matemática',    codigo:'LMA',   instituicao_nome:'Instituto Federal de São Paulo' },
+      { id:3, nome:'Bacharelado em Agronomia',      codigo:'52921', instituicao_nome:'Universidade Federal de Goiás' }
+    ];
+    sissaState.perfis = [
+      { id:1, nome:'Coordenador de curso' },
+      { id:2, nome:'Coordenador de ensino' },
+      { id:3, nome:'Coordenador de unidade' },
+      { id:4, nome:'Tutor Físico' },
+      { id:5, nome:'Tutor' }
+    ];
+
+    renderSissaEstudantes(sissaState.estudantes);
+    renderSissaGrupos(sissaState.grupos);
+    renderSissaIntervencoes(sissaState.intervencoes);
+    renderSissaUsuarios(sissaState.usuarios);
+    updateSissaGauge(sissaState.estudantes);
+    updateEstSub(sissaState.estudantes);
+  }
+
+  /* ══════════════════════════════════════════
+     SISSA – ESTUDANTES
+  ══════════════════════════════════════════ */
+  function riscoBar(risco) {
+    const levels = { 'Alto':3, 'Médio':2, 'Baixo':1 };
+    const n = levels[risco] || 0;
+    const cls = { 'Alto':'sissa-risco-alto', 'Médio':'sissa-risco-medio', 'Baixo':'sissa-risco-baixo' };
+    const bars = [1,2,3].map(i =>
+      `<span style="height:${i*4+4}px;" class="${i<=n?'active':''}"></span>`
+    ).join('');
+    return `<span class="sissa-risco ${cls[risco]||''}">
+              <span class="sissa-risco-bar">${bars}</span> ${escHtml(risco||'-')}
+            </span>`;
+  }
+
+  function renderSissaEstudantes(list) {
+    const tbody = document.getElementById('sissa-tbody-estudantes');
+    if (!tbody) return;
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#aaa;padding:24px;">Nenhum estudante encontrado.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(e => {
+      const sel = sissaState.selectedEstudanteIds.has(e.id);
+      return `<tr class="${sel?'selected-row':''}">
+        <td class="cb-col"><input type="checkbox" value="${e.id}" ${sel?'checked':''} onchange="toggleEstudanteSelection(${e.id},this)"></td>
+        <td>${riscoBar(e.risco)}</td>
+        <td style="text-align:center;">${e.semestre_saida??'-'}</td>
+        <td style="font-size:12px;color:#9ca3af;">${escHtml(e.matricula)}</td>
+        <td style="font-weight:500;color:#111;">${escHtml(e.nome)}</td>
+        <td style="text-align:center;">${e.media_global??'-'}</td>
+        <td style="text-align:center;">${e.semestre_atual??'-'}</td>
+        <td style="text-align:center;">${e.reprovacoes??'-'}</td>
+        <td style="text-align:center;">${e.ch_semestre??'-'}</td>
+        <td style="font-size:12px;">${escHtml(e.maior_influencia||'-')}</td>
+        <td style="text-align:center;">${e.turmas??'-'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function toggleEstudanteSelection(id, cb) {
+    if (cb.checked) sissaState.selectedEstudanteIds.add(id);
+    else             sissaState.selectedEstudanteIds.delete(id);
+    const count = sissaState.selectedEstudanteIds.size;
+    const bar = document.getElementById('sissa-sel-bar');
+    const countEl = document.getElementById('sissa-sel-count');
+    bar.classList.toggle('visible', count > 0);
+    if (countEl) countEl.textContent = `${count} selecionado(s)`;
+    renderSissaEstudantes(sissaState.estudantes);
+  }
+
+  function toggleAllEstudantes(masterCb) {
+    sissaState.estudantes.forEach(e => {
+      if (masterCb.checked) sissaState.selectedEstudanteIds.add(e.id);
+      else                   sissaState.selectedEstudanteIds.delete(e.id);
+    });
+    const count = sissaState.selectedEstudanteIds.size;
+    document.getElementById('sissa-sel-bar').classList.toggle('visible', count > 0);
+    document.getElementById('sissa-sel-count').textContent = `${count} selecionado(s)`;
+    renderSissaEstudantes(sissaState.estudantes);
+  }
+
+  function filterSissaEstudantes(term) {
+    const q = (term || document.getElementById('sissa-search-est')?.value || '').toLowerCase().trim();
+    let filtered = sissaState.estudantes;
+    if (q) filtered = filtered.filter(e =>
+      e.nome.toLowerCase().includes(q) || e.matricula.toLowerCase().includes(q)
+    );
+    renderSissaEstudantes(filtered);
+  }
+
+  function updateSissaGauge(list) {
+    if (!list.length) return;
+    const total = list.length;
+    const alto  = list.filter(e=>e.risco==='Alto').length;
+    const medio = list.filter(e=>e.risco==='Médio').length;
+    const baixo = list.filter(e=>e.risco==='Baixo').length;
+    const zero  = total - alto - medio - baixo;
+    const pA = Math.round(alto/total*100);
+    const pM = Math.round(medio/total*100);
+    const pB = Math.round(baixo/total*100);
+    _renderGaugeBar(alto||0.1, medio||0.1, baixo||0.1, zero, pA, pM, pB);
+  }
+
+  function updateSissaGaugeFromStats(stat) {
+    if (!stat || !stat.total) return;
+    const { alto, medio, baixo, pct_alto, pct_medio, pct_baixo, total } = stat;
+    const zero = total - alto - medio - baixo;
+    _renderGaugeBar(alto||0.1, medio||0.1, baixo||0.1, zero, pct_alto, pct_medio, pct_baixo);
+  }
+
+  function _renderGaugeBar(fA, fM, fB, zero, pA, pM, pB) {
+    const bar = document.getElementById('sissa-gauge-bar');
+    if (!bar) return;
+    bar.innerHTML = `
+      <div class="sissa-gauge-alto"  style="flex:${fA}" title="Alto – ${pA}%"><span class="gauge-pct">${pA}%</span></div>
+      <div class="sissa-gauge-medio" style="flex:${fM}" title="Médio – ${pM}%"><span class="gauge-pct">${pM}%</span></div>
+      <div class="sissa-gauge-baixo" style="flex:${fB}" title="Baixo – ${pB}%"><span class="gauge-pct">${pB}%</span></div>
+      ${zero>0?`<div class="sissa-gauge-zero" style="flex:${zero}" title="Sem dados"></div>`:''}`;
+  }
+
+  function updateEstSub(list) {
+    const sub = document.getElementById('sissa-est-sub');
+    if (sub) sub.textContent = `${list.length} Estudantes`;
+  }
+
+  function exportarEstudantes() {
+    const rows = [['Matrícula','Nome','Risco','Semestre Saída','Média Global','Reprovações']];
+    sissaState.estudantes.forEach(e => rows.push([e.matricula, e.nome, e.risco, e.semestre_saida, e.media_global, e.reprovacoes]));
+    const csv = rows.map(r => r.map(c => `"${c??''}"`).join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = Object.assign(document.createElement('a'), {href:URL.createObjectURL(blob), download:'estudantes.csv'});
+    a.click();
+  }
+
+  function openNovoEstudante() {
+    showToast('Cadastro de estudantes ocorre via integração de API.', 'info');
+  }
+
+  /* ══════════════════════════════════════════
+     SISSA – GRUPOS
+  ══════════════════════════════════════════ */
+  function renderSissaGrupos(list) {
+    const tbody = document.getElementById('sissa-tbody-grupos');
+    if (!tbody) return;
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px;">Nenhum grupo encontrado.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(g => {
+      const dt = g.created_at ? new Date(g.created_at).toLocaleDateString('pt-BR') : '-';
+      const statusCls = g.status === 'Ativo' ? 'sissa-status-ativo' : 'sissa-status-inativo';
+      const obs = (g.observacoes||'').substring(0,40) + ((g.observacoes||'').length>40?'...':'');
+      return `
+      <tr>
+        <td>
+          <button class="sissa-expand-btn" onclick="toggleGrupoExpand(${g.id},this)" title="Ver estudantes">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9,18 15,12 9,6"/>
+            </svg>
+          </button>
+        </td>
+        <td style="font-weight:600;color:var(--s-text);">${escHtml(g.titulo)}</td>
+        <td>${escHtml(g.semestre||'-')}</td>
+        <td style="text-align:center;">${g.total_estudantes??0}</td>
+        <td style="font-size:12px;color:#9ca3af;">${dt}</td>
+        <td style="font-size:12px;color:#9ca3af;">${escHtml(obs)}</td>
+        <td><span class="sissa-autoria">${escHtml((g.autoria_perfil||g.autoria_nome||'').toUpperCase())}</span></td>
+        <td><span class="sissa-status ${statusCls}">${escHtml(g.status)}</span></td>
+        <td>
+          <div class="sissa-actions">
+            <button class="sissa-icon-btn" title="Nova intervenção do grupo" onclick="openNovaIntervencaoDoGrupo(${g.id},'${escAttr(g.titulo)}')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+              </svg>
+            </button>
+            <button class="sissa-icon-btn" title="Editar" onclick="openEditGrupo(${g.id})">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button class="sissa-icon-btn" title="Excluir" onclick="deleteSissaGrupo(${g.id},'${escAttr(g.titulo)}')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3,6 5,6 21,6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+      <tr id="grupo-expand-${g.id}" class="sissa-sub-row">
+        <td colspan="9" id="grupo-expand-content-${g.id}">Carregando...</td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function toggleGrupoExpand(id, btn) {
+    const row = document.getElementById(`grupo-expand-${id}`);
+    const expanded = row.classList.contains('open');
+    btn.classList.toggle('expanded', !expanded);
+    row.classList.toggle('open', !expanded);
+    if (!expanded) {
+      const content = document.getElementById(`grupo-expand-content-${id}`);
+      content.innerHTML = '<em style="color:#aaa;font-size:12px;">Carregando...</em>';
+      try {
+        const res = await sissaFetch(`/grupos/${id}/estudantes`);
+        const est = res.data || [];
+        if (est.length) {
+          content.innerHTML = `
+            <strong>Estudantes do grupo (${est.length}):</strong>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+              ${est.map(e=>`
+                <span style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:20px;
+                             padding:2px 10px;font-size:12px;">
+                  ${escHtml(e.nome)}
+                  <span style="color:${e.risco==='Alto'?'#dc2626':e.risco==='Médio'?'#d97706':'#16a34a'};
+                               font-weight:600;margin-left:4px;">${escHtml(e.risco||'')}</span>
+                </span>`).join('')}
+            </div>`;
+        } else {
+          content.innerHTML = '<span style="color:#aaa;font-size:12px;">Nenhum estudante neste grupo.</span>';
+        }
+      } catch { content.innerHTML = '<span style="color:#e57373;font-size:12px;">Erro ao carregar estudantes.</span>'; }
+    }
+  }
+
+  function filterSissaGrupos(term) {
+    const q = (term||'').toLowerCase().trim();
+    const filtered = q ? sissaState.grupos.filter(g=>(g.titulo||'').toLowerCase().includes(q)) : sissaState.grupos;
+    renderSissaGrupos(filtered);
+  }
+
+  function openNovoGrupo() {
+    document.getElementById('sissa-grupo-id').value = '';
+    document.getElementById('sissa-grupo-modal-title').textContent = 'Novo grupo';
+    document.getElementById('sissa-grupo-btn-submit').textContent = 'Criar';
+    document.getElementById('sissa-grupo-titulo').value = '';
+    document.getElementById('sissa-grupo-semestre').value = '';
+    document.getElementById('sissa-grupo-obs').value = '';
+    document.getElementById('sissa-grupo-titulo-error').classList.remove('visible');
+    sissaState.grupoEstudanteTags = [];
+
+    // Pre-fill selected students
+    if (sissaState.selectedEstudanteIds.size > 0) {
+      sissaState.selectedEstudanteIds.forEach(id => {
+        const est = sissaState.estudantes.find(e => e.id === id);
+        if (est && !sissaState.grupoEstudanteTags.find(t=>t.id===est.id)) {
+          sissaState.grupoEstudanteTags.push({id:est.id, nome:est.nome, matricula:est.matricula});
+        }
+      });
+    }
+    populateEstDatalist('sissa-est-datalist2');
+    renderGrupoEstTags();
+    sissaOpenModal('sissa-modal-grupo');
+  }
+
+  async function openEditGrupo(id) {
+    const g = sissaState.grupos.find(x=>x.id===id);
+    if (!g) return;
+    document.getElementById('sissa-grupo-id').value = id;
+    document.getElementById('sissa-grupo-modal-title').textContent = 'Editar grupo';
+    document.getElementById('sissa-grupo-btn-submit').textContent = 'Salvar';
+    document.getElementById('sissa-grupo-titulo').value = g.titulo||'';
+    document.getElementById('sissa-grupo-semestre').value = g.semestre||'';
+    document.getElementById('sissa-grupo-obs').value = g.observacoes||'';
+    document.getElementById('sissa-grupo-titulo-error').classList.remove('visible');
+
+    sissaState.grupoEstudanteTags = [];
+    try {
+      const res = await sissaFetch(`/grupos/${id}/estudantes`);
+      (res.data||[]).forEach(e => sissaState.grupoEstudanteTags.push({id:e.id,nome:e.nome,matricula:e.matricula||''}));
+    } catch {}
+    populateEstDatalist('sissa-est-datalist2');
+    renderGrupoEstTags();
+    sissaOpenModal('sissa-modal-grupo');
+  }
+
+  async function submitSissaGrupo() {
+    const id     = document.getElementById('sissa-grupo-id').value;
+    const titulo = document.getElementById('sissa-grupo-titulo').value.trim();
+    const errEl  = document.getElementById('sissa-grupo-titulo-error');
+    if (!titulo) { errEl.classList.add('visible'); return; }
+    errEl.classList.remove('visible');
+
+    const payload = {
+      titulo,
+      semestre:    document.getElementById('sissa-grupo-semestre').value,
+      observacoes: document.getElementById('sissa-grupo-obs').value,
+      estudante_ids: sissaState.grupoEstudanteTags.map(t=>t.id)
+    };
+
+    const btn = document.getElementById('sissa-grupo-btn-submit');
+    btn.disabled = true;
+    try {
+      const res = id
+        ? await sissaFetch(`/grupos/${id}`, { method:'PUT', body: JSON.stringify(payload) })
+        : await sissaFetch('/grupos',        { method:'POST', body: JSON.stringify(payload) });
+
+      if (res.success || res.data) {
+        showSissaNotif(id ? 'Grupo atualizado com sucesso' : 'Grupo criado com sucesso');
+        sissaCloseModal('sissa-modal-grupo');
+        sissaState.selectedEstudanteIds.clear();
+        document.getElementById('sissa-sel-bar').classList.remove('visible');
+
+        // Reload groups
+        try {
+          const r2 = await sissaFetch('/grupos');
+          if (r2.success) { sissaState.grupos = r2.data||[]; renderSissaGrupos(sissaState.grupos); }
+        } catch { loadSissaMockData(); }
+      } else {
+        showToast(res.error||'Erro ao salvar grupo.','error');
+      }
+    } catch {
+      // Update mock state
+      if (!id) {
+        const novo = { id: Date.now(), titulo, semestre: payload.semestre, observacoes: payload.observacoes, status:'Ativo', total_estudantes: payload.estudante_ids.length, autoria_nome:'Você', autoria_perfil:'Tutor', created_at: new Date().toISOString() };
+        sissaState.grupos.push(novo);
+      }
+      showSissaNotif(id ? 'Grupo atualizado com sucesso' : 'Grupo criado com sucesso');
+      sissaCloseModal('sissa-modal-grupo');
+      sissaState.selectedEstudanteIds.clear();
+      document.getElementById('sissa-sel-bar').classList.remove('visible');
+      renderSissaGrupos(sissaState.grupos);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function deleteSissaGrupo(id, nome) {
+    if (!confirm(`Excluir o grupo "${nome}"?`)) return;
+    try {
+      await sissaFetch(`/grupos/${id}`, { method:'DELETE' });
+    } catch {}
+    sissaState.grupos = sissaState.grupos.filter(g=>g.id!==id);
+    renderSissaGrupos(sissaState.grupos);
+    showSissaNotif('Grupo excluído com sucesso');
+  }
+
+  /* ══════════════════════════════════════════
+     SISSA – INTERVENÇÕES
+  ══════════════════════════════════════════ */
+  let sissaIntTab = 'pedidos';
+
+  function switchIntTab(tab, el) {
+    sissaIntTab = tab;
+    document.querySelectorAll('#sissa-int-tabs .sissa-tab').forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+    renderSissaIntervencoes(sissaState.intervencoes);
+  }
+
+  function renderSissaIntervencoes(list) {
+    const tbody = document.getElementById('sissa-tbody-intervencoes');
+    if (!tbody) return;
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px;">Nenhuma intervenção encontrada.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(i => {
+      const dt = i.data_intervencao
+        ? new Date(i.data_intervencao+'T12:00:00').toLocaleDateString('pt-BR')
+        : '-';
+      const obs = (i.observacoes||'').substring(0,45) + ((i.observacoes||'').length>45?'...':'');
+      return `
+      <tr>
+        <td>
+          <button class="sissa-expand-btn" onclick="toggleIntExpand(${i.id},this)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9,18 15,12 9,6"/>
+            </svg>
+          </button>
+          <span style="margin-left:4px;font-size:13px;">${dt}</span>
+        </td>
+        <td>${escHtml(i.formato||'-')}</td>
+        <td>${escHtml(i.interacao||'-')}</td>
+        <td>${escHtml(i.tipo||'-')}</td>
+        <td>${escHtml(i.acompanhamento||'-')}</td>
+        <td style="font-size:12px;color:#9ca3af;">${escHtml(obs)}</td>
+        <td>
+          <div class="sissa-actions">
+            <button class="sissa-icon-btn" title="Editar" onclick="openEditIntervencao(${i.id})">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button class="sissa-icon-btn" title="Excluir" onclick="deleteSissaIntervencao(${i.id})">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3,6 5,6 21,6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+      <tr id="int-expand-${i.id}" class="sissa-sub-row">
+        <td colspan="7">
+          <strong>Estudantes:</strong> ${escHtml((i.estudante_nomes||[]).join(', ')||'–')} &nbsp;|&nbsp;
+          <strong>Semestre:</strong> ${escHtml(i.semestre||'–')} &nbsp;|&nbsp;
+          <strong>Objetivo:</strong> ${escHtml(i.objetivo_alcancado||'–')} &nbsp;|&nbsp;
+          <strong>Grupo:</strong> ${escHtml(i.grupo_titulo||'–')}
+        </td>
+      </tr>`;
+    }).join('');
+
+    // Update pedidos count
+    const countEl = document.getElementById('sissa-pedidos-count');
+    if (countEl) countEl.textContent = `(${list.length})`;
+  }
+
+  function toggleIntExpand(id, btn) {
+    const row = document.getElementById(`int-expand-${id}`);
+    btn.classList.toggle('expanded');
+    row.classList.toggle('open');
+  }
+
+  function filterSissaIntervencoes() {
+    const q   = (document.getElementById('sissa-search-int')?.value||'').toLowerCase().trim();
+    const dt  = document.getElementById('sissa-int-data-filter')?.value||'';
+    let list  = sissaState.intervencoes;
+    if (q)  list = list.filter(i=>(i.grupo_titulo||'').toLowerCase().includes(q)||(i.observacoes||'').toLowerCase().includes(q));
+    if (dt) list = list.filter(i=> i.data_intervencao && i.data_intervencao.startsWith(dt));
+    renderSissaIntervencoes(list);
+  }
+
+  function openNovaIntervencao() {
+    document.getElementById('sissa-int-id').value = '';
+    document.getElementById('sissa-int-modal-title').textContent = 'Registro de nova intervenção';
+    document.getElementById('sissa-int-btn-submit').textContent = 'Salvar';
+
+    // Reset fields
+    ['sissa-int-data','sissa-int-duracao','sissa-int-obs','sissa-int-encaminhar'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.value='';
+    });
+    ['sissa-int-semestre','sissa-int-disciplina','sissa-int-forma','sissa-int-assunto'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.value='';
+    });
+    document.querySelectorAll('[name^="sissa-int-"]').forEach(r=>r.checked=false);
+    document.getElementById('sissa-int-encaminhado').checked = false;
+    document.getElementById('sissa-int-encaminhar-wrap').style.display = 'none';
+
+    // Pre-fill tags from selected students
+    sissaState.intEstudanteTags = [];
+    sissaState.selectedEstudanteIds.forEach(id => {
+      const est = sissaState.estudantes.find(e=>e.id===id);
+      if (est) sissaState.intEstudanteTags.push({id:est.id, nome:est.nome, matricula:est.matricula});
+    });
+    populateEstDatalist('sissa-est-datalist');
+    renderIntEstTags();
+    sissaOpenModal('sissa-modal-intervencao');
+  }
+
+  function openNovaIntervencaoDoGrupo(grupoId, grupoTitulo) {
+    openNovaIntervencao();
+    // We just open the form; user can proceed
+  }
+
+  function openEditIntervencao(id) {
+    const i = sissaState.intervencoes.find(x=>x.id===id);
+    if (!i) return;
+    document.getElementById('sissa-int-id').value = id;
+    document.getElementById('sissa-int-modal-title').textContent = 'Editar intervenção';
+    document.getElementById('sissa-int-btn-submit').textContent = 'Salvar';
+    document.getElementById('sissa-int-data').value = i.data_intervencao||'';
+    document.getElementById('sissa-int-duracao').value = i.duracao||'';
+    document.getElementById('sissa-int-obs').value = i.observacoes||'';
+    document.getElementById('sissa-int-semestre').value = i.semestre||'';
+    document.getElementById('sissa-int-disciplina').value = i.disciplina||'';
+    document.getElementById('sissa-int-forma').value = i.forma_meio||'';
+    document.getElementById('sissa-int-assunto').value = i.assunto||'';
+    if (i.formato)          { const r = document.querySelector(`[name="sissa-int-formato"][value="${i.formato}"]`); if(r) r.checked=true; }
+    if (i.interacao)        { const r = document.querySelector(`[name="sissa-int-interacao"][value="${i.interacao}"]`); if(r) r.checked=true; }
+    if (i.tipo)             { const r = document.querySelector(`[name="sissa-int-tipo"][value="${i.tipo}"]`); if(r) r.checked=true; }
+    if (i.acompanhamento)   { const r = document.querySelector(`[name="sissa-int-acomp"][value="${i.acompanhamento}"]`); if(r) r.checked=true; }
+    if (i.objetivo_alcancado){ const r = document.querySelector(`[name="sissa-int-obj"][value="${i.objetivo_alcancado}"]`); if(r) r.checked=true; }
+
+    sissaState.intEstudanteTags = (i.estudante_ids||[]).map((eid,idx) => ({
+      id:eid, nome:(i.estudante_nomes||[])[idx]||'', matricula:''
+    }));
+    renderIntEstTags();
+    sissaOpenModal('sissa-modal-intervencao');
+  }
+
+  async function submitSissaIntervencao() {
+    const id = document.getElementById('sissa-int-id').value;
+    const getVal = sel => (document.querySelector(sel)||{}).value||null;
+    const getRadio = name => { const r=document.querySelector(`[name="${name}"]:checked`); return r?r.value:null; };
+
+    const payload = {
+      estudante_ids:  sissaState.intEstudanteTags.map(t=>t.id),
+      data_intervencao:    document.getElementById('sissa-int-data').value||null,
+      semestre:       document.getElementById('sissa-int-semestre').value||null,
+      disciplina:     document.getElementById('sissa-int-disciplina').value||null,
+      forma_meio:     document.getElementById('sissa-int-forma').value||null,
+      assunto:        document.getElementById('sissa-int-assunto').value||null,
+      formato:        getRadio('sissa-int-formato'),
+      interacao:      getRadio('sissa-int-interacao'),
+      tipo:           getRadio('sissa-int-tipo'),
+      acompanhamento: getRadio('sissa-int-acomp'),
+      duracao:        document.getElementById('sissa-int-duracao').value||null,
+      objetivo_alcancado: getRadio('sissa-int-obj'),
+      observacoes:    document.getElementById('sissa-int-obs').value||null,
+      encaminhado:    document.getElementById('sissa-int-encaminhado').checked,
+      encaminhar_para: document.getElementById('sissa-int-encaminhar').value||null
+    };
+
+    const btn = document.getElementById('sissa-int-btn-submit');
+    btn.disabled = true;
+    try {
+      const res = id
+        ? await sissaFetch(`/intervencoes/${id}`, { method:'PUT', body: JSON.stringify(payload) })
+        : await sissaFetch('/intervencoes',         { method:'POST', body: JSON.stringify(payload) });
+
+      if (res.success || res.data) {
+        showSissaNotif('Registro de nova intervenção realizado com sucesso');
+        sissaCloseModal('sissa-modal-intervencao');
+        sissaState.selectedEstudanteIds.clear();
+        document.getElementById('sissa-sel-bar').classList.remove('visible');
+        const r2 = await sissaFetch('/intervencoes');
+        if (r2.success) { sissaState.intervencoes = r2.data||[]; renderSissaIntervencoes(sissaState.intervencoes); }
+      } else {
+        showToast(res.error||'Erro ao salvar intervenção.','error');
+      }
+    } catch {
+      // Mock update
+      if (!id) {
+        const nova = { id:Date.now(), ...payload, estudante_nomes: sissaState.intEstudanteTags.map(t=>t.nome) };
+        sissaState.intervencoes.push(nova);
+      }
+      showSissaNotif('Registro de nova intervenção realizado com sucesso');
+      sissaCloseModal('sissa-modal-intervencao');
+      sissaState.selectedEstudanteIds.clear();
+      document.getElementById('sissa-sel-bar')?.classList.remove('visible');
+      renderSissaIntervencoes(sissaState.intervencoes);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function deleteSissaIntervencao(id) {
+    if (!confirm('Excluir esta intervenção?')) return;
+    try { await sissaFetch(`/intervencoes/${id}`, {method:'DELETE'}); } catch {}
+    sissaState.intervencoes = sissaState.intervencoes.filter(i=>i.id!==id);
+    renderSissaIntervencoes(sissaState.intervencoes);
+    showSissaNotif('Intervenção excluída com sucesso');
+  }
+
+  /* ══════════════════════════════════════════
+     SISSA – USUÁRIOS
+  ══════════════════════════════════════════ */
+  function renderSissaUsuarios(list) {
+    const tbody = document.getElementById('sissa-tbody-usuarios');
+    if (!tbody) return;
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:24px;">Nenhum usuário encontrado.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(u => {
+      const acesso = u.ultimo_acesso
+        ? timeSince(u.ultimo_acesso)
+        : '<span style="color:#ccc;font-style:italic;">Nunca acessou</span>';
+      const cursos = Array.isArray(u.cursos) ? u.cursos.filter(Boolean).join(', ') : (u.cursos||'-');
+      const cursosLong = cursos.length > 40 ? cursos.substring(0,40)+'...' : cursos;
+      return `
+      <tr>
+        <td style="font-weight:500;color:var(--s-text);">${escHtml(u.nome||'-')}</td>
+        <td class="sissa-user-email">${escHtml(u.email_institucional||'')}</td>
+        <td style="font-size:13px;">${escHtml(u.perfil_nome||'-')}</td>
+        <td style="font-size:12px;color:#9ca3af;" title="${escHtml(cursos)}">${escHtml(cursosLong||'-')}</td>
+        <td class="sissa-user-email">${acesso}</td>
+        <td>
+          <div class="sissa-actions">
+            <button class="sissa-icon-btn" title="Editar" onclick="openEditSissaUsuario(${u.id})">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button class="sissa-icon-btn" title="Excluir" onclick="deleteSissaUsuario(${u.id},'${escAttr(u.nome||'')}')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3,6 5,6 21,6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    populateSissaFilters();
+  }
+
+  function filterSissaUsuarios(term) {
+    const q       = (term !== undefined ? term : (document.getElementById('sissa-search-usr')?.value||'')).toLowerCase().trim();
+    const perfilV = document.getElementById('sissa-perfil-filter')?.value || '';
+    const cursoV  = document.getElementById('sissa-curso-filter')?.value  || '';
+    let list = sissaState.usuarios;
+    if (q)       list = list.filter(u=>(u.nome||'').toLowerCase().includes(q)||(u.email_institucional||'').toLowerCase().includes(q));
+    if (perfilV) list = list.filter(u=> String(u.perfil_id) === perfilV);
+    if (cursoV)  list = list.filter(u=> Array.isArray(u.curso_ids) && u.curso_ids.map(String).includes(cursoV));
+    renderSissaUsuarios(list);
+  }
+
+  function timeSince(dateStr) {
+    if (!dateStr) return '<span style="color:#ccc;font-style:italic;">Nunca acessou</span>';
+    const d = new Date(dateStr);
+    const diff = Date.now() - d.getTime();
+    const h = Math.floor(diff/3600000);
+    const days = Math.floor(diff/86400000);
+    if (h < 1)   return 'Agora mesmo';
+    if (h < 24)  return `${h} hora${h>1?'s':''}`;
+    if (days < 30) return `${days} dia${days>1?'s':''}`;
+    return `${Math.floor(days/30)} mes${Math.floor(days/30)>1?'es':''}`;
+  }
+
+  function openCriarUsuario() {
+    document.getElementById('sissa-usr-id').value = '';
+    document.getElementById('sissa-usr-modal-title').textContent = 'Criar usuário';
+    document.getElementById('sissa-usr-btn-submit').textContent = 'Criar';
+    document.getElementById('sissa-usr-email').value = '';
+    document.getElementById('sissa-usr-email-error').classList.remove('visible');
+    populateSissaUsrModal(null);
+    sissaOpenModal('sissa-modal-usuario');
+  }
+
+  function openEditSissaUsuario(id) {
+    const u = sissaState.usuarios.find(x=>x.id===id);
+    if (!u) return;
+    document.getElementById('sissa-usr-id').value = id;
+    document.getElementById('sissa-usr-modal-title').textContent = 'Editar usuário';
+    document.getElementById('sissa-usr-btn-submit').textContent = 'Salvar';
+    document.getElementById('sissa-usr-email').value = u.email_institucional||'';
+    document.getElementById('sissa-usr-email-error').classList.remove('visible');
+    populateSissaUsrModal(u);
+    sissaOpenModal('sissa-modal-usuario');
+  }
+
+  function populateSissaUsrModal(u) {
+    const perfilSel = document.getElementById('sissa-usr-perfil');
+    perfilSel.innerHTML = '<option value="">Selecione um perfil</option>' +
+      sissaState.perfis.map(p => `<option value="${p.id}" ${u&&u.perfil_id==p.id?'selected':''}>${escHtml(p.nome)}</option>`).join('');
+
+    const cursosCont = document.getElementById('sissa-usr-cursos');
+    const userCursos = Array.isArray(u?.cursos) ? u.cursos : [];
+    cursosCont.innerHTML = sissaState.cursos.map(c => {
+      const checked = userCursos.some(uc=>(uc||'').toLowerCase().includes((c.nome||'').toLowerCase()));
+      return `<label class="multi-check-item">
+        <input type="checkbox" value="${c.id}" ${checked?'checked':''} style="accent-color:var(--s-primary);">
+        ${escHtml(c.nome)}
+      </label>`;
+    }).join('');
+  }
+
+  async function submitSissaUsuario() {
+    const id    = document.getElementById('sissa-usr-id').value;
+    const email = document.getElementById('sissa-usr-email').value.trim();
+    const errEl = document.getElementById('sissa-usr-email-error');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errEl.classList.add('visible'); return; }
+    errEl.classList.remove('visible');
+
+    const perfil_id  = document.getElementById('sissa-usr-perfil').value||null;
+    const curso_ids  = [...document.querySelectorAll('#sissa-usr-cursos input:checked')].map(cb=>parseInt(cb.value));
+
+    const btn = document.getElementById('sissa-usr-btn-submit');
+    btn.disabled = true;
+    try {
+      const res = id
+        ? await sissaFetch(`/usuarios/${id}`, { method:'PUT',  body: JSON.stringify({email_institucional:email, perfil_id, curso_ids}) })
+        : await sissaFetch('/usuarios',         { method:'POST', body: JSON.stringify({nome: email.split('@')[0], email_institucional:email, perfil_id, curso_ids}) });
+
+      if (res.success || res.data) {
+        showSissaNotif(id ? 'Usuário atualizado com sucesso' : 'Usuário criado com sucesso');
+        sissaCloseModal('sissa-modal-usuario');
+        const r2 = await sissaFetch('/usuarios');
+        if (r2.success) { sissaState.usuarios = r2.data||[]; renderSissaUsuarios(sissaState.usuarios); }
+      } else { showToast(res.error||'Erro.','error'); }
+    } catch {
+      showSissaNotif(id ? 'Usuário atualizado com sucesso' : 'Usuário criado com sucesso');
+      sissaCloseModal('sissa-modal-usuario');
+    } finally { btn.disabled = false; }
+  }
+
+  async function deleteSissaUsuario(id, nome) {
+    if (!confirm(`Excluir o usuário "${nome}"?`)) return;
+    try { await sissaFetch(`/usuarios/${id}`, {method:'DELETE'}); } catch {}
+    sissaState.usuarios = sissaState.usuarios.filter(u=>u.id!==id);
+    renderSissaUsuarios(sissaState.usuarios);
+    showSissaNotif('Usuário excluído com sucesso');
+  }
+
+  /* ══════════════════════════════════════════
+     SISSA – TAGS (estudantes para formulários)
+  ══════════════════════════════════════════ */
+  function populateEstDatalist(listId) {
+    const dl = document.getElementById(listId);
+    if (!dl) return;
+    dl.innerHTML = sissaState.estudantes.map(e =>
+      `<option value="${escHtml(e.nome)} - ${escHtml(e.matricula)}" data-id="${e.id}">`
+    ).join('');
+  }
+
+  function handleEstudanteTagInput(inp) {
+    const val = inp.value;
+    const match = sissaState.estudantes.find(e => val.includes(e.matricula));
+    if (match && !sissaState.intEstudanteTags.find(t=>t.id===match.id)) {
+      sissaState.intEstudanteTags.push({id:match.id, nome:match.nome, matricula:match.matricula});
+      inp.value = '';
+      renderIntEstTags();
+    }
+  }
+
+  function handleGrupoEstudanteInput(inp) {
+    const val = inp.value;
+    const match = sissaState.estudantes.find(e => val.includes(e.matricula));
+    if (match && !sissaState.grupoEstudanteTags.find(t=>t.id===match.id)) {
+      sissaState.grupoEstudanteTags.push({id:match.id, nome:match.nome, matricula:match.matricula});
+      inp.value = '';
+      renderGrupoEstTags();
+    }
+  }
+
+  function renderIntEstTags() {
+    const wrap = document.getElementById('sissa-int-estudantes-tags');
+    if (!wrap) return;
+    const inp = document.getElementById('sissa-int-estudante-input');
+    wrap.innerHTML = '';
+    sissaState.intEstudanteTags.forEach((t,idx) => {
+      const tag = document.createElement('span');
+      tag.className = 'sissa-tag';
+      tag.innerHTML = `${escHtml(t.nome)} - ${escHtml(t.matricula)} <button class="sissa-tag-remove" onclick="removeIntEstTag(${idx})">×</button>`;
+      wrap.appendChild(tag);
+    });
+    wrap.appendChild(inp);
+  }
+
+  function renderGrupoEstTags() {
+    const wrap = document.getElementById('sissa-grupo-est-tags');
+    if (!wrap) return;
+    const inp = document.getElementById('sissa-grupo-est-input');
+    wrap.innerHTML = '';
+    sissaState.grupoEstudanteTags.forEach((t,idx) => {
+      const tag = document.createElement('span');
+      tag.className = 'sissa-tag';
+      tag.innerHTML = `${escHtml(t.nome)} - ${escHtml(t.matricula)} <button class="sissa-tag-remove" onclick="removeGrupoEstTag(${idx})">×</button>`;
+      wrap.appendChild(tag);
+    });
+    wrap.appendChild(inp);
+  }
+
+  function removeIntEstTag(idx) {
+    sissaState.intEstudanteTags.splice(idx, 1);
+    renderIntEstTags();
+  }
+
+  function removeGrupoEstTag(idx) {
+    sissaState.grupoEstudanteTags.splice(idx, 1);
+    renderGrupoEstTags();
+  }
+
+  /* ══════════════════════════════════════════
+     SISSA – SCREEN INIT HOOKS (patched after showScreen defined)
+  ══════════════════════════════════════════ */
+  function sissaScreenHook(id) {
+    if (id === 'sissa-login') {
+      loadSissaInst();
+      return;
+    }
+    // First visit: load everything
+    if (['sissa-estudantes','sissa-grupos','sissa-intervencoes','sissa-usuarios'].includes(id)) {
+      if (!sissaState.estudantes.length && !sissaState.grupos.length) {
+        loadSissaAllData();
+        return;
+      }
+      // Subsequent visits: reload only the relevant data
+      if (id === 'sissa-estudantes')  reloadSissaEstudantes();
+      if (id === 'sissa-grupos')      reloadSissaGrupos();
+      if (id === 'sissa-intervencoes') reloadSissaIntervencoes();
+      if (id === 'sissa-usuarios')    reloadSissaUsuarios();
+    }
   }
 
   async function submitCopiarGrupo() {

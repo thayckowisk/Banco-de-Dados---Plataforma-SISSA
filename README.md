@@ -1,12 +1,12 @@
 <div align="center">
 
-# SISSA — Plataforma de Controle de Acesso
+# SISSA — Plataforma de Gestão de Risco de Evasão
 
-**Sistema Integrado de Suporte ao Acesso**
+**Sistema de Identificação de Situações de risco de evasão de Alunos**
 
 Projeto acadêmico — Banco de Dados N2 · UFG
 
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-336791?logo=postgresql&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791?logo=postgresql&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-24-339933?logo=node.js&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-4.18-000000?logo=express&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES2022-F7DF1E?logo=javascript&logoColor=black)
@@ -19,14 +19,12 @@ Projeto acadêmico — Banco de Dados N2 · UFG
 ## Sumário
 
 - [Sobre o projeto](#sobre-o-projeto)
-- [Funcionalidades](#funcionalidades)
+- [Dois sistemas em um](#dois-sistemas-em-um)
 - [Pré-requisitos](#pré-requisitos)
 - [Como rodar](#como-rodar)
 - [Credenciais de acesso](#credenciais-de-acesso)
 - [Arquitetura do banco de dados](#arquitetura-do-banco-de-dados)
 - [Objetos SQL implementados](#objetos-sql-implementados)
-  - [Atividade 1 — Funções e Procedimentos](#atividade-1--funções-e-procedimentos)
-  - [Atividade 2 — Triggers e Views](#atividade-2--triggers-e-views)
 - [API REST](#api-rest)
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [Testes](#testes)
@@ -37,23 +35,26 @@ Projeto acadêmico — Banco de Dados N2 · UFG
 
 ## Sobre o projeto
 
-O SISSA é uma plataforma web de controle de acesso desenvolvida como trabalho avaliativo da disciplina de **Banco de Dados (N2)** da Universidade Federal de Goiás. O sistema gerencia usuários, grupos de acesso e permissões por funcionalidade, com toda a lógica de negócio implementada diretamente no PostgreSQL via **PL/pgSQL** (funções, procedimentos, triggers e views).
+O SISSA é uma plataforma web acadêmica desenvolvida para a disciplina de **Banco de Dados (N2)** da Universidade Federal de Goiás. Ele reúne **dois sistemas integrados**:
 
-O backend é uma API REST em **Node.js + Express** e o frontend é uma **SPA em Vanilla JS** servida pelo próprio backend.
+1. **Controle de Acesso** — gerencia usuários, grupos e permissões do sistema (Atividades A1 e A2 individuais).
+2. **Gestão de Risco de Evasão** — plataforma pedagógica para coordenadores e tutores monitorarem risco de evasão de estudantes e registrarem intervenções (Trabalho em Grupo N2.A1).
+
+Todo o backend de negócio é implementado em **PL/pgSQL** (funções, procedimentos, triggers, views). O backend é uma API REST em **Node.js + Express** e o frontend é uma **SPA em Vanilla JS**.
 
 ---
 
-## Funcionalidades
+## Dois sistemas em um
 
-| Módulo | Descrição |
-|--------|-----------|
-| **Usuários** | Cadastro, edição e exclusão de usuários com grupos e papéis; busca por nome/e-mail; exclusão bloqueada para administradores |
-| **Grupos** | Criação e edição de grupos com permissões granulares por funcionalidade; exibição de membros |
-| **Permissões** | Matriz completa de funcionalidades × grupos com toggles habilitado/desabilitado por módulo e categoria |
-| **Engajamento** | Classificação automática de usuários por frequência de acesso: Alto / Médio / Baixo / Inexistente |
-| **Auditoria** | Registro automático via triggers de toda operação INSERT/UPDATE/DELETE em qualquer tabela do sistema |
-| **Migrar usuários** | Move todos os usuários de um grupo de origem para um grupo de destino |
-| **Copiar grupo** | Cria um novo grupo com as mesmas permissões de um grupo existente |
+```
+http://localhost:3000
+│
+├── [Login principal]  →  Sistema de Controle de Acesso
+│     email: admin@gmail.com  /  senha: admin
+│
+└── [Botão "Sistema Sissa →"]  →  Plataforma de Risco de Evasão (CAFe)
+      Busca "UFG" → Prosseguir → login com email institucional
+```
 
 ---
 
@@ -70,7 +71,7 @@ O backend é uma API REST em **Node.js + Express** e o frontend é uma **SPA em 
 ### 1. Criar o banco de dados
 
 ```bash
-# Linux / macOS
+# macOS / Linux
 createdb sissa
 
 # Windows (PowerShell)
@@ -80,21 +81,16 @@ psql -U postgres -c "CREATE DATABASE sissa;"
 ### 2. Executar os scripts SQL em ordem
 
 ```bash
-psql -U postgres -d sissa -f sql/01_ddl.sql
-psql -U postgres -d sissa -f sql/02_functions_a1.sql
-psql -U postgres -d sissa -f sql/03_triggers_views_a2.sql
+psql -U SEU_USUARIO -d sissa -f sql/01_ddl.sql
+psql -U SEU_USUARIO -d sissa -f sql/02_functions_a1.sql
+psql -U SEU_USUARIO -d sissa -f sql/03_triggers_views_a2.sql
+psql -U SEU_USUARIO -d sissa -f sql/04_audit_assertions.sql
+psql -U SEU_USUARIO -d sissa -f sql/05_sissa_domain.sql
 ```
 
-> Substitua `postgres` pelo seu usuário PostgreSQL local se necessário.
+> O arquivo `05_sissa_domain.sql` é idempotente — pode ser re-executado sem erros.
 
-### 3. Configurar variáveis de ambiente
-
-```bash
-cp backend/.env.example backend/.env
-# edite backend/.env com suas credenciais
-```
-
-### 4. Instalar dependências e iniciar o servidor
+### 3. Instalar dependências e iniciar o servidor
 
 ```bash
 cd backend
@@ -104,13 +100,15 @@ node server.js
 
 O servidor sobe em **http://localhost:3000**
 
-### 5. Acessar o sistema
+### 4. Acessar o sistema
 
-Abra **http://localhost:3000** no navegador e faça login com uma das contas abaixo.
+Abra **http://localhost:3000** no navegador.
 
 ---
 
 ## Credenciais de acesso
+
+### Sistema de Controle de Acesso (tela inicial)
 
 | Perfil | E-mail | Senha | Permissões |
 |--------|--------|-------|------------|
@@ -119,9 +117,32 @@ Abra **http://localhost:3000** no navegador e faça login com uma das contas aba
 
 ---
 
+### Plataforma SISSA — Gestão de Risco de Evasão
+
+**Como acessar:** na tela de login, clique em **"Sistema Sissa →"** (canto inferior direito) → busque **"UFG"** → clique em *Prosseguir para login em UFG* → informe um dos e-mails abaixo.
+
+> A senha pode ser **qualquer texto** — o sistema valida apenas se o e-mail está cadastrado.
+
+#### Acesso à área privada (e-mails cadastrados)
+
+| Nome | E-mail | Perfil |
+|------|--------|--------|
+| Adailton Araújo | `adailton@ufg.com` | Coordenador de curso |
+| Beatriz de Barros Vianna Cardoso | `beatriz.de.bastos.vianna@gmail.com` | Coordenador de ensino |
+| Laís Hauptli Cândido | `laishcandido@gmail.com` | Coordenador de unidade |
+| Kalebe Xavier | `kalebe.xavier@ifsp.edu.br` | Tutor Físico |
+| Juliana Moraes | `juliana.moraes@ifsp.edu.br` | Tutor |
+| Beatriz Cardoso | `beatriz.cardoso@ifsp.edu.br` | Tutor |
+
+#### Acesso à área pública
+
+Use **qualquer e-mail não cadastrado** (ex: `visitante@gmail.com`) com qualquer senha → acesso somente à área pública (sem dados de estudantes).
+
+---
+
 ## Arquitetura do banco de dados
 
-### Modelo de dados
+### Módulo 1 — Controle de Acesso
 
 ```
 modulo
@@ -129,16 +150,15 @@ modulo
         └── funcionalidade
               └── grupo_funcionalidade (habilitado) ←── grupo ──→ usuario_grupo ←── usuario
                                                                                          └── usuario_papel ←── papel
+auditoria  ←── triggers em todas as tabelas acima
 ```
-
-### Tabelas
 
 | Tabela | Descrição |
 |--------|-----------|
-| `usuario` | Usuários da plataforma (email, nome, ultimo_acesso) |
+| `usuario` | Usuários do sistema de controle de acesso |
 | `grupo` | Grupos de acesso |
-| `papel` | Papéis/roles atribuíveis a usuários |
-| `modulo` | Módulos do sistema (ex.: EDITAIS, CONTRATOS) |
+| `papel` | Papéis atribuíveis a usuários |
+| `modulo` | Módulos do sistema |
 | `categoria_funcionalidade` | Categorias dentro de um módulo |
 | `funcionalidade` | Funcionalidades individuais habilitáveis |
 | `usuario_grupo` | N:N usuário ↔ grupo |
@@ -146,15 +166,37 @@ modulo
 | `grupo_funcionalidade` | N:N grupo ↔ funcionalidade com flag `habilitado` |
 | `auditoria` | Log automático de todas as operações DML |
 
-> Todas as FKs usam `ON DELETE RESTRICT` — nenhuma exclusão em cascata. A limpeza de dependências é feita explicitamente pela trigger `tg_acionar_remocao_dependencia`.
+### Módulo 2 — SISSA (Gestão de Risco de Evasão)
+
+```
+sissa_instituicao
+  └── sissa_curso
+        ├── sissa_estudante ──→ sissa_risco_evasao (1:1, trigger updated_at)
+        │         └── sissa_grupo_estudante ←── sissa_grupo_intervencao ──→ sissa_intervencao
+        │                                                                          └── sissa_intervencao_estudante
+        └── sissa_usuario_sissa ──→ sissa_usuario_curso
+              └── sissa_perfil
+```
+
+| Tabela | Descrição |
+|--------|-----------|
+| `sissa_instituicao` | Instituições (código MEC, nome, tipo) |
+| `sissa_curso` | Cursos vinculados a uma instituição |
+| `sissa_perfil` | Perfis de usuário SISSA |
+| `sissa_usuario_sissa` | Usuários da plataforma SISSA |
+| `sissa_usuario_curso` | N:N usuário ↔ curso |
+| `sissa_estudante` | Estudantes matriculados |
+| `sissa_risco_evasao` | Indicadores de risco (1:1 com estudante) |
+| `sissa_grupo_intervencao` | Grupos pedagógicos de intervenção |
+| `sissa_grupo_estudante` | N:N grupo ↔ estudante |
+| `sissa_intervencao` | Registros de intervenção realizadas |
+| `sissa_intervencao_estudante` | N:N intervenção ↔ estudante |
 
 ---
 
 ## Objetos SQL implementados
 
-### Atividade 1 — Funções e Procedimentos
-
-> Arquivo: `sql/02_functions_a1.sql`
+### Atividade 1 — Funções e Procedimentos (`sql/02_functions_a1.sql`)
 
 | # | Objeto | Tipo | Entrada | Saída | Descrição |
 |---|--------|------|---------|-------|-----------|
@@ -162,37 +204,82 @@ modulo
 | 2 | `fu_validar_email` | FUNCTION | `email VARCHAR` | `BOOLEAN` | Valida formato via regex RFC 5322 |
 | 3 | `fu_formatar_tempo_acesso` | FUNCTION | `ultimo_acesso TIMESTAMPTZ` | `VARCHAR` | Retorna tempo decorrido: "3 horas", "15 dias", "Nunca acessou" |
 | 4 | `pr_excluir_usuario` | FUNCTION | `usuario_id INTEGER` | `BOOLEAN` | Exclui usuário; bloqueia se pertencer ao grupo Administrador |
-| 5 | `fu_migrar_usuarios_grupo` | FUNCTION | `origem, destino VARCHAR` | `TABLE(nome, email, ultimo_acesso)` | Move todos os usuários da origem para o destino |
+| 5 | `fu_migrar_usuarios_grupo` | FUNCTION | `origem, destino VARCHAR` | `TABLE` | Move todos os usuários da origem para o destino |
 | 6 | `pr_copiar_grupo` | FUNCTION | `origem, novo_grupo VARCHAR` | `INTEGER` | Cria novo grupo com cópia das permissões; retorna qtd. habilitadas |
-| 7 | `fu_verificar_engajamento` | FUNCTION | — | `TABLE(nome, email, ultimo_acesso, engajamento)` | Classifica usuários: Alto / Médio / Baixo / Inexistente |
-| 8 | `pr_criar_usuario_adm` | FUNCTION | `email, nome_grupo VARCHAR` | `VOID` | Cria usuário admin com todas as funcionalidades habilitadas; usa `fu_validar_cadastro` |
+| 7 | `fu_verificar_engajamento` | FUNCTION | — | `TABLE` | Classifica usuários: Alto / Médio / Baixo / Inexistente |
+| 8 | `pr_criar_usuario_adm` | FUNCTION | `email, nome_grupo VARCHAR` | `VOID` | Cria usuário admin com todas as funcionalidades habilitadas |
 
-### Atividade 2 — Triggers e Views
-
-> Arquivo: `sql/03_triggers_views_a2.sql`
+### Atividade 2 — Triggers e Views (`sql/03_triggers_views_a2.sql`)
 
 | # | Objeto | Tipo | Descrição |
 |---|--------|------|-----------|
 | 1 | `pr_remover_dependencia_usuario` | FUNCTION | Remove linhas de `usuario_papel` e `usuario_grupo` antes do DELETE |
-| 2 | `tg_acionar_remocao_dependencia` | TRIGGER | BEFORE DELETE ON usuario — chama `pr_remover_dependencia_usuario` |
-| 3 | `tg_fn_auditoria` + 9 triggers | TRIGGER | AFTER INSERT/UPDATE/DELETE em todas as tabelas — registra em `auditoria` |
+| 2 | `tg_acionar_remocao_dependencia` | TRIGGER | BEFORE DELETE ON usuario |
+| 3 | `tg_fn_auditoria` + 9 triggers | TRIGGER | AFTER INSERT/UPDATE/DELETE em todas as tabelas → registra em `auditoria` |
 | 4 | `vw_consulta_usuario` | VIEW | Usuários com grupos, papéis e tempo de acesso formatado |
-| 5 | `vwm_consulta_usuario` | MATERIALIZED VIEW | Versão materializada de `vw_consulta_usuario` + UNIQUE INDEX(id) |
-| 6/8 | `vw_consulta_grupo` | VIEW | Grupos com total de permissões habilitadas e total de usuários |
-| 7/9 | `vmw_consulta_grupo` | MATERIALIZED VIEW | Versão materializada de `vw_consulta_grupo` + UNIQUE INDEX(id) |
-| 10 | `vw_consulta_permissoes_grupo` | VIEW | CROSS JOIN grupo × funcionalidade com flag habilitado por grupo |
-| 11 | `vmw_consulta_permissoes_grupo` | MATERIALIZED VIEW | Versão materializada + UNIQUE INDEX(grupo_id, funcionalidade_id) |
-| 12 | Refresh automático a cada 2h | — | Duas alternativas documentadas: **pg_cron** e **crontab do SO** |
+| 5 | `vwm_consulta_usuario` | MAT. VIEW | Versão materializada + UNIQUE INDEX(id) |
+| 6 | `vw_consulta_grupo` | VIEW | Grupos com total de permissões e total de usuários |
+| 7 | `vmw_consulta_grupo` | MAT. VIEW | Versão materializada + UNIQUE INDEX(id) |
+| 8 | `vw_consulta_permissoes_grupo` | VIEW | Matriz grupo × funcionalidade com flag habilitado |
+| 9 | `vmw_consulta_permissoes_grupo` | MAT. VIEW | Versão materializada + UNIQUE INDEX(grupo_id, funcionalidade_id) |
+| 10 | Refresh automático a cada 2h | — | Alternativas: **pg_cron** e **crontab do SO** |
 
-> As views materializadas usam `REFRESH MATERIALIZED VIEW CONCURRENTLY`, que exige o índice único. O backend também executa o refresh após cada operação de escrita.
+### Trabalho em Grupo — Domínio SISSA (`sql/05_sissa_domain.sql`)
+
+#### Funções
+
+| Objeto | Entrada | Saída | Descrição |
+|--------|---------|-------|-----------|
+| `fu_sissa_calcular_risco` | `estudante_id INTEGER` | `VARCHAR` | Calcula nível de risco (Alto/Médio/Baixo) pelos indicadores acadêmicos do estudante |
+| `fu_sissa_resumo_curso` | `curso_id INTEGER` | `TABLE` | Retorna KPIs do curso: total de estudantes, contagem por risco, média de reprovações, % alto risco |
+
+#### Procedimentos
+
+| Objeto | Descrição |
+|--------|-----------|
+| `pr_sissa_criar_intervencao_grupo(grupo_id, data, semestre, forma, assunto, formato, interacao, tipo, acompanhamento, obs)` | Cria uma intervenção para o grupo e vincula automaticamente todos os estudantes do grupo |
+| `pr_sissa_atualizar_status_grupos()` | Inativa grupos sem intervenção há mais de 180 dias; retorna total inativados |
+
+#### Triggers
+
+| Trigger | Evento | Descrição |
+|---------|--------|-----------|
+| `tg_sissa_risco_evasao_timestamp` | BEFORE INSERT/UPDATE em `sissa_risco_evasao` | Atualiza `updated_at` automaticamente |
+| `tg_sissa_grupo_inativo_auto` | AFTER INSERT em `sissa_intervencao` | Reativa automaticamente o grupo se ele estiver Inativo ao receber nova intervenção |
+
+#### Views
+
+| View | Descrição |
+|------|-----------|
+| `vw_sissa_estudantes_risco` | Estudantes com todos os indicadores de risco, curso e instituição |
+| `vw_sissa_grupos` | Grupos com contagem de estudantes, autoria e perfil |
+| `vw_sissa_risco_anonimo` | Indicadores de risco **sem nome nem matrícula** do estudante (para `risco_anonimo_sissa`) |
+| `vw_sissa_resumo_intervencoes` | KPIs por grupo: total de intervenções, estudantes atendidos, objetivos atingidos |
+
+#### Índices de performance
+
+| Índice | Tabela | Colunas | Ganho |
+|--------|--------|---------|-------|
+| `idx_sissa_risco_comp` | `sissa_risco_evasao` | `(risco, estudante_id, media_global)` | Index Only Scan confirmado |
+| `idx_sissa_est_curso_nome` | `sissa_estudante` | `(curso_id, nome)` | Elimina Seq Scan em buscas por curso |
+
+#### Roles de segurança
+
+| Role | Permissões |
+|------|-----------|
+| `admin_sissa` | SELECT, INSERT, UPDATE, DELETE em todas as tabelas e views SISSA + sequences |
+| `leitura_sissa` | SELECT em todas as tabelas e views SISSA |
+| `risco_anonimo_sissa` | SELECT somente em `vw_sissa_risco_anonimo` (sem dados identificadores) |
 
 ---
 
 ## API REST
 
+### Controle de Acesso (`/api/...`)
+
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| `GET` | `/api/usuarios` | Lista usuários (suporta `?search=termo`) |
+| `GET` | `/api/usuarios` | Lista usuários |
 | `GET` | `/api/usuarios/:id` | Busca usuário por ID |
 | `POST` | `/api/usuarios` | Cria usuário com grupos e papéis |
 | `PUT` | `/api/usuarios/:id` | Atualiza usuário, grupos e papéis |
@@ -200,16 +287,40 @@ modulo
 | `POST` | `/api/usuarios/migrar` | Migra usuários entre grupos |
 | `POST` | `/api/usuarios/admin` | Cria usuário administrador |
 | `GET` | `/api/grupos` | Lista grupos com permissões e usuários |
-| `GET` | `/api/grupos/:id` | Detalhe do grupo com permissões e membros |
 | `POST` | `/api/grupos` | Cria grupo com permissões |
-| `PUT` | `/api/grupos/:id` | Atualiza grupo, permissões e membros |
-| `DELETE` | `/api/grupos/:id` | Exclui grupo (bloqueado se tiver usuários) |
+| `PUT` | `/api/grupos/:id` | Atualiza grupo e permissões |
+| `DELETE` | `/api/grupos/:id` | Exclui grupo |
 | `POST` | `/api/grupos/copiar` | Copia grupo via `pr_copiar_grupo` |
-| `GET` | `/api/grupos/permissoes/:id` | Matriz de permissões de um grupo |
 | `GET` | `/api/papeis` | Lista papéis disponíveis |
 | `GET` | `/api/funcionalidades` | Lista funcionalidades por módulo/categoria |
-| `GET` | `/api/auditoria` | Últimas 100 entradas do log de auditoria |
+| `GET` | `/api/auditoria` | Últimas 100 entradas do log |
 | `GET` | `/api/engajamento` | Classificação de engajamento de todos os usuários |
+
+### Plataforma SISSA (`/api/sissa/...`)
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `POST` | `/api/sissa/auth` | Autenticação CAFe — retorna `tipo: 'privado'` ou `'publico'` |
+| `GET` | `/api/sissa/estudantes` | Lista estudantes com indicadores de risco |
+| `POST` | `/api/sissa/estudantes` | Cria estudante |
+| `GET` | `/api/sissa/estatisticas/risco` | Contagem e % por nível de risco (gauge) |
+| `GET` | `/api/sissa/grupos` | Lista grupos de intervenção |
+| `POST` | `/api/sissa/grupos` | Cria grupo com estudantes |
+| `GET` | `/api/sissa/grupos/:id` | Detalhe do grupo com estudantes |
+| `PUT` | `/api/sissa/grupos/:id` | Atualiza grupo e membros |
+| `DELETE` | `/api/sissa/grupos/:id` | Exclui grupo |
+| `GET` | `/api/sissa/grupos/:id/estudantes` | Estudantes de um grupo com dados de risco |
+| `GET` | `/api/sissa/intervencoes` | Lista intervenções (filtros: grupo_id, data, busca) |
+| `POST` | `/api/sissa/intervencoes` | Registra nova intervenção com estudantes |
+| `PUT` | `/api/sissa/intervencoes/:id` | Atualiza intervenção |
+| `DELETE` | `/api/sissa/intervencoes/:id` | Exclui intervenção |
+| `GET` | `/api/sissa/usuarios` | Lista usuários SISSA (filtros: perfil_id, curso_id) |
+| `POST` | `/api/sissa/usuarios` | Cria usuário SISSA com cursos |
+| `PUT` | `/api/sissa/usuarios/:id` | Atualiza usuário e cursos |
+| `DELETE` | `/api/sissa/usuarios/:id` | Exclui usuário SISSA |
+| `GET` | `/api/sissa/cursos` | Lista cursos com instituição |
+| `GET` | `/api/sissa/perfis` | Lista perfis SISSA |
+| `GET` | `/api/sissa/instituicoes` | Lista instituições |
 
 ---
 
@@ -217,27 +328,30 @@ modulo
 
 ```
 SISSA/
-├── .gitignore
 ├── README.md                        # Este arquivo
-├── EXPLICACAO_TAREFAS_SQL.md        # Código SQL completo + justificativas por item
-├── test-runner.js                   # 91 testes automáticos (Node.js)
 │
 ├── sql/
-│   ├── 01_ddl.sql                   # Schema: tabelas e dados de carga
-│   ├── 02_functions_a1.sql          # Atividade 1: funções e procedures PL/pgSQL
-│   ├── 03_triggers_views_a2.sql     # Atividade 2: triggers, views e mat-views
-│   └── 04_audit_assertions.sql      # 67 asserções SQL de auditoria
+│   ├── 01_ddl.sql                   # Schema: tabelas do controle de acesso + seed
+│   ├── 02_functions_a1.sql          # Ativ. 1: 8 funções/procedures PL/pgSQL
+│   ├── 03_triggers_views_a2.sql     # Ativ. 2: triggers, views e mat-views
+│   ├── 04_audit_assertions.sql      # 67 asserções SQL de auditoria
+│   └── 05_sissa_domain.sql          # Trabalho em Grupo: schema SISSA completo
+│                                    #   (tabelas, funções, procedures, triggers,
+│                                    #    views, índices, roles e seed data)
 │
 ├── backend/
-│   ├── .env.example                 # Template de variáveis de ambiente
 │   ├── db.js                        # Pool de conexão PostgreSQL (pg)
 │   ├── server.js                    # Servidor Express + rotas globais
 │   └── routes/
-│       ├── usuarios.js              # CRUD de usuários, migrar, admin
-│       └── grupos.js                # CRUD de grupos, copiar, permissões
+│       ├── usuarios.js              # CRUD controle de acesso
+│       ├── grupos.js                # CRUD grupos + permissões
+│       └── sissa.js                 # API completa da plataforma SISSA
 │
 ├── frontend/
-│   └── index.html                   # SPA Vanilla JS (login, usuários, grupos, auditoria, engajamento)
+│   └── index.html                   # SPA Vanilla JS — ambos os sistemas
+│                                    #   Login principal, controle de acesso,
+│                                    #   login CAFe SISSA, estudantes, grupos,
+│                                    #   intervenções, gestão de usuários SISSA
 │
 └── docs_tarefas/
     ├── Atividade Avaliativa N2.A1_.pdf
@@ -251,8 +365,6 @@ SISSA/
 
 ### Testes automáticos (Node.js)
 
-Cobre todas as funções, procedures, triggers, views e endpoints da API.
-
 ```bash
 node test-runner.js
 # → 91/91 testes passando
@@ -260,10 +372,8 @@ node test-runner.js
 
 ### Asserções SQL de auditoria
 
-Prova que cada operação DML em cada tabela gera o registro correto em `auditoria`.
-
 ```bash
-psql -U postgres -d sissa -f sql/04_audit_assertions.sql
+psql -U SEU_USUARIO -d sissa -f sql/04_audit_assertions.sql
 # → 67/67 asserções passando
 ```
 
@@ -271,18 +381,16 @@ psql -U postgres -d sissa -f sql/04_audit_assertions.sql
 
 ## Variáveis de ambiente
 
-Copie `backend/.env.example` para `backend/.env` e preencha com suas credenciais:
+Configuradas em `backend/db.js` via variáveis de ambiente ou valores padrão:
 
 ```env
 PGHOST=localhost
 PGPORT=5432
 PGDATABASE=sissa
-PGUSER=postgres
-PGPASSWORD=sua_senha
+PGUSER=seu_usuario_postgresql
+PGPASSWORD=           # vazio se sem senha
 PORT=3000
 ```
-
-> O arquivo `.env` está no `.gitignore` e nunca deve ser commitado.
 
 ---
 
