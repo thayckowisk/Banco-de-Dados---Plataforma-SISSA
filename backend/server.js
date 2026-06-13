@@ -17,6 +17,7 @@ app.use(express.static(
 // Routes
 app.use('/api/usuarios', require('./routes/usuarios'));
 app.use('/api/grupos',   require('./routes/grupos'));
+app.use('/api/sissa',    require('./routes/sissa'));
 
 // GET /api/papeis
 app.get('/api/papeis', async (req, res) => {
