@@ -53,7 +53,7 @@ http://localhost:3000
 │     email: admin@gmail.com  /  senha: admin
 │
 └── [Botão "Sistema Sissa →"]  →  Plataforma de Risco de Evasão (CAFe)
-      Busca "UFG" → Prosseguir → login com email institucional
+      Busca "UFG" → Prosseguir → login com email institucional + senha (ex: adailton@ufg.com / 1234)
 ```
 
 ---
@@ -121,18 +121,18 @@ Abra **http://localhost:3000** no navegador.
 
 **Como acessar:** na tela de login, clique em **"Sistema Sissa →"** (canto inferior direito) → busque **"UFG"** → clique em *Prosseguir para login em UFG* → informe um dos e-mails abaixo.
 
-> A senha pode ser **qualquer texto** — o sistema valida apenas se o e-mail está cadastrado.
+> Cada usuário cadastrado tem uma **senha de 4 dígitos** (verificada no login). E-mails não cadastrados acessam apenas a área pública (sem checagem de senha).
 
 #### Acesso à área privada (e-mails cadastrados)
 
-| Nome | E-mail | Perfil |
-|------|--------|--------|
-| Adailton Araújo | `adailton@ufg.com` | Coordenador de curso |
-| Beatriz de Barros Vianna Cardoso | `beatriz.de.bastos.vianna@gmail.com` | Coordenador de ensino |
-| Laís Hauptli Cândido | `laishcandido@gmail.com` | Coordenador de unidade |
-| Kalebe Xavier | `kalebe.xavier@ifsp.edu.br` | Tutor Físico |
-| Juliana Moraes | `juliana.moraes@ifsp.edu.br` | Tutor |
-| Beatriz Cardoso | `beatriz.cardoso@ifsp.edu.br` | Tutor |
+| Nome | E-mail | Senha | Perfil |
+|------|--------|-------|--------|
+| Adailton Araújo | `adailton@ufg.com` | `1234` | Coordenador de curso |
+| Beatriz de Barros Vianna Cardoso | `beatriz.de.bastos.vianna@gmail.com` | `2345` | Coordenador de ensino |
+| Laís Hauptli Cândido | `laishcandido@gmail.com` | `3456` | Coordenador de unidade |
+| Kalebe Xavier | `kalebe.xavier@ifsp.edu.br` | `4567` | Tutor Físico |
+| Juliana Moraes | `juliana.moraes@ifsp.edu.br` | `5678` | Tutor |
+| Beatriz Cardoso | `beatriz.cardoso@ifsp.edu.br` | `6789` | Tutor |
 
 #### Acesso à área pública
 

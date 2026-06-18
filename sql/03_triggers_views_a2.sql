@@ -236,7 +236,7 @@ CREATE EXTENSION IF NOT EXISTS pg_cron;
 -- '0 SLASH2 * * *' = at minute 0 of every 2nd hour
 SELECT cron.schedule(
     'refresh-mat-views',          -- job name (unique)
-    '0 */2 * * *',                -- cron expression
+    '0 SLASH2 * * *',             -- cron expression (SLASH2 = star-slash-2)
     $$
         REFRESH MATERIALIZED VIEW CONCURRENTLY vwm_consulta_usuario;
         REFRESH MATERIALIZED VIEW CONCURRENTLY vmw_consulta_grupo;
