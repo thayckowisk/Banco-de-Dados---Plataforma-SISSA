@@ -19,9 +19,11 @@ DROP FUNCTION IF EXISTS pr_sissa_atualizar_status_grupos()          CASCADE;
 
 DROP TRIGGER IF EXISTS tg_sissa_risco_evasao_timestamp ON sissa_risco_evasao;
 DROP TRIGGER IF EXISTS tg_sissa_grupo_inativo_auto     ON sissa_intervencao;
+DROP TRIGGER IF EXISTS tg_sissa_classificar_risco      ON sissa_risco_evasao;
 
 DROP FUNCTION IF EXISTS fn_tg_sissa_risco_updated_at()  CASCADE;
 DROP FUNCTION IF EXISTS fn_tg_sissa_grupo_inativo()     CASCADE;
+DROP FUNCTION IF EXISTS fn_tg_sissa_classificar_risco() CASCADE;
 
 DROP TABLE IF EXISTS sissa_intervencao_estudante  CASCADE;
 DROP TABLE IF EXISTS sissa_intervencao             CASCADE;
@@ -252,6 +254,35 @@ CREATE TRIGGER tg_sissa_grupo_inativo_auto
     AFTER INSERT ON sissa_intervencao
     FOR EACH ROW
     EXECUTE FUNCTION fn_tg_sissa_grupo_inativo();
+
+-- ----------------------------------------------------------------
+-- TRIGGER 3 – tg_sissa_classificar_risco
+--   Classifica automaticamente o nível de risco do estudante a cada
+--   INSERT/UPDATE em sissa_risco_evasao, com base nos indicadores
+--   (reprovações, média global, CH semestre). Garante que o campo
+--   'risco' nunca fique inconsistente com os dados — não importa se a
+--   escrita veio da importação, da API ou de um SQL direto.
+-- ----------------------------------------------------------------
+CREATE OR REPLACE FUNCTION fn_tg_sissa_classificar_risco()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NEW.reprovacoes >= 3 OR NEW.media_global < 3.0 THEN
+        NEW.risco := 'Alto';
+    ELSIF NEW.reprovacoes >= 1 OR NEW.media_global < 5.5 OR NEW.ch_semestre < 400 THEN
+        NEW.risco := 'Médio';
+    ELSE
+        NEW.risco := 'Baixo';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER tg_sissa_classificar_risco
+    BEFORE INSERT OR UPDATE ON sissa_risco_evasao
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_tg_sissa_classificar_risco();
 
 -- ================================================================
 -- FUNÇÕES PostgreSQL do domínio SISSA

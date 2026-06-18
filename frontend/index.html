@@ -1890,6 +1890,17 @@
 .sissa-roster-btn { white-space: nowrap; }
 .sissa-roster-empty { text-align: center; color: #aaa; padding: 24px; }
 
+/* Resumo do curso */
+.sissa-resumo-card { margin-bottom: 16px; padding: 16px; }
+.sissa-resumo-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.sissa-resumo-out { display: flex; flex-wrap: wrap; gap: 20px; }
+.sissa-resumo-item { display: flex; flex-direction: column; }
+.sissa-resumo-num { font-size: 22px; font-weight: 700; color: #111; line-height: 1; }
+.sissa-resumo-lbl { font-size: 11px; color: #6b7280; margin-top: 4px; text-transform: uppercase; letter-spacing: .03em; }
+.sissa-resumo-num.alto  { color: #dc2626; }
+.sissa-resumo-num.medio { color: #d97706; }
+.sissa-resumo-num.baixo { color: #16a34a; }
+
 /* Radio groups */
 .sissa-radio-group { display: flex; gap: 16px; align-items: center; }
 .sissa-radio-label {
@@ -2327,6 +2338,15 @@
             Exportar dados
           </button>
         </div>
+      </div>
+
+      <!-- Resumo do curso (função fu_sissa_resumo_curso) -->
+      <div class="sissa-card sissa-resumo-card">
+        <div class="sissa-resumo-head">
+          <strong>Resumo do curso</strong>
+          <select id="sissa-resumo-curso" class="sissa-select" onchange="carregarResumoCurso()"></select>
+        </div>
+        <div id="sissa-resumo-out" class="sissa-resumo-out">Selecione um curso.</div>
       </div>
 
       <div class="sissa-card">
@@ -2841,11 +2861,11 @@
   <div class="sissa-modal-box wide">
     <button class="sissa-modal-close" onclick="sissaCloseModal('sissa-modal-estudante')">×</button>
     <div class="sissa-modal-title">Importar estudante</div>
-    <p class="sissa-breadcrumb" style="margin-bottom:14px;">Selecione um aluno do cadastro acadêmico da universidade. Os dados (média, reprovações, CH, turmas e risco) são importados automaticamente.</p>
+    <p class="sissa-breadcrumb" id="sissa-roster-desc" style="margin-bottom:14px;">Selecione um aluno do cadastro acadêmico da universidade. Os dados (média, reprovações, CH, turmas e risco) são importados automaticamente.</p>
 
     <div class="sissa-form-group">
       <input type="text" id="sissa-roster-search" class="sissa-form-input"
-             placeholder="Pesquisar por nome ou curso..." oninput="filterRoster(this.value)">
+             placeholder="Pesquisar por nome..." oninput="filterRoster(this.value)">
     </div>
 
     <div id="sissa-roster-list" class="sissa-roster-list">
@@ -3872,12 +3892,16 @@
     instituicoes: [],
     riscoestat: null,          // dados da API /estatisticas/risco
     roster: [],                // alunos do cadastro acadêmico (importação)
+    intGrupoId: null,          // grupo de origem ao criar intervenção a partir de um grupo
     selectedEstudanteIds: new Set(),
     intEstudanteTags: [],   // [{id, nome, matricula}]
     grupoEstudanteTags: []  // [{id, nome, matricula}]
   };
 
   const SISSA_API = 'http://localhost:3000/api/sissa';
+  // Curso do contexto desta tela (ver breadcrumb "Licenciatura em Física – IFSP").
+  // Usado para restringir a importação de estudantes apenas a esse curso.
+  const SISSA_CURSO_ATUAL = 'Licenciatura em Física';
 
   async function sissaFetch(path, opts = {}) {
     const r = await fetch(SISSA_API + path, {
@@ -4253,6 +4277,41 @@
         }
       });
     }
+    popularResumoCursos();
+  }
+
+  function popularResumoCursos() {
+    const sel = document.getElementById('sissa-resumo-curso');
+    if (!sel || !sissaState.cursos.length) return;
+    sel.innerHTML = sissaState.cursos
+      .map(c => `<option value="${c.id}">${escHtml(c.nome)}</option>`).join('');
+    // abre por padrão num curso que tenha estudantes (Física, no piloto)
+    const fisica = sissaState.cursos.find(c => /física/i.test(c.nome));
+    if (fisica) sel.value = fisica.id;
+    carregarResumoCurso();
+  }
+
+  async function carregarResumoCurso() {
+    const sel = document.getElementById('sissa-resumo-curso');
+    const out = document.getElementById('sissa-resumo-out');
+    if (!sel || !out) return;
+    const id = sel.value;
+    if (!id) { out.textContent = 'Selecione um curso.'; return; }
+    out.textContent = 'Carregando...';
+    try {
+      const res = await sissaFetch(`/resumo-curso/${id}`);
+      const d = res.data;
+      if (!res.success || !d) { out.textContent = 'Sem dados para este curso.'; return; }
+      out.innerHTML = `
+        <div class="sissa-resumo-item"><span class="sissa-resumo-num">${d.r_total}</span><span class="sissa-resumo-lbl">Estudantes</span></div>
+        <div class="sissa-resumo-item"><span class="sissa-resumo-num alto">${d.r_alto}</span><span class="sissa-resumo-lbl">Risco Alto</span></div>
+        <div class="sissa-resumo-item"><span class="sissa-resumo-num medio">${d.r_medio}</span><span class="sissa-resumo-lbl">Risco Médio</span></div>
+        <div class="sissa-resumo-item"><span class="sissa-resumo-num baixo">${d.r_baixo}</span><span class="sissa-resumo-lbl">Risco Baixo</span></div>
+        <div class="sissa-resumo-item"><span class="sissa-resumo-num">${d.r_media_reprov ?? '-'}</span><span class="sissa-resumo-lbl">Média reprovações</span></div>
+        <div class="sissa-resumo-item"><span class="sissa-resumo-num alto">${d.r_pct_alto_risco ?? 0}%</span><span class="sissa-resumo-lbl">% Alto risco</span></div>`;
+    } catch {
+      out.textContent = 'Erro ao carregar o resumo.';
+    }
   }
 
   function loadSissaMockData() {
@@ -4416,12 +4475,15 @@
   async function openNovoEstudante() {
     const search = document.getElementById('sissa-roster-search');
     if (search) search.value = '';
+    const desc = document.getElementById('sissa-roster-desc');
+    if (desc) desc.textContent = `Alunos do curso "${SISSA_CURSO_ATUAL}" no cadastro acadêmico da universidade. Os dados (média, reprovações, CH, turmas e risco) são importados automaticamente.`;
     const list = document.getElementById('sissa-roster-list');
     if (list) list.innerHTML = '<div class="sissa-roster-empty">Carregando...</div>';
     sissaOpenModal('sissa-modal-estudante');
 
     try {
-      const res = await sissaFetch('/roster');
+      // só traz alunos do curso desta tela — não dá pra importar de outro curso
+      const res = await sissaFetch('/roster?curso=' + encodeURIComponent(SISSA_CURSO_ATUAL));
       sissaState.roster = res.success ? (res.data || []) : [];
     } catch {
       sissaState.roster = [];
@@ -4464,7 +4526,7 @@
     try {
       const res = await sissaFetch('/estudantes/importar', {
         method: 'POST',
-        body: JSON.stringify({ aluno_id: alunoId })
+        body: JSON.stringify({ aluno_id: alunoId, curso_esperado: SISSA_CURSO_ATUAL })
       });
       if (res.success) {
         showSissaNotif('Estudante importado com sucesso');
@@ -4473,6 +4535,7 @@
         renderRoster(sissaState.roster);
         filterRoster(document.getElementById('sissa-roster-search')?.value);
         await reloadSissaEstudantes();
+        await carregarResumoCurso(); // o curso importado pode ser o que está selecionado no painel
       } else {
         showToast(res.error || 'Erro ao importar estudante.', 'error');
         if (btn) { btn.disabled = false; btn.textContent = 'Importar'; }
@@ -4703,8 +4766,10 @@
       return;
     }
     tbody.innerHTML = list.map(i => {
+      // o backend devolve DATE como timestamp ISO completo (ex: "...T03:00:00.000Z");
+      // pegamos só "YYYY-MM-DD" e fixamos meio-dia local pra não cair no dia anterior
       const dt = i.data_intervencao
-        ? new Date(i.data_intervencao+'T12:00:00').toLocaleDateString('pt-BR')
+        ? new Date(String(i.data_intervencao).slice(0,10)+'T12:00:00').toLocaleDateString('pt-BR')
         : '-';
       const obs = (i.observacoes||'').substring(0,45) + ((i.observacoes||'').length>45?'...':'');
       return `
@@ -4771,6 +4836,7 @@
 
   function openNovaIntervencao() {
     document.getElementById('sissa-int-id').value = '';
+    sissaState.intGrupoId = null;
     document.getElementById('sissa-int-modal-title').textContent = 'Registro de nova intervenção';
     document.getElementById('sissa-int-btn-submit').textContent = 'Salvar';
 
@@ -4798,7 +4864,10 @@
 
   function openNovaIntervencaoDoGrupo(grupoId, grupoTitulo) {
     openNovaIntervencao();
-    // We just open the form; user can proceed
+    // vincula a intervenção ao grupo de origem (dispara o trigger de reativação)
+    sissaState.intGrupoId = grupoId;
+    document.getElementById('sissa-int-modal-title').textContent =
+      `Nova intervenção — grupo "${grupoTitulo}"`;
   }
 
   function openEditIntervencao(id) {
@@ -4807,7 +4876,7 @@
     document.getElementById('sissa-int-id').value = id;
     document.getElementById('sissa-int-modal-title').textContent = 'Editar intervenção';
     document.getElementById('sissa-int-btn-submit').textContent = 'Salvar';
-    document.getElementById('sissa-int-data').value = i.data_intervencao||'';
+    document.getElementById('sissa-int-data').value = i.data_intervencao ? String(i.data_intervencao).slice(0,10) : '';
     document.getElementById('sissa-int-duracao').value = i.duracao||'';
     document.getElementById('sissa-int-obs').value = i.observacoes||'';
     document.getElementById('sissa-int-semestre').value = i.semestre||'';
@@ -4833,6 +4902,7 @@
     const getRadio = name => { const r=document.querySelector(`[name="${name}"]:checked`); return r?r.value:null; };
 
     const payload = {
+      grupo_id:       sissaState.intGrupoId,
       estudante_ids:  sissaState.intEstudanteTags.map(t=>t.id),
       data_intervencao:    document.getElementById('sissa-int-data').value||null,
       semestre:       document.getElementById('sissa-int-semestre').value||null,
@@ -4864,6 +4934,9 @@
         document.getElementById('sissa-sel-bar').classList.remove('visible');
         const r2 = await sissaFetch('/intervencoes');
         if (r2.success) { sissaState.intervencoes = r2.data||[]; renderSissaIntervencoes(sissaState.intervencoes); }
+        // recarrega grupos: o trigger pode ter reativado o grupo de origem
+        const rg = await sissaFetch('/grupos');
+        if (rg.success) { sissaState.grupos = rg.data||[]; renderSissaGrupos(sissaState.grupos); }
       } else {
         showToast(res.error||'Erro ao salvar intervenção.','error');
       }
