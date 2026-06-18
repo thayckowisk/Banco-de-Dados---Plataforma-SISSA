@@ -3,6 +3,54 @@ const router  = express.Router();
 const db      = require('../db');
 
 /* ══════════════════════════════════════════
+   CONTROLE DE ACESSO POR NÍVEL (hierarquia de perfis)
+   O frontend envia o id do usuário SISSA logado no header
+   'x-sissa-usuario-id'. As ações são validadas pela matriz
+   sissa_nivel_acao via a função fu_sissa_pode().
+══════════════════════════════════════════ */
+function getActorId(req) {
+  const id = parseInt(req.headers['x-sissa-usuario-id'], 10);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+// Verifica a permissão de uma ação. Em caso de falha já responde
+// (401 sem usuário / 403 sem permissão) e retorna null.
+async function exigirPermissao(req, res, acao) {
+  const actorId = getActorId(req);
+  if (!actorId) {
+    res.status(401).json({ success: false, error: 'Autenticação necessária (faça login no SISSA).' });
+    return null;
+  }
+  const r = await db.query('SELECT fu_sissa_pode($1,$2) AS pode', [actorId, acao]);
+  if (!r.rows[0] || !r.rows[0].pode) {
+    res.status(403).json({ success: false, error: `Seu perfil não tem permissão para esta ação (${acao}).` });
+    return null;
+  }
+  return actorId;
+}
+
+// Valida o :id da rota como inteiro positivo; responde 400 e retorna null se inválido.
+function getId(req, res) {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ success: false, error: 'ID inválido.' });
+    return null;
+  }
+  return id;
+}
+
+async function nivelDoUsuario(userId) {
+  const r = await db.query('SELECT fu_sissa_nivel_usuario($1) AS n', [userId]);
+  return r.rows[0] ? Number(r.rows[0].n) : 0;
+}
+async function nivelDoPerfil(perfilId) {
+  const id = parseInt(perfilId, 10);
+  if (!Number.isInteger(id) || id <= 0) return 0;
+  const r = await db.query('SELECT nivel FROM sissa_perfil WHERE id=$1', [id]);
+  return r.rows[0] ? Number(r.rows[0].nivel) : 0;
+}
+
+/* ══════════════════════════════════════════
    AUTH – verifica se usuário tem acesso
    Retorna: { tipo: 'privado' | 'publico', usuario }
    - 'privado': e-mail cadastrado em sissa_usuario_sissa
@@ -16,7 +64,7 @@ router.post('/auth', async (req, res) => {
   try {
     const result = await db.query(
       `SELECT u.id, u.nome, u.email_institucional, u.senha, u.perfil_id, u.ultimo_acesso,
-              p.nome AS perfil_nome,
+              p.nome AS perfil_nome, p.nivel AS perfil_nivel,
               array_agg(DISTINCT c.nome) FILTER (WHERE c.nome IS NOT NULL) AS cursos,
               i.nome AS instituicao_nome
        FROM sissa_usuario_sissa u
@@ -25,7 +73,7 @@ router.post('/auth', async (req, res) => {
        LEFT JOIN sissa_curso         c  ON c.id = uc.curso_id
        LEFT JOIN sissa_instituicao   i  ON i.id = $2
        WHERE LOWER(u.email_institucional) = LOWER($1)
-       GROUP BY u.id, p.nome, i.nome`,
+       GROUP BY u.id, p.nome, p.nivel, i.nome`,
       [email.trim(), instituicao_id || 1]
     );
 
@@ -36,6 +84,14 @@ router.post('/auth', async (req, res) => {
         return res.json({ success: false, error: 'E-mail ou senha incorretos.' });
       }
       delete usuario.senha; // nunca devolver a senha ao cliente
+
+      // Anexa as permissões do nível do usuário (para o frontend ocultar ações)
+      const permRes = await db.query(
+        'SELECT acao FROM sissa_nivel_acao WHERE nivel = $1 ORDER BY acao',
+        [usuario.perfil_nivel || 0]
+      );
+      usuario.permissoes = permRes.rows.map(r => r.acao);
+
       await db.query(
         'UPDATE sissa_usuario_sissa SET ultimo_acesso = NOW() WHERE id = $1',
         [usuario.id]
@@ -106,6 +162,7 @@ router.get('/estudantes', async (req, res) => {
 });
 
 router.post('/estudantes', async (req, res) => {
+  if (!await exigirPermissao(req, res, 'estudante_gerenciar')) return;
   const {
     matricula, nome, curso_id, ingresso,
     semestre_saida, media_global, semestre_atual,
@@ -186,6 +243,7 @@ router.get('/roster', async (req, res) => {
 });
 
 router.post('/estudantes/importar', async (req, res) => {
+  if (!await exigirPermissao(req, res, 'estudante_gerenciar')) return;
   const { aluno_id, curso_esperado } = req.body;
   if (!aluno_id) {
     return res.status(400).json({ success: false, error: 'aluno_id é obrigatório' });
@@ -295,6 +353,7 @@ async function getGrupoById(req, res) {
 }
 
 async function createGrupo(req, res) {
+  if (!await exigirPermissao(req, res, 'grupo_gerenciar')) return;
   const { titulo, semestre, observacoes, autoria_id, estudante_ids = [] } = req.body;
   if (!titulo) return res.status(400).json({ success: false, error: 'titulo é obrigatório' });
 
@@ -326,6 +385,7 @@ async function createGrupo(req, res) {
 }
 
 async function updateGrupo(req, res) {
+  if (!await exigirPermissao(req, res, 'grupo_gerenciar')) return;
   const { titulo, semestre, observacoes, status, estudante_ids } = req.body;
   const client = await db.connect();
   try {
@@ -362,6 +422,7 @@ async function updateGrupo(req, res) {
 }
 
 async function deleteGrupo(req, res) {
+  if (!await exigirPermissao(req, res, 'grupo_excluir')) return;
   try {
     await db.query('DELETE FROM sissa_grupo_intervencao WHERE id = $1', [req.params.id]);
     res.json({ success: true });
@@ -436,6 +497,8 @@ router.get('/intervencoes', async (req, res) => {
 });
 
 router.post('/intervencoes', async (req, res) => {
+  const actorId = await exigirPermissao(req, res, 'intervencao_criar');
+  if (!actorId) return;
   const {
     grupo_id, data_intervencao, semestre, disciplina, forma_meio, assunto,
     formato, interacao, tipo, acompanhamento, duracao, objetivo_alcancado,
@@ -446,16 +509,17 @@ router.post('/intervencoes', async (req, res) => {
   try {
     await client.query('BEGIN');
 
+    // autoria_id = usuário logado (permite que o Tutor edite só as próprias)
     const iRes = await client.query(
       `INSERT INTO sissa_intervencao
          (grupo_id, data_intervencao, semestre, disciplina, forma_meio, assunto,
           formato, interacao, tipo, acompanhamento, duracao, objetivo_alcancado,
-          observacoes, encaminhado, encaminhar_para)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+          observacoes, encaminhado, encaminhar_para, autoria_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
       [grupo_id || null, data_intervencao || null, semestre || null, disciplina || null,
        forma_meio || null, assunto || null, formato || null, interacao || null,
        tipo || null, acompanhamento || null, duracao || null, objetivo_alcancado || null,
-       observacoes || null, encaminhado || false, encaminhar_para || null]
+       observacoes || null, encaminhado || false, encaminhar_para || null, actorId]
     );
     const intervencao = iRes.rows[0];
 
@@ -477,6 +541,22 @@ router.post('/intervencoes', async (req, res) => {
 });
 
 router.put('/intervencoes/:id', async (req, res) => {
+  const actorId = await exigirPermissao(req, res, 'intervencao_editar');
+  if (!actorId) return;
+  const alvoId = getId(req, res); if (!alvoId) return;
+
+  // Regra do piso: o Tutor (nível 1) só pode editar as próprias intervenções.
+  const nivel = await nivelDoUsuario(actorId);
+  if (nivel <= 1) {
+    const dono = await db.query('SELECT autoria_id FROM sissa_intervencao WHERE id=$1', [req.params.id]);
+    if (!dono.rows.length) {
+      return res.status(404).json({ success: false, error: 'Intervenção não encontrada.' });
+    }
+    if (dono.rows[0].autoria_id !== actorId) {
+      return res.status(403).json({ success: false, error: 'Tutor só pode editar as próprias intervenções.' });
+    }
+  }
+
   const {
     data_intervencao, semestre, disciplina, forma_meio, assunto, formato,
     interacao, tipo, acompanhamento, duracao, objetivo_alcancado,
@@ -528,6 +608,7 @@ router.put('/intervencoes/:id', async (req, res) => {
 });
 
 router.delete('/intervencoes/:id', async (req, res) => {
+  if (!await exigirPermissao(req, res, 'intervencao_excluir')) return;
   try {
     await db.query('DELETE FROM sissa_intervencao WHERE id = $1', [req.params.id]);
     res.json({ success: true });
@@ -544,7 +625,7 @@ router.get('/usuarios', async (req, res) => {
     const { perfil_id, curso_id } = req.query;
     let q = `
       SELECT u.id, u.nome, u.email_institucional, u.perfil_id, u.ultimo_acesso, u.created_at,
-             p.nome AS perfil_nome,
+             p.nome AS perfil_nome, p.nivel AS perfil_nivel,
              array_agg(DISTINCT c.id)   FILTER (WHERE c.id IS NOT NULL)   AS curso_ids,
              array_agg(DISTINCT c.nome) FILTER (WHERE c.nome IS NOT NULL) AS cursos
       FROM sissa_usuario_sissa u
@@ -555,7 +636,7 @@ router.get('/usuarios', async (req, res) => {
     const params = [];
     if (perfil_id) { params.push(perfil_id); q += ` AND u.perfil_id = $${params.length}`; }
     if (curso_id)  { params.push(curso_id);  q += ` AND uc.curso_id = $${params.length}`; }
-    q += ' GROUP BY u.id, p.nome ORDER BY u.nome';
+    q += ' GROUP BY u.id, p.nome, p.nivel ORDER BY u.nome';
     const result = await db.query(q, params);
     res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -564,9 +645,16 @@ router.get('/usuarios', async (req, res) => {
 });
 
 router.post('/usuarios', async (req, res) => {
+  const actorId = await exigirPermissao(req, res, 'usuario_gerenciar');
+  if (!actorId) return;
   const { nome, email_institucional, perfil_id, curso_ids = [] } = req.body;
   if (!nome || !email_institucional) {
     return res.status(400).json({ success: false, error: 'nome e email_institucional são obrigatórios' });
+  }
+  // Não é possível criar um usuário de nível maior ou igual ao seu
+  const nivelAtor = await nivelDoUsuario(actorId);
+  if (await nivelDoPerfil(perfil_id) >= nivelAtor) {
+    return res.status(403).json({ success: false, error: 'Você não pode criar um usuário de nível igual ou superior ao seu.' });
   }
   const client = await db.connect();
   try {
@@ -593,7 +681,23 @@ router.post('/usuarios', async (req, res) => {
 });
 
 router.put('/usuarios/:id', async (req, res) => {
+  const actorId = await exigirPermissao(req, res, 'usuario_gerenciar');
+  if (!actorId) return;
+  const alvoId = getId(req, res); if (!alvoId) return;
+  // Só pode editar quem é de nível estritamente menor que o seu
+  const podeGerenciar = await db.query(
+    'SELECT fu_sissa_pode_gerenciar_usuario($1,$2) AS ok', [actorId, alvoId]);
+  if (!podeGerenciar.rows[0].ok) {
+    return res.status(403).json({ success: false, error: 'Você não pode editar um usuário de nível igual ou superior ao seu.' });
+  }
   const { nome, email_institucional, perfil_id, curso_ids } = req.body;
+  // Não pode promover alguém a um nível maior ou igual ao seu
+  if (perfil_id !== undefined && perfil_id !== null) {
+    const nivelAtor = await nivelDoUsuario(actorId);
+    if (await nivelDoPerfil(perfil_id) >= nivelAtor) {
+      return res.status(403).json({ success: false, error: 'Você não pode atribuir um nível igual ou superior ao seu.' });
+    }
+  }
   const client = await db.connect();
   try {
     await client.query('BEGIN');
@@ -625,6 +729,14 @@ router.put('/usuarios/:id', async (req, res) => {
 });
 
 router.delete('/usuarios/:id', async (req, res) => {
+  const actorId = await exigirPermissao(req, res, 'usuario_excluir');
+  if (!actorId) return;
+  const alvoId = getId(req, res); if (!alvoId) return;
+  const podeGerenciar = await db.query(
+    'SELECT fu_sissa_pode_gerenciar_usuario($1,$2) AS ok', [actorId, alvoId]);
+  if (!podeGerenciar.rows[0].ok) {
+    return res.status(403).json({ success: false, error: 'Você não pode excluir um usuário de nível igual ou superior ao seu.' });
+  }
   try {
     await db.query('DELETE FROM sissa_usuario_sissa WHERE id = $1', [req.params.id]);
     res.json({ success: true });
@@ -661,7 +773,23 @@ router.get('/resumo-curso/:curso_id', async (req, res) => {
 
 router.get('/perfis', async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM sissa_perfil ORDER BY nome');
+    const result = await db.query('SELECT id, nome, nivel FROM sissa_perfil ORDER BY nivel DESC, nome');
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Matriz de permissões por perfil/nível (para exibir a hierarquia)
+router.get('/permissoes', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT p.id AS perfil_id, p.nome AS perfil_nome, p.nivel,
+             array_agg(na.acao ORDER BY na.acao) AS acoes
+      FROM sissa_perfil p
+      LEFT JOIN sissa_nivel_acao na ON na.nivel = p.nivel
+      GROUP BY p.id, p.nome, p.nivel
+      ORDER BY p.nivel DESC, p.nome`);
     res.json({ success: true, data: result.rows });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
