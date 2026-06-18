@@ -400,6 +400,9 @@ PORT=3000
 |------|--------|
 | Thayckowisk Correia Campos | thayckowisk@discente.ufg.br |
 | Thiago Honorato Ferreira | thiago.honorato@discente.ufg.br |
+| Arthur Henrique de Souza Paro | arthurparo@discente.ufg.br |
+
+arthurparo@discente.ufg.br
 
 Disciplina: **Banco de Dados — N2** · Instituto de Informática · UFG
 
