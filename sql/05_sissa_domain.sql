@@ -7,6 +7,7 @@
 -- ----------------------------------------------------------------
 -- DROP (idempotent – safe re-run order: children first)
 -- ----------------------------------------------------------------
+DROP VIEW  IF EXISTS vw_sissa_perfil_permissoes       CASCADE;
 DROP VIEW  IF EXISTS vw_sissa_risco_anonimo          CASCADE;
 DROP VIEW  IF EXISTS vw_sissa_resumo_intervencoes     CASCADE;
 DROP VIEW  IF EXISTS vw_sissa_estudantes_risco        CASCADE;
@@ -14,8 +15,30 @@ DROP VIEW  IF EXISTS vw_sissa_grupos                  CASCADE;
 
 DROP FUNCTION IF EXISTS fu_sissa_calcular_risco(INTEGER)            CASCADE;
 DROP FUNCTION IF EXISTS fu_sissa_resumo_curso(INTEGER)              CASCADE;
-DROP FUNCTION IF EXISTS pr_sissa_criar_intervencao_grupo(INTEGER, DATE, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, TEXT) CASCADE;
-DROP FUNCTION IF EXISTS pr_sissa_atualizar_status_grupos()          CASCADE;
+DROP FUNCTION IF EXISTS fu_sissa_nivel_usuario(INTEGER)             CASCADE;
+DROP FUNCTION IF EXISTS fu_sissa_pode(INTEGER, VARCHAR)             CASCADE;
+DROP FUNCTION IF EXISTS fu_sissa_pode_gerenciar_usuario(INTEGER, INTEGER) CASCADE;
+
+-- pr_* podem ter sido criados como FUNCTION (versões antigas) ou PROCEDURE.
+-- Este bloco remove qualquer um dos dois, independente do tipo, de forma idempotente.
+DO $drop_procs$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN
+        SELECT oid::regprocedure AS sig, prokind
+        FROM   pg_proc
+        WHERE  proname IN ('pr_sissa_criar_intervencao_grupo',
+                           'pr_sissa_atualizar_status_grupos')
+    LOOP
+        IF r.prokind = 'p' THEN
+            EXECUTE 'DROP PROCEDURE ' || r.sig || ' CASCADE';
+        ELSE
+            EXECUTE 'DROP FUNCTION '  || r.sig || ' CASCADE';
+        END IF;
+    END LOOP;
+END
+$drop_procs$;
 
 DROP TRIGGER IF EXISTS tg_sissa_risco_evasao_timestamp ON sissa_risco_evasao;
 DROP TRIGGER IF EXISTS tg_sissa_grupo_inativo_auto     ON sissa_intervencao;
@@ -33,6 +56,7 @@ DROP TABLE IF EXISTS sissa_risco_evasao            CASCADE;
 DROP TABLE IF EXISTS sissa_estudante               CASCADE;
 DROP TABLE IF EXISTS sissa_usuario_curso           CASCADE;
 DROP TABLE IF EXISTS sissa_usuario_sissa           CASCADE;
+DROP TABLE IF EXISTS sissa_nivel_acao              CASCADE;
 DROP TABLE IF EXISTS sissa_perfil                  CASCADE;
 DROP TABLE IF EXISTS sissa_curso                   CASCADE;
 DROP TABLE IF EXISTS sissa_instituicao             CASCADE;
@@ -67,8 +91,20 @@ CREATE INDEX idx_sissa_curso_inst ON sissa_curso(instituicao_id);
 -- SISSA_PERFIL
 -- ----------------------------------------------------------------
 CREATE TABLE sissa_perfil (
-    id   SERIAL       PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL UNIQUE
+    id    SERIAL       PRIMARY KEY,
+    nome  VARCHAR(100) NOT NULL UNIQUE,
+    nivel INTEGER      NOT NULL DEFAULT 1   -- 5=Coord. unidade … 1=Tutor (hierarquia de permissões)
+);
+
+-- ----------------------------------------------------------------
+-- SISSA_NIVEL_ACAO  (matriz de permissões data-driven)
+--   Para cada nível, lista as ações permitidas. Quanto maior o nível,
+--   mais ações. A coluna `acao` casa com as operações da API.
+-- ----------------------------------------------------------------
+CREATE TABLE sissa_nivel_acao (
+    nivel INTEGER     NOT NULL,
+    acao  VARCHAR(40) NOT NULL,
+    CONSTRAINT pk_sissa_nivel_acao PRIMARY KEY (nivel, acao)
 );
 
 -- ----------------------------------------------------------------
@@ -176,6 +212,7 @@ CREATE TABLE sissa_intervencao (
     observacoes         TEXT,
     encaminhado         BOOLEAN      DEFAULT FALSE,
     encaminhar_para     VARCHAR(255),
+    autoria_id          INTEGER      REFERENCES sissa_usuario_sissa(id) ON DELETE SET NULL,
     created_at          TIMESTAMP    NOT NULL DEFAULT NOW()
 );
 
@@ -374,20 +411,88 @@ BEGIN
 END;
 $$;
 
+-- ----------------------------------------------------------------
+-- FUNÇÃO 3 – fu_sissa_nivel_usuario
+--   Retorna o nível (1..5) do perfil de um usuário SISSA.
+--   0 se o usuário não existir ou não tiver perfil.
+-- ----------------------------------------------------------------
+CREATE OR REPLACE FUNCTION fu_sissa_nivel_usuario(p_usuario_id INTEGER)
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_nivel INTEGER;
+BEGIN
+    SELECT p.nivel
+    INTO   v_nivel
+    FROM   sissa_usuario_sissa u
+    JOIN   sissa_perfil p ON p.id = u.perfil_id
+    WHERE  u.id = p_usuario_id;
+
+    RETURN COALESCE(v_nivel, 0);
+END;
+$$;
+
+-- ----------------------------------------------------------------
+-- FUNÇÃO 4 – fu_sissa_pode
+--   Núcleo do controle de acesso: TRUE se o nível do usuário possui
+--   a ação informada na matriz sissa_nivel_acao.
+-- ----------------------------------------------------------------
+CREATE OR REPLACE FUNCTION fu_sissa_pode(p_usuario_id INTEGER, p_acao VARCHAR)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1
+        FROM   sissa_nivel_acao na
+        WHERE  na.acao  = p_acao
+        AND    na.nivel = fu_sissa_nivel_usuario(p_usuario_id)
+    );
+END;
+$$;
+
+-- ----------------------------------------------------------------
+-- FUNÇÃO 5 – fu_sissa_pode_gerenciar_usuario
+--   Regra hierárquica: um usuário só pode criar/editar/excluir OUTRO
+--   usuário de nível ESTRITAMENTE MENOR que o seu. Assim, um tutor não
+--   altera um coordenador, e um coordenador não altera outro de mesmo
+--   nível ou superior. Exige também a permissão 'usuario_gerenciar'.
+-- ----------------------------------------------------------------
+CREATE OR REPLACE FUNCTION fu_sissa_pode_gerenciar_usuario(
+    p_ator_id INTEGER,
+    p_alvo_id INTEGER
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_nivel_ator INTEGER := fu_sissa_nivel_usuario(p_ator_id);
+    v_nivel_alvo INTEGER := fu_sissa_nivel_usuario(p_alvo_id);
+BEGIN
+    IF NOT fu_sissa_pode(p_ator_id, 'usuario_gerenciar') THEN
+        RETURN FALSE;
+    END IF;
+    RETURN v_nivel_ator > v_nivel_alvo;
+END;
+$$;
+
 -- ================================================================
 -- PROCEDIMENTOS do domínio SISSA
 -- ================================================================
 
 -- ----------------------------------------------------------------
 -- PROCEDURE 1 – pr_sissa_criar_intervencao_grupo
---   Registra uma nova intervenção já vinculada a um grupo,
---   associando automaticamente todos os estudantes do grupo.
---   Retorna o id da intervenção criada.
---   Difere das atividades individuais (A1 cria usuário admin,
---   copia grupos de controle de acesso). Esta procedure opera
---   sobre o domínio pedagógico SISSA.
+--   PROCEDIMENTO real do PostgreSQL (CREATE PROCEDURE / invocado com CALL).
+--   Registra uma nova intervenção já vinculada a um grupo e associa
+--   automaticamente TODOS os estudantes do grupo à intervenção, dentro
+--   de uma única unidade de trabalho. O id da intervenção criada é
+--   devolvido pelo parâmetro de saída INOUT p_intervencao_id.
+--   Difere das atividades em dupla (A1 cria usuário admin / copia
+--   grupos de controle de acesso). Aqui o procedimento orquestra a
+--   escrita em duas tabelas do domínio pedagógico SISSA.
 -- ----------------------------------------------------------------
-CREATE OR REPLACE FUNCTION pr_sissa_criar_intervencao_grupo(
+CREATE OR REPLACE PROCEDURE pr_sissa_criar_intervencao_grupo(
     p_grupo_id          INTEGER,
     p_data              DATE,
     p_semestre          VARCHAR,
@@ -397,13 +502,12 @@ CREATE OR REPLACE FUNCTION pr_sissa_criar_intervencao_grupo(
     p_interacao         VARCHAR,
     p_tipo              VARCHAR,
     p_acompanhamento    VARCHAR,
-    p_observacoes       TEXT
+    p_observacoes       TEXT,
+    INOUT p_intervencao_id INTEGER DEFAULT NULL
 )
-RETURNS INTEGER
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_intervencao_id INTEGER;
     v_estudante_id   INTEGER;
 BEGIN
     -- Verifica que o grupo existe
@@ -418,41 +522,41 @@ BEGIN
     VALUES
         (p_grupo_id, p_data, p_semestre, p_forma_meio, p_assunto,
          p_formato, p_interacao, p_tipo, p_acompanhamento, p_observacoes)
-    RETURNING id INTO v_intervencao_id;
+    RETURNING id INTO p_intervencao_id;
 
     -- Associa todos os estudantes do grupo
     FOR v_estudante_id IN
         SELECT estudante_id FROM sissa_grupo_estudante WHERE grupo_id = p_grupo_id
     LOOP
         INSERT INTO sissa_intervencao_estudante (intervencao_id, estudante_id)
-        VALUES (v_intervencao_id, v_estudante_id)
+        VALUES (p_intervencao_id, v_estudante_id)
         ON CONFLICT DO NOTHING;
     END LOOP;
-
-    RETURN v_intervencao_id;
 END;
 $$;
 
 -- ----------------------------------------------------------------
 -- PROCEDURE 2 – pr_sissa_atualizar_status_grupos
---   Percorre todos os grupos de intervenção e define status
---   como 'Inativo' quando a última intervenção do grupo
---   tiver mais de 180 dias. Grupos sem nenhuma intervenção
---   com mais de 180 dias de criação também são inativados.
---   Retorna o total de grupos inativados.
---   Difere das atividades individuais (A1 migra usuários entre
---   grupos do sistema de controle de acesso). Esta procedure
---   gerencia o ciclo de vida dos grupos pedagógicos SISSA.
+--   PROCEDIMENTO real do PostgreSQL (CREATE PROCEDURE / invocado com CALL).
+--   Percorre todos os grupos de intervenção ATIVOS e define status
+--   como 'Inativo' quando a última intervenção do grupo tiver mais de
+--   180 dias. Grupos sem nenhuma intervenção e com mais de 180 dias de
+--   criação também são inativados. O total de grupos inativados é
+--   devolvido pelo parâmetro de saída INOUT p_total.
+--   Difere das atividades em dupla (A1 migra usuários entre grupos do
+--   controle de acesso). Este procedimento faz uma rotina de manutenção
+--   em lote do ciclo de vida dos grupos pedagógicos SISSA.
 -- ----------------------------------------------------------------
-CREATE OR REPLACE FUNCTION pr_sissa_atualizar_status_grupos()
-RETURNS INTEGER
+CREATE OR REPLACE PROCEDURE pr_sissa_atualizar_status_grupos(
+    INOUT p_total INTEGER DEFAULT 0
+)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_total  INTEGER := 0;
     v_rec    RECORD;
     v_ultima DATE;
 BEGIN
+    p_total := 0;
     FOR v_rec IN
         SELECT g.id
         FROM sissa_grupo_intervencao g
@@ -468,11 +572,9 @@ BEGIN
             UPDATE sissa_grupo_intervencao
             SET    status = 'Inativo'
             WHERE  id = v_rec.id;
-            v_total := v_total + 1;
+            p_total := p_total + 1;
         END IF;
     END LOOP;
-
-    RETURN v_total;
 END;
 $$;
 
@@ -580,6 +682,18 @@ LEFT JOIN sissa_usuario_sissa u          ON u.id = g.autoria_id
 LEFT JOIN sissa_perfil p                 ON p.id = u.perfil_id
 GROUP BY g.id, g.titulo, g.semestre, g.status, u.nome, p.nome;
 
+-- View 5 – PERMISSÕES POR PERFIL (matriz nível × ação, legível)
+--   Lista, para cada perfil, o nível e as ações que ele pode executar.
+CREATE OR REPLACE VIEW vw_sissa_perfil_permissoes AS
+SELECT
+    p.id    AS perfil_id,
+    p.nome  AS perfil_nome,
+    p.nivel,
+    na.acao
+FROM sissa_perfil p
+JOIN sissa_nivel_acao na ON na.nivel = p.nivel
+ORDER BY p.nivel DESC, p.nome, na.acao;
+
 -- ================================================================
 -- ROLES DE SEGURANÇA
 -- ================================================================
@@ -605,26 +719,28 @@ END $$;
 -- ROLE 1 – admin_sissa: CRUD total em todas as tabelas SISSA
 CREATE ROLE admin_sissa NOLOGIN;
 GRANT SELECT, INSERT, UPDATE, DELETE
-    ON sissa_instituicao, sissa_curso, sissa_perfil, sissa_usuario_sissa,
-       sissa_usuario_curso, sissa_estudante, sissa_risco_evasao,
-       sissa_grupo_intervencao, sissa_grupo_estudante,
+    ON sissa_instituicao, sissa_curso, sissa_perfil, sissa_nivel_acao,
+       sissa_usuario_sissa, sissa_usuario_curso, sissa_estudante,
+       sissa_risco_evasao, sissa_grupo_intervencao, sissa_grupo_estudante,
        sissa_intervencao, sissa_intervencao_estudante
     TO admin_sissa;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO admin_sissa;
 GRANT SELECT ON vw_sissa_estudantes_risco, vw_sissa_grupos,
-               vw_sissa_risco_anonimo, vw_sissa_resumo_intervencoes
+               vw_sissa_risco_anonimo, vw_sissa_resumo_intervencoes,
+               vw_sissa_perfil_permissoes
     TO admin_sissa;
 
 -- ROLE 2 – leitura_sissa: somente SELECT em todas as tabelas SISSA
 CREATE ROLE leitura_sissa NOLOGIN;
 GRANT SELECT
-    ON sissa_instituicao, sissa_curso, sissa_perfil, sissa_usuario_sissa,
-       sissa_usuario_curso, sissa_estudante, sissa_risco_evasao,
-       sissa_grupo_intervencao, sissa_grupo_estudante,
+    ON sissa_instituicao, sissa_curso, sissa_perfil, sissa_nivel_acao,
+       sissa_usuario_sissa, sissa_usuario_curso, sissa_estudante,
+       sissa_risco_evasao, sissa_grupo_intervencao, sissa_grupo_estudante,
        sissa_intervencao, sissa_intervencao_estudante
     TO leitura_sissa;
 GRANT SELECT ON vw_sissa_estudantes_risco, vw_sissa_grupos,
-               vw_sissa_risco_anonimo, vw_sissa_resumo_intervencoes
+               vw_sissa_risco_anonimo, vw_sissa_resumo_intervencoes,
+               vw_sissa_perfil_permissoes
     TO leitura_sissa;
 
 -- ROLE 3 – risco_anonimo_sissa: SELECT somente na view sem identificadores
@@ -643,14 +759,47 @@ INSERT INTO sissa_instituicao (code_mec, nome, tipo) VALUES
     ('23040', 'Instituto Federal do Mato Grosso','Instituto Federal')
 ON CONFLICT (code_mec) DO NOTHING;
 
--- Perfis
-INSERT INTO sissa_perfil (nome) VALUES
-    ('Coordenador de curso'),
-    ('Coordenador de ensino'),
-    ('Coordenador de unidade'),
-    ('Tutor Físico'),
-    ('Tutor')
+-- Perfis (com nível hierárquico: 5 = mais alto … 1 = mais baixo).
+-- A ORDEM é preservada (ids 1..5) para casar com os perfil_id do seed de usuários.
+INSERT INTO sissa_perfil (nome, nivel) VALUES
+    ('Coordenador de curso',   3),   -- id 1
+    ('Coordenador de ensino',  4),   -- id 2
+    ('Coordenador de unidade', 5),   -- id 3
+    ('Tutor Físico',           2),   -- id 4
+    ('Tutor',                  1)    -- id 5
 ON CONFLICT (nome) DO NOTHING;
+
+-- ----------------------------------------------------------------
+-- MATRIZ DE PERMISSÕES (nível → ações permitidas)
+--   Gradiente: quanto maior o nível, mais ações. A ação 'ver' é de
+--   todos; o piso (Tutor, nível 1) vê tudo e registra/edita as
+--   próprias intervenções.
+--
+--   Nv1 Tutor              : ver, intervencao_criar, intervencao_editar
+--   Nv2 Tutor Físico       : + intervencao_excluir, grupo_gerenciar
+--   Nv3 Coord. de curso    : + grupo_excluir, estudante_gerenciar, usuario_gerenciar
+--   Nv4 Coord. de ensino   : + usuario_excluir
+--   Nv5 Coord. de unidade  : todas (gerencia inclusive coordenadores de nível menor)
+-- ----------------------------------------------------------------
+INSERT INTO sissa_nivel_acao (nivel, acao) VALUES
+    -- Nível 1 — Tutor
+    (1,'ver'), (1,'intervencao_criar'), (1,'intervencao_editar'),
+    -- Nível 2 — Tutor Físico
+    (2,'ver'), (2,'intervencao_criar'), (2,'intervencao_editar'),
+    (2,'intervencao_excluir'), (2,'grupo_gerenciar'),
+    -- Nível 3 — Coordenador de curso
+    (3,'ver'), (3,'intervencao_criar'), (3,'intervencao_editar'),
+    (3,'intervencao_excluir'), (3,'grupo_gerenciar'), (3,'grupo_excluir'),
+    (3,'estudante_gerenciar'), (3,'usuario_gerenciar'),
+    -- Nível 4 — Coordenador de ensino
+    (4,'ver'), (4,'intervencao_criar'), (4,'intervencao_editar'),
+    (4,'intervencao_excluir'), (4,'grupo_gerenciar'), (4,'grupo_excluir'),
+    (4,'estudante_gerenciar'), (4,'usuario_gerenciar'), (4,'usuario_excluir'),
+    -- Nível 5 — Coordenador de unidade
+    (5,'ver'), (5,'intervencao_criar'), (5,'intervencao_editar'),
+    (5,'intervencao_excluir'), (5,'grupo_gerenciar'), (5,'grupo_excluir'),
+    (5,'estudante_gerenciar'), (5,'usuario_gerenciar'), (5,'usuario_excluir')
+ON CONFLICT DO NOTHING;
 
 -- Cursos (4 cursos distribuídos pelas instituições)
 INSERT INTO sissa_curso (codigo, nome, instituicao_id) VALUES
@@ -794,6 +943,14 @@ INSERT INTO sissa_intervencao_estudante (intervencao_id, estudante_id) VALUES
     (4, 14), (4, 20), (4, 23),
     (5, 11),
     (6, 14);
+
+-- ----------------------------------------------------------------
+-- Ajuste final de status: o Grupo B é um grupo arquivado/inativo.
+-- (A inserção de suas intervenções acima dispara tg_sissa_grupo_inativo_auto,
+--  que o reativa; aqui o deixamos explicitamente Inativo para que a
+--  demonstração exiba ao menos um grupo inativo na UI.)
+-- ----------------------------------------------------------------
+UPDATE sissa_grupo_intervencao SET status = 'Inativo' WHERE titulo = 'Grupo B';
 
 -- ================================================================
 -- FIM DO ARQUIVO 05_sissa_domain.sql

@@ -24,6 +24,7 @@ Projeto acadêmico — Banco de Dados N2 · UFG
 - [Como rodar](#como-rodar)
 - [Credenciais de acesso](#credenciais-de-acesso)
 - [Arquitetura do banco de dados](#arquitetura-do-banco-de-dados)
+- [Parte 2 — Trabalho em Grupo: requisitos atendidos](#parte-2--trabalho-em-grupo-requisitos-atendidos)
 - [Objetos SQL implementados](#objetos-sql-implementados)
 - [API REST](#api-rest)
 - [Estrutura do projeto](#estrutura-do-projeto)
@@ -35,12 +36,16 @@ Projeto acadêmico — Banco de Dados N2 · UFG
 
 ## Sobre o projeto
 
-O SISSA é uma plataforma web acadêmica desenvolvida para a disciplina de **Banco de Dados (N2)** da Universidade Federal de Goiás. Ele reúne **dois sistemas integrados**:
+O SISSA é uma plataforma web acadêmica desenvolvida para a disciplina de **Banco de Dados (N2)** da Universidade Federal de Goiás. Todo o backend de negócio é implementado em **PL/pgSQL** (funções, procedimentos, triggers, views, índices e segurança). A API REST é **Node.js + Express** e o frontend é uma **SPA em Vanilla JS**.
 
-1. **Controle de Acesso** — gerencia usuários, grupos e permissões do sistema (Atividades A1 e A2 individuais).
-2. **Gestão de Risco de Evasão** — plataforma pedagógica para coordenadores e tutores monitorarem risco de evasão de estudantes e registrarem intervenções (Trabalho em Grupo N2.A1).
+O repositório está dividido em **duas frentes** independentes, acessíveis a partir da mesma tela de login:
 
-Todo o backend de negócio é implementado em **PL/pgSQL** (funções, procedimentos, triggers, views). O backend é uma API REST em **Node.js + Express** e o frontend é uma **SPA em Vanilla JS**.
+| Frente | O que é | Situação |
+|--------|---------|----------|
+| **Parte 1 — Controle de Acesso** | Gestão de usuários, grupos, papéis e permissões (Atividades **A1** e **A2** individuais/dupla). | ✅ **Concluída e congelada** — não recebe mais alterações. |
+| **Parte 2 — SISSA: Gestão de Risco de Evasão** | Plataforma pedagógica para coordenadores e tutores monitorarem o risco de evasão e registrarem intervenções (**Trabalho em Grupo N2.A1**). | 🚧 **Frente ativa** — foco de desenvolvimento e documentação. |
+
+> **Importante:** os cenários de função, procedimento, trigger, view, índice e segurança da **Parte 2** são **diferentes** dos cenários explorados na Parte 1 (atividades em dupla), conforme exigido pelo enunciado do Trabalho em Grupo.
 
 ---
 
@@ -49,12 +54,14 @@ Todo o backend de negócio é implementado em **PL/pgSQL** (funções, procedime
 ```
 http://localhost:3000
 │
-├── [Login principal]  →  Sistema de Controle de Acesso
+├── [Login principal]  →  PARTE 1 · Sistema de Controle de Acesso
 │     email: admin@gmail.com  /  senha: admin
 │
-└── [Botão "Sistema Sissa →"]  →  Plataforma de Risco de Evasão (CAFe)
+└── [Botão "Sistema Sissa →"]  →  PARTE 2 · Plataforma de Risco de Evasão (login CAFe)
       Busca "UFG" → Prosseguir → login com email institucional + senha (ex: adailton@ufg.com / 1234)
 ```
+
+A **Parte 2** é o módulo aberto ao clicar em **"Sistema Sissa →"** no canto inferior direito da tela de login. Toda a documentação detalhada da Parte 2 está na seção [Parte 2 — Trabalho em Grupo: requisitos atendidos](#parte-2--trabalho-em-grupo-requisitos-atendidos).
 
 ---
 
@@ -81,14 +88,20 @@ psql -U postgres -c "CREATE DATABASE sissa;"
 ### 2. Executar os scripts SQL em ordem
 
 ```bash
+# Parte 1 — Controle de Acesso
 psql -U SEU_USUARIO -d sissa -f sql/01_ddl.sql
 psql -U SEU_USUARIO -d sissa -f sql/02_functions_a1.sql
 psql -U SEU_USUARIO -d sissa -f sql/03_triggers_views_a2.sql
-psql -U SEU_USUARIO -d sissa -f sql/04_audit_assertions.sql
-psql -U SEU_USUARIO -d sissa -f sql/05_sissa_domain.sql
+psql -U SEU_USUARIO -d sissa -f sql/04_audit_assertions.sql   # (opcional: 67 asserções)
+
+# Parte 2 — SISSA: Gestão de Risco de Evasão
+psql -U SEU_USUARIO -d sissa -f sql/05_sissa_domain.sql            # tabelas, funções, procedures, triggers, views, roles e seed
+psql -U SEU_USUARIO -d sissa -f sql/06_roster_universidade.sql     # snapshot acadêmico (origem da importação de estudantes)
+psql -U SEU_USUARIO -d sissa -f sql/07_sissa_indices_performance.sql  # (opcional: benchmark de índices, Req. 5)
 ```
 
-> O arquivo `05_sissa_domain.sql` é idempotente — pode ser re-executado sem erros.
+> Os arquivos `05`, `06` e `07` são **idempotentes** — podem ser re-executados sem erros.
+> O `07` é uma demonstração de performance (gera massa de ~500 mil linhas, mede e remove); não é necessário para rodar a aplicação.
 
 ### 3. Instalar dependências e iniciar o servidor
 
@@ -194,6 +207,33 @@ sissa_instituicao
 
 ---
 
+## Parte 2 — Trabalho em Grupo: requisitos atendidos
+
+Esta é a frente ativa do projeto (módulo **"Sistema Sissa →"**). Todo o domínio está em `sql/05_sissa_domain.sql` (+ `06` roster e `07` benchmark). Mapeamento direto dos **6 requisitos** do enunciado:
+
+| Req | Conceito | Cenário identificado nos requisitos | Implementação |
+|-----|----------|--------------------------------------|---------------|
+| **1** | 2 **funções** | Calcular o risco de um estudante; consolidar KPIs de risco de um curso | `fu_sissa_calcular_risco(estudante_id)` · `fu_sissa_resumo_curso(curso_id)` |
+| **2** | 2 **procedimentos** | Registrar intervenção de grupo (vinculando todos os alunos); manutenção em lote do ciclo de vida dos grupos | `CALL pr_sissa_criar_intervencao_grupo(...)` · `CALL pr_sissa_atualizar_status_grupos(...)` (PROCEDURE reais, `INOUT`) |
+| **3** | 2+ **triggers** | Classificar risco automaticamente; manter `updated_at`; reativar grupo ao receber intervenção | `tg_sissa_classificar_risco` · `tg_sissa_risco_evasao_timestamp` · `tg_sissa_grupo_inativo_auto` |
+| **4** | 2+ **views** | Lista de risco dos alunos do curso; resumo gerencial de intervenções; **view anônima** de risco | `vw_sissa_estudantes_risco` · `vw_sissa_grupos` · `vw_sissa_resumo_intervencoes` · `vw_sissa_risco_anonimo` |
+| **5** | 2 **índices** + massa + ganho ≥ 20 % | Consulta de risco por curso; identificação por matrícula | `(curso_id, risco)` → **≈84 %** · `(matricula)` → **≈99 %** (benchmark em `07`, massa de 500 mil linhas) |
+| **6** | 3 **grupos de usuários** (segurança) | Admin total; leitura geral; acesso externo **sem dados que identifiquem o aluno** | `admin_sissa` (CRUD) · `leitura_sissa` (SELECT) · `risco_anonimo_sissa` (SELECT só em `vw_sissa_risco_anonimo`) |
+
+> Os detalhes de cada objeto (assinaturas, colunas, eventos) estão na seção **Objetos SQL implementados → Trabalho em Grupo — Domínio SISSA**. A verificação automatizada de todos esses requisitos está em `test-sissa.js` (**190 testes**, ver [Testes](#testes)).
+
+Como extensão de segurança, cada perfil tem um **nível de permissão** hierárquico (ver [Níveis de permissão por perfil](#níveis-de-permissão-por-perfil-controle-de-acesso-hierárquico)): o coordenador edita tudo e, à medida que o cargo diminui, menos ações ficam disponíveis (um tutor não altera um coordenador).
+
+### Telas da Parte 2 (frontend)
+
+1. **Login CAFe** — busca de instituição (UFG) e autenticação federada
+2. **Estudantes em risco** — lista por curso com *gauge* de risco, filtros e importação do cadastro acadêmico
+3. **Grupos de intervenção** — CRUD de grupos a partir da lista de estudantes
+4. **Intervenções** — registro/edição de intervenções (individuais ou de grupo)
+5. **Usuários SISSA** — gestão de coordenadores/tutores e seus cursos
+
+---
+
 ## Objetos SQL implementados
 
 ### Atividade 1 — Funções e Procedimentos (`sql/02_functions_a1.sql`)
@@ -232,18 +272,24 @@ sissa_instituicao
 |--------|---------|-------|-----------|
 | `fu_sissa_calcular_risco` | `estudante_id INTEGER` | `VARCHAR` | Calcula nível de risco (Alto/Médio/Baixo) pelos indicadores acadêmicos do estudante |
 | `fu_sissa_resumo_curso` | `curso_id INTEGER` | `TABLE` | Retorna KPIs do curso: total de estudantes, contagem por risco, média de reprovações, % alto risco |
+| `fu_sissa_nivel_usuario` | `usuario_id INTEGER` | `INTEGER` | Nível (1..5) do perfil do usuário (controle de acesso) |
+| `fu_sissa_pode` | `usuario_id, acao` | `BOOLEAN` | Se o nível do usuário possui a ação na matriz `sissa_nivel_acao` |
+| `fu_sissa_pode_gerenciar_usuario` | `ator_id, alvo_id` | `BOOLEAN` | Regra hierárquica: só gerencia quem é de nível estritamente menor |
 
 #### Procedimentos
 
-| Objeto | Descrição |
-|--------|-----------|
-| `pr_sissa_criar_intervencao_grupo(grupo_id, data, semestre, forma, assunto, formato, interacao, tipo, acompanhamento, obs)` | Cria uma intervenção para o grupo e vincula automaticamente todos os estudantes do grupo |
-| `pr_sissa_atualizar_status_grupos()` | Inativa grupos sem intervenção há mais de 180 dias; retorna total inativados |
+Implementados como **`CREATE PROCEDURE`** reais do PostgreSQL (invocados com **`CALL`**; o valor de retorno é devolvido por parâmetro **`INOUT`**).
+
+| Objeto | Invocação | Descrição |
+|--------|-----------|-----------|
+| `pr_sissa_criar_intervencao_grupo(grupo_id, data, semestre, forma, assunto, formato, interacao, tipo, acompanhamento, obs, INOUT intervencao_id)` | `CALL pr_sissa_criar_intervencao_grupo(1, CURRENT_DATE, '2025/1', 'Chat', 'Apoio', 'Grupo', 'Pró-ativa', 'Conteúdo', 'Síncrono', 'obs', NULL);` | Cria uma intervenção para o grupo e vincula automaticamente **todos** os estudantes do grupo; devolve o `id` criado em `INOUT intervencao_id` |
+| `pr_sissa_atualizar_status_grupos(INOUT total)` | `CALL pr_sissa_atualizar_status_grupos(0);` | Rotina de manutenção em lote: inativa grupos sem intervenção há mais de 180 dias; devolve o total inativado em `INOUT total` |
 
 #### Triggers
 
 | Trigger | Evento | Descrição |
 |---------|--------|-----------|
+| `tg_sissa_classificar_risco` | BEFORE INSERT/UPDATE em `sissa_risco_evasao` | Classifica automaticamente o nível de risco (`Alto`/`Médio`/`Baixo`) a partir dos indicadores (reprovações, média global, CH do semestre) — garante consistência venha a escrita da importação, da API ou de SQL direto |
 | `tg_sissa_risco_evasao_timestamp` | BEFORE INSERT/UPDATE em `sissa_risco_evasao` | Atualiza `updated_at` automaticamente |
 | `tg_sissa_grupo_inativo_auto` | AFTER INSERT em `sissa_intervencao` | Reativa automaticamente o grupo se ele estiver Inativo ao receber nova intervenção |
 
@@ -255,13 +301,38 @@ sissa_instituicao
 | `vw_sissa_grupos` | Grupos com contagem de estudantes, autoria e perfil |
 | `vw_sissa_risco_anonimo` | Indicadores de risco **sem nome nem matrícula** do estudante (para `risco_anonimo_sissa`) |
 | `vw_sissa_resumo_intervencoes` | KPIs por grupo: total de intervenções, estudantes atendidos, objetivos atingidos |
+| `vw_sissa_perfil_permissoes` | Matriz legível perfil × nível × ação (controle de acesso por nível) |
 
-#### Índices de performance
+#### Níveis de permissão por perfil (controle de acesso hierárquico)
 
-| Índice | Tabela | Colunas | Ganho |
-|--------|--------|---------|-------|
-| `idx_sissa_risco_comp` | `sissa_risco_evasao` | `(risco, estudante_id, media_global)` | Index Only Scan confirmado |
-| `idx_sissa_est_curso_nome` | `sissa_estudante` | `(curso_id, nome)` | Elimina Seq Scan em buscas por curso |
+Cada perfil tem um **nível** (`sissa_perfil.nivel`, 5 = mais alto). A matriz de ações fica na tabela **`sissa_nivel_acao`** (data-driven) e é aplicada por funções no banco, validada no **backend** (header `x-sissa-usuario-id`) e refletida no **frontend** (botões ocultos conforme a permissão). Regra-chave: **ninguém edita/exclui um usuário de nível igual ou superior ao seu** (um tutor não altera um coordenador).
+
+| Nível | Perfil | ver | criar interv. | editar interv. | excluir interv. | gerenciar grupo | excluir grupo | gerenciar estud. | gerenciar usuário | excluir usuário |
+|:---:|--------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **5** | Coordenador de unidade | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **4** | Coordenador de ensino  | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **3** | Coordenador de curso   | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| **2** | Tutor Físico           | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | — |
+| **1** | Tutor                  | ✅ | ✅ | ✅¹ | — | — | — | — | — | — |
+
+¹ O Tutor só edita **as próprias** intervenções (campo `autoria_id`). Funções de apoio: `fu_sissa_pode(usuario_id, acao)`, `fu_sissa_pode_gerenciar_usuario(ator_id, alvo_id)`, `fu_sissa_nivel_usuario(usuario_id)`. Coord. de unidade e de ensino têm o mesmo conjunto de ações, mas o de unidade (nível 5) pode **gerenciar** o de ensino (nível 4), e não o contrário.
+
+#### Índices de performance (Requisito 5)
+
+Duas necessidades de índice identificadas nos requisitos, validadas por **benchmark com massa de dados** (`sql/07_sissa_indices_performance.sql` — gera 500 mil linhas, mede com e sem índice e remove a massa ao final):
+
+| # | Necessidade (requisito) | Índice demonstrado | Consulta | Sem índice | Com índice | **Ganho** |
+|---|--------------------------|--------------------|----------|-----------|-----------|-----------|
+| 1 | "Consulta de risco de evasão dos alunos do curso" (filtro curso + risco) | `(curso_id, risco)` | `WHERE curso_id=? AND risco=?` | ~210 ms | ~34 ms | **≈ 84 %** |
+| 2 | Identificação do estudante por matrícula (importação / vínculo único) | `(matricula)` | `WHERE matricula=?` | ~213 ms | ~0,3 ms | **≈ 99 %** |
+
+> Ambos superam com folga o mínimo de **20 %** exigido. O `EXPLAIN ANALYZE` confirma a troca de **Seq Scan → Index/Bitmap Index Scan**. Os índices reais equivalentes já estão criados no schema: `idx_sissa_est_curso_nome (curso_id, nome)`, `idx_sissa_risco_comp (risco, estudante_id, media_global)` e `idx_sissa_estudante_mat (matricula)`.
+
+Para reexecutar o benchmark a qualquer momento:
+
+```sql
+SELECT * FROM fu_sissa_benchmark_indice(500000, 25);
+```
 
 #### Roles de segurança
 
@@ -300,10 +371,14 @@ sissa_instituicao
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| `POST` | `/api/sissa/auth` | Autenticação CAFe — retorna `tipo: 'privado'` ou `'publico'` |
+| `POST` | `/api/sissa/auth` | Autenticação CAFe — retorna `tipo`, `nivel` e `permissoes` do usuário |
+| `GET` | `/api/sissa/permissoes` | Matriz de permissões por perfil/nível |
 | `GET` | `/api/sissa/estudantes` | Lista estudantes com indicadores de risco |
-| `POST` | `/api/sissa/estudantes` | Cria estudante |
+| `POST` | `/api/sissa/estudantes` | Cria estudante (risco derivado por trigger/função) |
+| `GET` | `/api/sissa/roster` | Lista alunos do cadastro acadêmico (origem da importação) |
+| `POST` | `/api/sissa/estudantes/importar` | Importa aluno do roster para a plataforma |
 | `GET` | `/api/sissa/estatisticas/risco` | Contagem e % por nível de risco (gauge) |
+| `GET` | `/api/sissa/resumo-curso/:curso_id` | KPIs do curso via `fu_sissa_resumo_curso` |
 | `GET` | `/api/sissa/grupos` | Lista grupos de intervenção |
 | `POST` | `/api/sissa/grupos` | Cria grupo com estudantes |
 | `GET` | `/api/sissa/grupos/:id` | Detalhe do grupo com estudantes |
@@ -331,27 +406,33 @@ SISSA/
 ├── README.md                        # Este arquivo
 │
 ├── sql/
+│   │   # ── Parte 1 — Controle de Acesso (concluída) ──
 │   ├── 01_ddl.sql                   # Schema: tabelas do controle de acesso + seed
 │   ├── 02_functions_a1.sql          # Ativ. 1: 8 funções/procedures PL/pgSQL
 │   ├── 03_triggers_views_a2.sql     # Ativ. 2: triggers, views e mat-views
 │   ├── 04_audit_assertions.sql      # 67 asserções SQL de auditoria
-│   └── 05_sissa_domain.sql          # Trabalho em Grupo: schema SISSA completo
-│                                    #   (tabelas, funções, procedures, triggers,
-│                                    #    views, índices, roles e seed data)
+│   │   # ── Parte 2 — SISSA: Gestão de Risco de Evasão (frente ativa) ──
+│   ├── 05_sissa_domain.sql          # Domínio SISSA: tabelas, 2 funções, 2 procedures,
+│   │                                #   3 triggers, 4 views, índices, 3 roles e seed
+│   ├── 06_roster_universidade.sql   # Snapshot acadêmico (uni_*) p/ importar estudantes
+│   └── 07_sissa_indices_performance.sql  # Req. 5: massa de dados + benchmark de índices
 │
 ├── backend/
 │   ├── db.js                        # Pool de conexão PostgreSQL (pg)
 │   ├── server.js                    # Servidor Express + rotas globais
 │   └── routes/
-│       ├── usuarios.js              # CRUD controle de acesso
-│       ├── grupos.js                # CRUD grupos + permissões
-│       └── sissa.js                 # API completa da plataforma SISSA
+│       ├── usuarios.js              # Parte 1: CRUD controle de acesso
+│       ├── grupos.js                # Parte 1: CRUD grupos + permissões
+│       └── sissa.js                 # Parte 2: API completa da plataforma SISSA
 │
 ├── frontend/
-│   └── index.html                   # SPA Vanilla JS — ambos os sistemas
-│                                    #   Login principal, controle de acesso,
-│                                    #   login CAFe SISSA, estudantes, grupos,
+│   └── index.html                   # SPA Vanilla JS — ambas as frentes
+│                                    #   Parte 1: login principal + controle de acesso
+│                                    #   Parte 2: login CAFe, estudantes, grupos,
 │                                    #   intervenções, gestão de usuários SISSA
+│
+├── test-runner.js                   # Parte 1: 91 testes (controle de acesso)
+├── test-sissa.js                    # Parte 2: 190 testes (domínio SISSA + níveis)
 │
 └── docs_tarefas/
     ├── Atividade Avaliativa N2.A1_.pdf
@@ -363,18 +444,31 @@ SISSA/
 
 ## Testes
 
-### Testes automáticos (Node.js)
+> Para os testes de API, o servidor precisa estar rodando (`cd backend && node server.js`).
+
+### Parte 1 — Controle de Acesso
 
 ```bash
 node test-runner.js
 # → 91/91 testes passando
+
+psql -U SEU_USUARIO -d sissa -f sql/04_audit_assertions.sql
+# → 67/67 asserções de auditoria passando
 ```
 
-### Asserções SQL de auditoria
+### Parte 2 — SISSA: Gestão de Risco de Evasão
 
 ```bash
-psql -U SEU_USUARIO -d sissa -f sql/04_audit_assertions.sql
-# → 67/67 asserções passando
+node test-sissa.js
+# → 190/190 testes passando  (servidor precisa estar rodando)
+```
+
+Cobertura do `test-sissa.js` (14 suítes): schema/DDL e constraints, **funções**, **procedimentos** (`CALL`), **triggers**, **views** (incluindo o anonimato da `vw_sissa_risco_anonimo`), **índices** (com benchmark de ganho ≥ 20 %), **segurança/roles** (incl. `SET ROLE` bloqueando acesso indevido), **níveis de permissão** (gradiente de ações por perfil + regra hierárquica) e todas as rotas `/api/sissa/*` (autenticação, estudantes, roster/importação, grupos, intervenções e usuários). Os dados de teste são removidos automaticamente ao final.
+
+```bash
+# Benchmark de índices isolado (Req. 5)
+psql -U SEU_USUARIO -d sissa -f sql/07_sissa_indices_performance.sql
+# → 2 cenários, ambos com ganho > 20% (≈84% e ≈99%)
 ```
 
 ---

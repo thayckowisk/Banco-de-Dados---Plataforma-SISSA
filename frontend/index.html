@@ -2287,13 +2287,13 @@
       <!-- Selection bar -->
       <div class="sissa-selection-bar" id="sissa-sel-bar">
         <span id="sissa-sel-count">0 selecionado(s)</span>
-        <button class="sissa-btn-primary" onclick="openNovaIntervencao()">
+        <button class="sissa-btn-primary" data-perm="intervencao_criar" onclick="openNovaIntervencao()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
             <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
           </svg>
           Nova intervenção
         </button>
-        <button class="sissa-btn-secondary" onclick="openNovoGrupo()">
+        <button class="sissa-btn-secondary" data-perm="grupo_gerenciar" onclick="openNovoGrupo()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
             <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -2323,7 +2323,7 @@
               <div class="sissa-gauge-zero" style="flex:1"></div>
             </div>
           </div>
-          <button class="sissa-btn-primary" onclick="openNovoEstudante()">
+          <button class="sissa-btn-primary" data-perm="estudante_gerenciar" onclick="openNovoEstudante()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
               <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
@@ -2437,7 +2437,7 @@
           <input type="text" id="sissa-search-grupos" class="sissa-search-inp"
                  placeholder="Pesquisar grupos de intervenções" oninput="filterSissaGrupos(this.value)">
         </div>
-        <button class="sissa-btn-primary" onclick="openNovoGrupo()">
+        <button class="sissa-btn-primary" data-perm="grupo_gerenciar" onclick="openNovoGrupo()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
             <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
@@ -2541,7 +2541,7 @@
           <input type="date" id="sissa-int-data-filter" class="sissa-form-input"
                  style="width:160px;" onchange="filterSissaIntervencoes()">
         </div>
-        <button class="sissa-btn-primary" onclick="openNovaIntervencao()">
+        <button class="sissa-btn-primary" data-perm="intervencao_criar" onclick="openNovaIntervencao()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
             <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
           </svg>
@@ -2640,7 +2640,7 @@
             <option value="">Curso</option>
           </select>
         </div>
-        <button class="sissa-btn-primary" onclick="openCriarUsuario()">
+        <button class="sissa-btn-primary" data-perm="usuario_gerenciar" onclick="openCriarUsuario()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
             <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
             <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
@@ -3904,10 +3904,10 @@
   const SISSA_CURSO_ATUAL = 'Licenciatura em Física';
 
   async function sissaFetch(path, opts = {}) {
-    const r = await fetch(SISSA_API + path, {
-      headers: { 'Content-Type': 'application/json' },
-      ...opts
-    });
+    // Envia o id do usuário SISSA logado para o backend validar permissões por nível
+    const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+    if (sissaSession.usuario?.id) headers['x-sissa-usuario-id'] = String(sissaSession.usuario.id);
+    const r = await fetch(SISSA_API + path, { ...opts, headers });
     return r.json();
   }
 
@@ -3939,7 +3939,48 @@
   const sissaSession = {
     instSelecionada: null,   // { id, nome, tipo, code_mec }
     usuario: null,            // objeto do usuário logado (null = área pública)
-    tipo: null                // 'privado' | 'publico'
+    tipo: null,               // 'privado' | 'publico'
+    permissoes: new Set()     // ações permitidas pelo nível do usuário
+  };
+
+  // Permissões: TRUE se o usuário logado pode executar a ação.
+  function sissaPode(acao) {
+    return sissaSession.permissoes.has(acao);
+  }
+  // Nível (1..5) do usuário logado; 0 se público/visitante.
+  function sissaNivel() {
+    return sissaSession.usuario?.perfil_nivel || 0;
+  }
+
+  // Aplica as permissões na UI: esconde os elementos [data-perm] cuja ação
+  // o usuário logado não possui. Chamada após login e ao trocar de tela.
+  function sissaAplicarPermissoes() {
+    document.querySelectorAll('[data-perm]').forEach(el => {
+      el.style.display = sissaPode(el.getAttribute('data-perm')) ? '' : 'none';
+    });
+    // rótulo do nível/perfil no topo das telas Sissa (se existir)
+    const badge = document.getElementById('sissa-perfil-badge');
+    if (badge) {
+      const u = sissaSession.usuario;
+      badge.textContent = u?.perfil_nome ? `${u.perfil_nome} · Nível ${sissaNivel()}` : '';
+    }
+  }
+
+  // Espelho da matriz sissa_nivel_acao (usado apenas no fallback mock, sem banco)
+  const SISSA_ACOES_POR_NIVEL = {
+    1: ['ver','intervencao_criar','intervencao_editar'],
+    2: ['ver','intervencao_criar','intervencao_editar','intervencao_excluir','grupo_gerenciar'],
+    3: ['ver','intervencao_criar','intervencao_editar','intervencao_excluir','grupo_gerenciar','grupo_excluir','estudante_gerenciar','usuario_gerenciar'],
+    4: ['ver','intervencao_criar','intervencao_editar','intervencao_excluir','grupo_gerenciar','grupo_excluir','estudante_gerenciar','usuario_gerenciar','usuario_excluir'],
+    5: ['ver','intervencao_criar','intervencao_editar','intervencao_excluir','grupo_gerenciar','grupo_excluir','estudante_gerenciar','usuario_gerenciar','usuario_excluir']
+  };
+  const SISSA_USUARIOS_MOCK = {
+    'laishcandido@gmail.com':             { id: 3, nivel: 5, perfil: 'Coordenador de unidade' },
+    'beatriz.de.bastos.vianna@gmail.com': { id: 2, nivel: 4, perfil: 'Coordenador de ensino' },
+    'adailton@ufg.com':                   { id: 1, nivel: 3, perfil: 'Coordenador de curso' },
+    'kalebe.xavier@ifsp.edu.br':          { id: 4, nivel: 2, perfil: 'Tutor Físico' },
+    'juliana.moraes@ifsp.edu.br':         { id: 5, nivel: 1, perfil: 'Tutor' },
+    'beatriz.cardoso@ifsp.edu.br':        { id: 6, nivel: 1, perfil: 'Tutor' }
   };
 
   /* ══════════════════════════════════════════
@@ -4061,33 +4102,35 @@
 
       sissaSession.tipo    = res.tipo;
       sissaSession.usuario = res.usuario;
+      sissaSession.permissoes = new Set(res.usuario?.permissoes || []);
 
       if (res.tipo === 'privado') {
-        // Área privada – carrega dados e vai para estudantes
+        // Área privada – aplica permissões, carrega dados e vai para estudantes
+        sissaAplicarPermissoes();
         await loadSissaAllData();
+        sissaAplicarPermissoes();
         showScreen('sissa-estudantes');
       } else {
-        // Área pública
+        // Área pública (sem permissões de escrita)
+        sissaSession.permissoes = new Set();
         sissaCarregarAreaPublica();
         showScreen('sissa-area-publica');
       }
 
     } catch (err) {
-      // Sem banco: simula autenticação pelo e-mail
-      const emailsPrivados = [
-        'adailton@ufg.com',
-        'beatriz.de.bastos.vianna@gmail.com',
-        'laishcandido@gmail.com',
-        'kalebe.xavier@ifsp.edu.br',
-        'juliana.moraes@ifsp.edu.br',
-        'beatriz.cardoso@ifsp.edu.br'
-      ];
-      const isPrivado = emailsPrivados.includes(email.toLowerCase());
+      // Sem banco: simula autenticação pelo e-mail (espelha a hierarquia do banco)
+      const mock = SISSA_USUARIOS_MOCK[email.toLowerCase()];
+      const isPrivado = !!mock;
       sissaSession.tipo    = isPrivado ? 'privado' : 'publico';
-      sissaSession.usuario = { email, nome: email.split('@')[0] };
+      sissaSession.usuario = isPrivado
+        ? { id: mock.id, email, nome: email.split('@')[0], perfil_nome: mock.perfil, perfil_nivel: mock.nivel }
+        : { email, nome: email.split('@')[0] };
+      sissaSession.permissoes = new Set(isPrivado ? SISSA_ACOES_POR_NIVEL[mock.nivel] : []);
 
       if (isPrivado) {
+        sissaAplicarPermissoes();
         loadSissaMockData();
+        sissaAplicarPermissoes();
         showScreen('sissa-estudantes');
       } else {
         sissaCarregarAreaPublica();
@@ -4103,6 +4146,7 @@
     // Acessa área pública sem verificar cadastro
     sissaSession.tipo    = 'publico';
     sissaSession.usuario = { email: '(visitante)', nome: 'Visitante' };
+    sissaSession.permissoes = new Set();
     sissaCarregarAreaPublica();
     showScreen('sissa-area-publica');
   }
@@ -4161,6 +4205,7 @@
     sissaSession.instSelecionada = null;
     sissaSession.usuario = null;
     sissaSession.tipo = null;
+    sissaSession.permissoes = new Set();
     sissaState.estudantes = [];
     sissaState.grupos = [];
     sissaState.intervencoes = [];
@@ -4578,23 +4623,23 @@
         <td><span class="sissa-status ${statusCls}">${escHtml(g.status)}</span></td>
         <td>
           <div class="sissa-actions">
-            <button class="sissa-icon-btn" title="Nova intervenção do grupo" onclick="openNovaIntervencaoDoGrupo(${g.id},'${escAttr(g.titulo)}')">
+            ${sissaPode('intervencao_criar') ? `<button class="sissa-icon-btn" title="Nova intervenção do grupo" onclick="openNovaIntervencaoDoGrupo(${g.id},'${escAttr(g.titulo)}')">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
               </svg>
-            </button>
-            <button class="sissa-icon-btn" title="Editar" onclick="openEditGrupo(${g.id})">
+            </button>` : ''}
+            ${sissaPode('grupo_gerenciar') ? `<button class="sissa-icon-btn" title="Editar" onclick="openEditGrupo(${g.id})">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
               </svg>
-            </button>
-            <button class="sissa-icon-btn" title="Excluir" onclick="deleteSissaGrupo(${g.id},'${escAttr(g.titulo)}')">
+            </button>` : ''}
+            ${sissaPode('grupo_excluir') ? `<button class="sissa-icon-btn" title="Excluir" onclick="deleteSissaGrupo(${g.id},'${escAttr(g.titulo)}')">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="3,6 5,6 21,6"/>
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
               </svg>
-            </button>
+            </button>` : ''}
           </div>
         </td>
       </tr>
@@ -4772,6 +4817,9 @@
         ? new Date(String(i.data_intervencao).slice(0,10)+'T12:00:00').toLocaleDateString('pt-BR')
         : '-';
       const obs = (i.observacoes||'').substring(0,45) + ((i.observacoes||'').length>45?'...':'');
+      // Tutor (nível 1) só edita as próprias intervenções
+      const podeEditarInt = sissaPode('intervencao_editar') &&
+        (sissaNivel() > 1 || i.autoria_id === sissaSession.usuario?.id);
       return `
       <tr>
         <td>
@@ -4789,18 +4837,18 @@
         <td style="font-size:12px;color:#9ca3af;">${escHtml(obs)}</td>
         <td>
           <div class="sissa-actions">
-            <button class="sissa-icon-btn" title="Editar" onclick="openEditIntervencao(${i.id})">
+            ${podeEditarInt ? `<button class="sissa-icon-btn" title="Editar" onclick="openEditIntervencao(${i.id})">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
               </svg>
-            </button>
-            <button class="sissa-icon-btn" title="Excluir" onclick="deleteSissaIntervencao(${i.id})">
+            </button>` : ''}
+            ${sissaPode('intervencao_excluir') ? `<button class="sissa-icon-btn" title="Excluir" onclick="deleteSissaIntervencao(${i.id})">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="3,6 5,6 21,6"/>
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
               </svg>
-            </button>
+            </button>` : ''}
           </div>
         </td>
       </tr>
@@ -4980,6 +5028,10 @@
         : '<span style="color:#ccc;font-style:italic;">Nunca acessou</span>';
       const cursos = Array.isArray(u.cursos) ? u.cursos.filter(Boolean).join(', ') : (u.cursos||'-');
       const cursosLong = cursos.length > 40 ? cursos.substring(0,40)+'...' : cursos;
+      // só gerencia/exclui usuários de NÍVEL MENOR que o seu
+      const alvoNivel  = Number(u.perfil_nivel || 0);
+      const podeEditar = sissaPode('usuario_gerenciar') && alvoNivel < sissaNivel();
+      const podeExcluir= sissaPode('usuario_excluir')  && alvoNivel < sissaNivel();
       return `
       <tr>
         <td style="font-weight:500;color:var(--s-text);">${escHtml(u.nome||'-')}</td>
@@ -4989,18 +5041,19 @@
         <td class="sissa-user-email">${acesso}</td>
         <td>
           <div class="sissa-actions">
-            <button class="sissa-icon-btn" title="Editar" onclick="openEditSissaUsuario(${u.id})">
+            ${podeEditar ? `<button class="sissa-icon-btn" title="Editar" onclick="openEditSissaUsuario(${u.id})">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
               </svg>
-            </button>
-            <button class="sissa-icon-btn" title="Excluir" onclick="deleteSissaUsuario(${u.id},'${escAttr(u.nome||'')}')">
+            </button>` : ''}
+            ${podeExcluir ? `<button class="sissa-icon-btn" title="Excluir" onclick="deleteSissaUsuario(${u.id},'${escAttr(u.nome||'')}')">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="3,6 5,6 21,6"/>
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
               </svg>
-            </button>
+            </button>` : ''}
+            ${(!podeEditar && !podeExcluir) ? '<span style="color:#cbd5e1;font-size:12px;">—</span>' : ''}
           </div>
         </td>
       </tr>`;
