@@ -164,13 +164,19 @@ router.post('/estudantes', async (req, res) => {
 ══════════════════════════════════════════ */
 router.get('/roster', async (req, res) => {
   try {
-    const { q } = req.query;
+    const { q, curso } = req.query;
     let sql = 'SELECT * FROM vw_roster_universidade';
+    const conditions = [];
     const p = [];
+    if (curso) {
+      p.push(curso);
+      conditions.push(`curso_nome = $${p.length}`);
+    }
     if (q) {
       p.push(`%${q}%`);
-      sql += ` WHERE nome ILIKE $${p.length} OR curso_nome ILIKE $${p.length}`;
+      conditions.push(`(nome ILIKE $${p.length} OR curso_nome ILIKE $${p.length})`);
     }
+    if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
     sql += ' ORDER BY nome';
     const result = await db.query(sql, p);
     res.json({ success: true, data: result.rows });
@@ -180,7 +186,7 @@ router.get('/roster', async (req, res) => {
 });
 
 router.post('/estudantes/importar', async (req, res) => {
-  const { aluno_id } = req.body;
+  const { aluno_id, curso_esperado } = req.body;
   if (!aluno_id) {
     return res.status(400).json({ success: false, error: 'aluno_id é obrigatório' });
   }
@@ -198,6 +204,16 @@ router.post('/estudantes/importar', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Aluno não encontrado no cadastro da universidade.' });
     }
     const r = rRes.rows[0];
+
+    // Garante que só é possível importar aluno do curso da tela atual
+    // (defesa server-side, independente do filtro já aplicado no GET /roster)
+    if (curso_esperado && r.curso_nome !== curso_esperado) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({
+        success: false,
+        error: `Este aluno pertence ao curso "${r.curso_nome}" e não pode ser importado nesta tela (curso atual: "${curso_esperado}").`
+      });
+    }
 
     if (r.ja_importado) {
       await client.query('ROLLBACK');
@@ -218,11 +234,12 @@ router.post('/estudantes/importar', async (req, res) => {
     );
     const estudanteId = eRes.rows[0].id;
 
+    // 'risco' é definido automaticamente pelo trigger tg_sissa_classificar_risco
     await client.query(
       `INSERT INTO sissa_risco_evasao
-         (estudante_id, risco, media_global, reprovacoes, ch_semestre, turmas, maior_influencia)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [estudanteId, r.nivel_risco, r.media_global, r.reprovacoes, r.ch_semestre, r.turmas, r.maior_influencia]
+         (estudante_id, media_global, reprovacoes, ch_semestre, turmas, maior_influencia)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [estudanteId, r.media_global, r.reprovacoes, r.ch_semestre, r.turmas, r.maior_influencia]
     );
 
     const vRes = await client.query(
@@ -627,6 +644,16 @@ router.get('/cursos', async (req, res) => {
       JOIN sissa_instituicao i ON i.id = c.instituicao_id
       ORDER BY i.nome, c.nome`);
     res.json({ success: true, data: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Resumo agregado do curso (usa a função fu_sissa_resumo_curso)
+router.get('/resumo-curso/:curso_id', async (req, res) => {
+  try {
+    const r = await db.query('SELECT * FROM fu_sissa_resumo_curso($1)', [req.params.curso_id]);
+    res.json({ success: true, data: r.rows[0] || null });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
