@@ -15,7 +15,7 @@ router.post('/auth', async (req, res) => {
   }
   try {
     const result = await db.query(
-      `SELECT u.id, u.nome, u.email_institucional, u.perfil_id, u.ultimo_acesso,
+      `SELECT u.id, u.nome, u.email_institucional, u.senha, u.perfil_id, u.ultimo_acesso,
               p.nome AS perfil_nome,
               array_agg(DISTINCT c.nome) FILTER (WHERE c.nome IS NOT NULL) AS cursos,
               i.nome AS instituicao_nome
@@ -30,14 +30,19 @@ router.post('/auth', async (req, res) => {
     );
 
     if (result.rows.length > 0) {
-      // Atualiza ultimo_acesso
+      // Usuário cadastrado: exige senha correta para a área privada
+      const usuario = result.rows[0];
+      if (usuario.senha !== senha) {
+        return res.json({ success: false, error: 'E-mail ou senha incorretos.' });
+      }
+      delete usuario.senha; // nunca devolver a senha ao cliente
       await db.query(
         'UPDATE sissa_usuario_sissa SET ultimo_acesso = NOW() WHERE id = $1',
-        [result.rows[0].id]
+        [usuario.id]
       );
-      res.json({ success: true, tipo: 'privado', usuario: result.rows[0] });
+      res.json({ success: true, tipo: 'privado', usuario });
     } else {
-      // Qualquer pessoa com login/senha da rede federada acessa a área pública
+      // E-mail não cadastrado: acessa a área pública (federação), sem checagem de senha
       res.json({ success: true, tipo: 'publico', usuario: { email, nome: email.split('@')[0] } });
     }
   } catch (err) {
@@ -101,18 +106,141 @@ router.get('/estudantes', async (req, res) => {
 });
 
 router.post('/estudantes', async (req, res) => {
-  const { matricula, nome, curso_id, ingresso } = req.body;
+  const {
+    matricula, nome, curso_id, ingresso,
+    semestre_saida, media_global, semestre_atual,
+    reprovacoes, ch_semestre, maior_influencia, turmas
+  } = req.body;
   if (!matricula || !nome || !curso_id) {
     return res.status(400).json({ success: false, error: 'matricula, nome e curso_id são obrigatórios' });
   }
+
+  // converte string vazia / undefined em NULL para colunas numéricas
+  const num = (v) => (v === '' || v === undefined || v === null ? null : v);
+
+  const client = await db.connect();
   try {
-    const result = await db.query(
-      'INSERT INTO sissa_estudante (matricula, nome, curso_id, ingresso) VALUES ($1,$2,$3,$4) RETURNING *',
-      [matricula, nome, curso_id, ingresso || null]
+    await client.query('BEGIN');
+
+    const eRes = await client.query(
+      'INSERT INTO sissa_estudante (matricula, nome, curso_id, ingresso) VALUES ($1,$2,$3,$4) RETURNING id',
+      [matricula, nome, curso_id, num(ingresso)]
     );
-    res.json({ success: true, data: result.rows[0] });
+    const estudanteId = eRes.rows[0].id;
+
+    await client.query(
+      `INSERT INTO sissa_risco_evasao
+         (estudante_id, semestre_saida, media_global, semestre_atual,
+          reprovacoes, ch_semestre, maior_influencia, turmas)
+       VALUES ($1,$2,$3,$4,COALESCE($5,0),COALESCE($6,0),$7,COALESCE($8,0))`,
+      [estudanteId, num(semestre_saida), num(media_global), num(semestre_atual),
+       num(reprovacoes), num(ch_semestre), maior_influencia || null, num(turmas)]
+    );
+
+    // nível de risco derivado automaticamente pela função de domínio
+    await client.query(
+      'UPDATE sissa_risco_evasao SET risco = fu_sissa_calcular_risco($1) WHERE estudante_id = $1',
+      [estudanteId]
+    );
+
+    const vRes = await client.query(
+      'SELECT * FROM vw_sissa_estudantes_risco WHERE id = $1',
+      [estudanteId]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true, data: vRes.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ success: false, error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+/* ══════════════════════════════════════════
+   ROSTER — alunos do cadastro acadêmico da universidade
+   (origem para o fluxo de importação de estudantes)
+══════════════════════════════════════════ */
+router.get('/roster', async (req, res) => {
+  try {
+    const { q } = req.query;
+    let sql = 'SELECT * FROM vw_roster_universidade';
+    const p = [];
+    if (q) {
+      p.push(`%${q}%`);
+      sql += ` WHERE nome ILIKE $${p.length} OR curso_nome ILIKE $${p.length}`;
+    }
+    sql += ' ORDER BY nome';
+    const result = await db.query(sql, p);
+    res.json({ success: true, data: result.rows });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/estudantes/importar', async (req, res) => {
+  const { aluno_id } = req.body;
+  if (!aluno_id) {
+    return res.status(400).json({ success: false, error: 'aluno_id é obrigatório' });
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+
+    const rRes = await client.query(
+      'SELECT * FROM vw_roster_universidade WHERE aluno_id = $1',
+      [aluno_id]
+    );
+    if (!rRes.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, error: 'Aluno não encontrado no cadastro da universidade.' });
+    }
+    const r = rRes.rows[0];
+
+    if (r.ja_importado) {
+      await client.query('ROLLBACK');
+      return res.json({ success: false, error: 'Estudante já importado.' });
+    }
+
+    // Mapeia o curso da universidade para o curso da plataforma (por nome)
+    const cRes = await client.query('SELECT id FROM sissa_curso WHERE nome = $1', [r.curso_nome]);
+    if (!cRes.rows.length) {
+      await client.query('ROLLBACK');
+      return res.json({ success: false, error: `Curso "${r.curso_nome}" não existe na plataforma SISSA.` });
+    }
+    const cursoId = cRes.rows[0].id;
+
+    const eRes = await client.query(
+      'INSERT INTO sissa_estudante (matricula, nome, curso_id, ingresso) VALUES ($1,$2,$3,$4) RETURNING id',
+      [r.matricula_codigo, r.nome, cursoId, r.ingresso]
+    );
+    const estudanteId = eRes.rows[0].id;
+
+    await client.query(
+      `INSERT INTO sissa_risco_evasao
+         (estudante_id, risco, media_global, reprovacoes, ch_semestre, turmas, maior_influencia)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [estudanteId, r.nivel_risco, r.media_global, r.reprovacoes, r.ch_semestre, r.turmas, r.maior_influencia]
+    );
+
+    const vRes = await client.query(
+      'SELECT * FROM vw_sissa_estudantes_risco WHERE id = $1',
+      [estudanteId]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true, data: vRes.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    // matrícula duplicada → aluno já importado
+    if (err.code === '23505') {
+      return res.json({ success: false, error: 'Estudante já importado.' });
+    }
+    res.status(500).json({ success: false, error: err.message });
+  } finally {
+    client.release();
   }
 });
 

@@ -1880,6 +1880,16 @@
 .sissa-form-error.visible { display: block; }
 .sissa-form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; }
 
+/* Roster (importar estudante) */
+.sissa-roster-list { max-height: 340px; overflow-y: auto; border: 1px solid var(--s-border, #e5e7eb); border-radius: 8px; }
+.sissa-roster-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--s-border, #f0f0f0); }
+.sissa-roster-row:last-child { border-bottom: none; }
+.sissa-roster-info { flex: 1; min-width: 0; }
+.sissa-roster-nome { font-weight: 500; color: #111; font-size: 14px; }
+.sissa-roster-meta { font-size: 12px; color: #6b7280; margin-top: 2px; }
+.sissa-roster-btn { white-space: nowrap; }
+.sissa-roster-empty { text-align: center; color: #aaa; padding: 24px; }
+
 /* Radio groups */
 .sissa-radio-group { display: flex; gap: 16px; align-items: center; }
 .sissa-radio-label {
@@ -2291,9 +2301,6 @@
             <input type="text" id="sissa-search-est" class="sissa-search-inp"
                    placeholder="Pesquisar estudantes" oninput="filterSissaEstudantes(this.value)">
           </div>
-          <select class="sissa-select" id="sissa-turma-filter" onchange="filterSissaEstudantes()">
-            <option value="">Turma</option>
-          </select>
         </div>
         <div class="sissa-toolbar-right">
           <div id="sissa-gauge-wrapper" class="sissa-gauge-wrap">
@@ -2823,6 +2830,30 @@
     <div class="sissa-form-actions">
       <button class="sissa-btn-secondary" onclick="sissaCloseModal('sissa-modal-grupo')">Cancelar</button>
       <button class="sissa-btn-primary" id="sissa-grupo-btn-submit" onclick="submitSissaGrupo()">Criar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL – NOVO ESTUDANTE
+══════════════════════════════════════════ -->
+<div id="sissa-modal-estudante" class="sissa-modal-backdrop" onclick="sissaBackdropClose(event,'sissa-modal-estudante')">
+  <div class="sissa-modal-box wide">
+    <button class="sissa-modal-close" onclick="sissaCloseModal('sissa-modal-estudante')">×</button>
+    <div class="sissa-modal-title">Importar estudante</div>
+    <p class="sissa-breadcrumb" style="margin-bottom:14px;">Selecione um aluno do cadastro acadêmico da universidade. Os dados (média, reprovações, CH, turmas e risco) são importados automaticamente.</p>
+
+    <div class="sissa-form-group">
+      <input type="text" id="sissa-roster-search" class="sissa-form-input"
+             placeholder="Pesquisar por nome ou curso..." oninput="filterRoster(this.value)">
+    </div>
+
+    <div id="sissa-roster-list" class="sissa-roster-list">
+      <div style="text-align:center;color:#aaa;padding:24px;">Carregando...</div>
+    </div>
+
+    <div class="sissa-form-actions">
+      <button class="sissa-btn-secondary" onclick="sissaCloseModal('sissa-modal-estudante')">Fechar</button>
     </div>
   </div>
 </div>
@@ -3840,6 +3871,7 @@
     perfis: [],
     instituicoes: [],
     riscoestat: null,          // dados da API /estatisticas/risco
+    roster: [],                // alunos do cadastro acadêmico (importação)
     selectedEstudanteIds: new Set(),
     intEstudanteTags: [],   // [{id, nome, matricula}]
     grupoEstudanteTags: []  // [{id, nome, matricula}]
@@ -4381,8 +4413,74 @@
     a.click();
   }
 
-  function openNovoEstudante() {
-    showToast('Cadastro de estudantes ocorre via integração de API.', 'info');
+  async function openNovoEstudante() {
+    const search = document.getElementById('sissa-roster-search');
+    if (search) search.value = '';
+    const list = document.getElementById('sissa-roster-list');
+    if (list) list.innerHTML = '<div class="sissa-roster-empty">Carregando...</div>';
+    sissaOpenModal('sissa-modal-estudante');
+
+    try {
+      const res = await sissaFetch('/roster');
+      sissaState.roster = res.success ? (res.data || []) : [];
+    } catch {
+      sissaState.roster = [];
+    }
+    renderRoster(sissaState.roster);
+  }
+
+  function renderRoster(list) {
+    const cont = document.getElementById('sissa-roster-list');
+    if (!cont) return;
+    if (!list.length) {
+      cont.innerHTML = '<div class="sissa-roster-empty">Nenhum aluno encontrado.</div>';
+      return;
+    }
+    cont.innerHTML = list.map(a => {
+      const importBtn = a.ja_importado
+        ? `<button class="sissa-btn-secondary sissa-roster-btn" disabled>Já importado</button>`
+        : `<button class="sissa-btn-primary sissa-roster-btn" onclick="importarEstudante(${a.aluno_id}, this)">Importar</button>`;
+      return `<div class="sissa-roster-row">
+        <div>${riscoBar(a.nivel_risco)}</div>
+        <div class="sissa-roster-info">
+          <div class="sissa-roster-nome">${escHtml(a.nome)}</div>
+          <div class="sissa-roster-meta">${escHtml(a.curso_nome)} · média ${a.media_global ?? '-'} · ${a.reprovacoes ?? 0} reprov. · ${a.ch_semestre}h · ${a.turmas} turma(s)</div>
+        </div>
+        ${importBtn}
+      </div>`;
+    }).join('');
+  }
+
+  function filterRoster(term) {
+    const q = (term || '').toLowerCase().trim();
+    const filtered = !q ? sissaState.roster : sissaState.roster.filter(a =>
+      (a.nome || '').toLowerCase().includes(q) || (a.curso_nome || '').toLowerCase().includes(q)
+    );
+    renderRoster(filtered);
+  }
+
+  async function importarEstudante(alunoId, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = 'Importando...'; }
+    try {
+      const res = await sissaFetch('/estudantes/importar', {
+        method: 'POST',
+        body: JSON.stringify({ aluno_id: alunoId })
+      });
+      if (res.success) {
+        showSissaNotif('Estudante importado com sucesso');
+        const a = sissaState.roster.find(r => r.aluno_id === alunoId);
+        if (a) a.ja_importado = true;
+        renderRoster(sissaState.roster);
+        filterRoster(document.getElementById('sissa-roster-search')?.value);
+        await reloadSissaEstudantes();
+      } else {
+        showToast(res.error || 'Erro ao importar estudante.', 'error');
+        if (btn) { btn.disabled = false; btn.textContent = 'Importar'; }
+      }
+    } catch {
+      showToast('Erro de conexão ao importar estudante.', 'error');
+      if (btn) { btn.disabled = false; btn.textContent = 'Importar'; }
+    }
   }
 
   /* ══════════════════════════════════════════

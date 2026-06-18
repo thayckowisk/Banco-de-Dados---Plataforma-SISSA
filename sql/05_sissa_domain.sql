@@ -76,6 +76,7 @@ CREATE TABLE sissa_usuario_sissa (
     id                  SERIAL       PRIMARY KEY,
     nome                VARCHAR(255) NOT NULL,
     email_institucional VARCHAR(255) NOT NULL UNIQUE,
+    senha               VARCHAR(4),   -- senha simples de 4 dígitos (projeto educacional/local)
     perfil_id           INTEGER      REFERENCES sissa_perfil(id) ON DELETE SET NULL,
     ultimo_acesso       TIMESTAMP,
     created_at          TIMESTAMP    NOT NULL DEFAULT NOW()
@@ -629,13 +630,13 @@ INSERT INTO sissa_curso (codigo, nome, instituicao_id) VALUES
     ('50',    'Técnico em Administração Subsequente ao Ensino Médio', 3);
 
 -- Usuários SISSA (6 usuários)
-INSERT INTO sissa_usuario_sissa (nome, email_institucional, perfil_id, ultimo_acesso) VALUES
-    ('Adailton Araújo',                  'adailton@ufg.com',                    1, NOW() - INTERVAL '2 hours'),
-    ('Beatriz de Barros Vianna Cardoso', 'beatriz.de.bastos.vianna@gmail.com',  2, NOW() - INTERVAL '30 days'),
-    ('Laís Hauptli Cândido',             'laishcandido@gmail.com',              3, NULL),
-    ('Kalebe Xavier',                    'kalebe.xavier@ifsp.edu.br',           4, NOW() - INTERVAL '1 day'),
-    ('Juliana Moraes',                   'juliana.moraes@ifsp.edu.br',          5, NOW() - INTERVAL '3 hours'),
-    ('Beatriz Cardoso',                  'beatriz.cardoso@ifsp.edu.br',         5, NOW() - INTERVAL '6 hours');
+INSERT INTO sissa_usuario_sissa (nome, email_institucional, senha, perfil_id, ultimo_acesso) VALUES
+    ('Adailton Araújo',                  'adailton@ufg.com',                    '1234', 1, NOW() - INTERVAL '2 hours'),
+    ('Beatriz de Barros Vianna Cardoso', 'beatriz.de.bastos.vianna@gmail.com',  '2345', 2, NOW() - INTERVAL '30 days'),
+    ('Laís Hauptli Cândido',             'laishcandido@gmail.com',              '3456', 3, NULL),
+    ('Kalebe Xavier',                    'kalebe.xavier@ifsp.edu.br',           '4567', 4, NOW() - INTERVAL '1 day'),
+    ('Juliana Moraes',                   'juliana.moraes@ifsp.edu.br',          '5678', 5, NOW() - INTERVAL '3 hours'),
+    ('Beatriz Cardoso',                  'beatriz.cardoso@ifsp.edu.br',         '6789', 5, NOW() - INTERVAL '6 hours');
 
 -- Vínculo usuário-curso
 INSERT INTO sissa_usuario_curso (usuario_id, curso_id) VALUES
