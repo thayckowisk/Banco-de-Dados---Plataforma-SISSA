@@ -4766,8 +4766,10 @@
       return;
     }
     tbody.innerHTML = list.map(i => {
+      // o backend devolve DATE como timestamp ISO completo (ex: "...T03:00:00.000Z");
+      // pegamos só "YYYY-MM-DD" e fixamos meio-dia local pra não cair no dia anterior
       const dt = i.data_intervencao
-        ? new Date(i.data_intervencao+'T12:00:00').toLocaleDateString('pt-BR')
+        ? new Date(String(i.data_intervencao).slice(0,10)+'T12:00:00').toLocaleDateString('pt-BR')
         : '-';
       const obs = (i.observacoes||'').substring(0,45) + ((i.observacoes||'').length>45?'...':'');
       return `
@@ -4874,7 +4876,7 @@
     document.getElementById('sissa-int-id').value = id;
     document.getElementById('sissa-int-modal-title').textContent = 'Editar intervenção';
     document.getElementById('sissa-int-btn-submit').textContent = 'Salvar';
-    document.getElementById('sissa-int-data').value = i.data_intervencao||'';
+    document.getElementById('sissa-int-data').value = i.data_intervencao ? String(i.data_intervencao).slice(0,10) : '';
     document.getElementById('sissa-int-duracao').value = i.duracao||'';
     document.getElementById('sissa-int-obs').value = i.observacoes||'';
     document.getElementById('sissa-int-semestre').value = i.semestre||'';
