@@ -11,53 +11,49 @@
 --    O cenário COM índice deve gerar um ganho de pelo menos 20% em
 --    relação ao tempo de processamento da transação."
 --
+-- Modelo NORMALIZADO: o estudante é sissa_aluno + sissa_matricula, e o
+-- risco vive em sissa_risco_evasao (1:1 com a matrícula). Por isso o
+-- benchmark mede o CAMINHO REAL COM JOIN entre duas tabelas de massa que
+-- espelham sissa_matricula + sissa_risco_evasao (e não uma tabela
+-- achatada). A FK do join (risco.matricula_id) tem índice sempre — como
+-- no schema real (UNIQUE em sissa_risco_evasao.matricula_id).
+--
 -- DUAS NECESSIDADES IDENTIFICADAS (extraídas dos requisitos do Anexo):
 --
 --   ÍNDICE 1 — "Consulta de risco de evasão dos alunos do curso"
---     A tela 4 lista estudantes filtrando por CURSO e por NÍVEL DE RISCO.
---     Sem índice, cada consulta varre toda a tabela (Seq Scan).
---     Índice composto B-tree em (curso_id, risco) → Index Scan seletivo.
---     Espelha o índice real idx_sissa_est_curso_nome / idx_sissa_risco_comp.
+--     A tela lista estudantes filtrando por CURSO e por NÍVEL DE RISCO,
+--     juntando matrícula e risco (é o caminho da vw_sissa_estudantes_risco).
+--     Sem índice no curso, o join varre toda a tabela de matrículas
+--     (Seq Scan). Índice B-tree em matricula(curso_id) → Index Scan
+--     seletivo + Nested Loop. Espelha o índice real idx_sissa_matricula_curso
+--     (e a FK idx_sissa_risco_comp / UNIQUE em risco.matricula_id).
 --
 --   ÍNDICE 2 — "Identificação do estudante por matrícula"
---     A importação via API e o vínculo único exigem localizar 1 aluno
---     pela matrícula (WHERE matricula = ...). Sem índice → Seq Scan da
---     tabela inteira para achar 1 linha. Índice B-tree em (matricula)
---     → busca direta. Espelha o índice real idx_sissa_estudante_mat.
+--     A importação via API e o vínculo único exigem localizar 1 matrícula
+--     pelo CÓDIGO (WHERE codigo = ...). Sem índice → Seq Scan da tabela
+--     inteira para achar 1 linha. Índice B-tree em (codigo) → busca direta.
+--     Espelha o índice real UNIQUE em sissa_matricula.codigo.
 --
--- Este script é AUTOCONTIDO e IDEMPOTENTE: cria uma tabela de massa
--- (sissa_bench_risco), mede os dois cenários e, ao final, remove a
--- tabela de massa para não poluir os dados de demonstração da UI.
+-- Este script é AUTOCONTIDO e IDEMPOTENTE: cria duas tabelas de massa
+-- (sissa_bench_matricula + sissa_bench_risco), mede os dois cenários e,
+-- ao final, remove a massa para não poluir os dados de demonstração da UI.
 -- ================================================================
 
 -- ----------------------------------------------------------------
 -- Limpeza prévia (idempotente)
 -- ----------------------------------------------------------------
 DROP FUNCTION IF EXISTS fu_sissa_benchmark_indice(INTEGER, INTEGER) CASCADE;
-DROP TABLE    IF EXISTS sissa_bench_risco CASCADE;
-
--- ----------------------------------------------------------------
--- Tabela de massa (estrutura achatada estudante + risco)
--- ----------------------------------------------------------------
-CREATE TABLE sissa_bench_risco (
-    id           SERIAL       PRIMARY KEY,
-    matricula    VARCHAR(20)  NOT NULL,
-    nome         VARCHAR(120) NOT NULL,
-    curso_id     INTEGER      NOT NULL,
-    risco        VARCHAR(10)  NOT NULL,
-    media_global NUMERIC(4,2) NOT NULL,
-    reprovacoes  INTEGER      NOT NULL
-);
+DROP TABLE    IF EXISTS sissa_bench_risco     CASCADE;
+DROP TABLE    IF EXISTS sissa_bench_matricula CASCADE;
 
 -- ================================================================
 -- FUNÇÃO DE BENCHMARK
---   p_linhas  : tamanho da massa de dados a gerar
+--   p_linhas  : tamanho da massa de dados a gerar (por tabela)
 --   p_repeat  : quantas vezes cada consulta é repetida (reduz ruído)
 --   Retorna, para cada um dos 2 cenários:
---     - tempo total SEM índice (Seq Scan)
---     - tempo total COM índice (Index Scan)
---     - ganho percentual
---     - se atende ao mínimo de 20%
+--     - tempo total SEM índice / COM índice / ganho % / atende >= 20%
+--   As tabelas de massa ficam criadas ao final (a limpeza é feita pelo
+--   script, depois do EXPLAIN), com a FK do join já indexada.
 -- ================================================================
 CREATE OR REPLACE FUNCTION fu_sissa_benchmark_indice(
     p_linhas INTEGER DEFAULT 500000,
@@ -81,67 +77,74 @@ DECLARE
     v_dummy      BIGINT;
     k            INTEGER;
     v_curso_alvo INTEGER := 37;                 -- curso seletivo no meio da massa
-    v_mat_alvo   TEXT;
+    v_cod_alvo   TEXT;
+    v_sql_join   TEXT := 'SELECT count(*) FROM sissa_bench_matricula m '
+                      || 'JOIN sissa_bench_risco r ON r.matricula_id = m.id '
+                      || 'WHERE m.curso_id = $1 AND r.risco = $2';
+    v_sql_cod    TEXT := 'SELECT count(*) FROM sissa_bench_matricula WHERE codigo = $1';
 BEGIN
-    -- ---------- Garante a tabela de massa (autossuficiente) ----------
-    CREATE TABLE IF NOT EXISTS sissa_bench_risco (
+    -- ---------- (Re)cria as duas tabelas de massa (espelham o modelo) ----------
+    DROP TABLE IF EXISTS sissa_bench_risco     CASCADE;
+    DROP TABLE IF EXISTS sissa_bench_matricula CASCADE;
+
+    CREATE TABLE sissa_bench_matricula (
         id           SERIAL       PRIMARY KEY,
-        matricula    VARCHAR(20)  NOT NULL,
-        nome         VARCHAR(120) NOT NULL,
+        codigo       VARCHAR(20)  NOT NULL,
         curso_id     INTEGER      NOT NULL,
-        risco        VARCHAR(10)  NOT NULL,
         media_global NUMERIC(4,2) NOT NULL,
         reprovacoes  INTEGER      NOT NULL
     );
+    CREATE TABLE sissa_bench_risco (
+        id           SERIAL      PRIMARY KEY,
+        matricula_id INTEGER     NOT NULL,
+        risco        VARCHAR(10) NOT NULL
+    );
 
-    -- ---------- Geração da massa de dados ----------
-    TRUNCATE sissa_bench_risco RESTART IDENTITY;
-    INSERT INTO sissa_bench_risco (matricula, nome, curso_id, risco, media_global, reprovacoes)
+    -- ---------- Geração da massa (matrícula 1:1 risco) ----------
+    INSERT INTO sissa_bench_matricula (codigo, curso_id, media_global, reprovacoes)
     SELECT
         'EST' || LPAD(g::TEXT, 9, '0'),
-        'Estudante Sintetico ' || g,
-        (g % 60) + 1,                                       -- 60 cursos distintos
-        (ARRAY['Alto','Médio','Baixo'])[(g % 3) + 1],       -- 3 níveis de risco
+        (g % 60) + 1,                                  -- 60 cursos distintos
         ROUND((random() * 10)::NUMERIC, 2),
         (g % 6)
     FROM generate_series(1, p_linhas) g;
 
-    v_mat_alvo := 'EST' || LPAD((p_linhas / 2)::TEXT, 9, '0');  -- matrícula no meio
+    INSERT INTO sissa_bench_risco (matricula_id, risco)
+    SELECT m.id, (ARRAY['Alto','Médio','Baixo'])[(m.id % 3) + 1]   -- 3 níveis
+    FROM sissa_bench_matricula m;
+
+    -- FK do join SEMPRE indexada (como a UNIQUE real em risco.matricula_id)
+    CREATE INDEX idx_bench_risco_mat ON sissa_bench_risco(matricula_id);
+
+    v_cod_alvo := 'EST' || LPAD((p_linhas / 2)::TEXT, 9, '0');     -- matrícula no meio
+    ANALYZE sissa_bench_matricula;
     ANALYZE sissa_bench_risco;
 
     -- ================================================================
-    -- CENÁRIO 1 — Consulta de risco por curso (filtro curso_id + risco)
+    -- CENÁRIO 1 — Consulta de risco por curso (JOIN matrícula+risco)
+    --   Índice demonstrado: sissa_bench_matricula(curso_id)
     -- ================================================================
-    -- garante ausência de índice de apoio
-    DROP INDEX IF EXISTS idx_bench_curso_risco;
+    DROP INDEX IF EXISTS idx_bench_mat_curso;
 
-    -- aquecimento (carrega buffers) para comparação justa
-    EXECUTE 'SELECT count(*) FROM sissa_bench_risco WHERE curso_id = $1 AND risco = $2'
-        INTO v_dummy USING v_curso_alvo, 'Alto';
-
+    EXECUTE v_sql_join INTO v_dummy USING v_curso_alvo, 'Alto';      -- aquecimento
     v_start := clock_timestamp();
     FOR k IN 1..p_repeat LOOP
-        EXECUTE 'SELECT count(*) FROM sissa_bench_risco WHERE curso_id = $1 AND risco = $2'
-            INTO v_dummy USING v_curso_alvo, 'Alto';
+        EXECUTE v_sql_join INTO v_dummy USING v_curso_alvo, 'Alto';
     END LOOP;
     v_sem := EXTRACT(EPOCH FROM clock_timestamp() - v_start) * 1000;
 
-    -- cria índice composto e mede de novo
-    CREATE INDEX idx_bench_curso_risco ON sissa_bench_risco(curso_id, risco);
-    ANALYZE sissa_bench_risco;
+    CREATE INDEX idx_bench_mat_curso ON sissa_bench_matricula(curso_id);
+    ANALYZE sissa_bench_matricula;
 
-    EXECUTE 'SELECT count(*) FROM sissa_bench_risco WHERE curso_id = $1 AND risco = $2'
-        INTO v_dummy USING v_curso_alvo, 'Alto';
-
+    EXECUTE v_sql_join INTO v_dummy USING v_curso_alvo, 'Alto';      -- aquecimento
     v_start := clock_timestamp();
     FOR k IN 1..p_repeat LOOP
-        EXECUTE 'SELECT count(*) FROM sissa_bench_risco WHERE curso_id = $1 AND risco = $2'
-            INTO v_dummy USING v_curso_alvo, 'Alto';
+        EXECUTE v_sql_join INTO v_dummy USING v_curso_alvo, 'Alto';
     END LOOP;
     v_com := EXTRACT(EPOCH FROM clock_timestamp() - v_start) * 1000;
 
-    cenario             := 'Consulta de risco por curso (curso_id + risco)';
-    indice              := 'idx (curso_id, risco)';
+    cenario             := 'Consulta de risco por curso (JOIN matricula+risco, curso_id + risco)';
+    indice              := 'idx sissa_bench_matricula(curso_id)  [real: idx_sissa_matricula_curso]';
     linhas_massa        := p_linhas;
     tempo_sem_indice_ms := ROUND(v_sem, 2);
     tempo_com_indice_ms := ROUND(v_com, 2);
@@ -149,38 +152,33 @@ BEGIN
     atende_min_20pct    := ganho_pct >= 20;
     RETURN NEXT;
 
-    DROP INDEX IF EXISTS idx_bench_curso_risco;
+    DROP INDEX IF EXISTS idx_bench_mat_curso;
 
     -- ================================================================
-    -- CENÁRIO 2 — Identificação de estudante por matrícula (exato)
+    -- CENÁRIO 2 — Identificação por matrícula (lookup exato por código)
+    --   Índice demonstrado: sissa_bench_matricula(codigo)
     -- ================================================================
-    DROP INDEX IF EXISTS idx_bench_matricula;
+    DROP INDEX IF EXISTS idx_bench_mat_codigo;
 
-    EXECUTE 'SELECT count(*) FROM sissa_bench_risco WHERE matricula = $1'
-        INTO v_dummy USING v_mat_alvo;
-
+    EXECUTE v_sql_cod INTO v_dummy USING v_cod_alvo;                 -- aquecimento
     v_start := clock_timestamp();
     FOR k IN 1..p_repeat LOOP
-        EXECUTE 'SELECT count(*) FROM sissa_bench_risco WHERE matricula = $1'
-            INTO v_dummy USING v_mat_alvo;
+        EXECUTE v_sql_cod INTO v_dummy USING v_cod_alvo;
     END LOOP;
     v_sem := EXTRACT(EPOCH FROM clock_timestamp() - v_start) * 1000;
 
-    CREATE INDEX idx_bench_matricula ON sissa_bench_risco(matricula);
-    ANALYZE sissa_bench_risco;
+    CREATE INDEX idx_bench_mat_codigo ON sissa_bench_matricula(codigo);
+    ANALYZE sissa_bench_matricula;
 
-    EXECUTE 'SELECT count(*) FROM sissa_bench_risco WHERE matricula = $1'
-        INTO v_dummy USING v_mat_alvo;
-
+    EXECUTE v_sql_cod INTO v_dummy USING v_cod_alvo;                 -- aquecimento
     v_start := clock_timestamp();
     FOR k IN 1..p_repeat LOOP
-        EXECUTE 'SELECT count(*) FROM sissa_bench_risco WHERE matricula = $1'
-            INTO v_dummy USING v_mat_alvo;
+        EXECUTE v_sql_cod INTO v_dummy USING v_cod_alvo;
     END LOOP;
     v_com := EXTRACT(EPOCH FROM clock_timestamp() - v_start) * 1000;
 
-    cenario             := 'Identificacao de estudante por matricula (exato)';
-    indice              := 'idx (matricula)';
+    cenario             := 'Identificacao por matricula (lookup exato por codigo)';
+    indice              := 'idx sissa_bench_matricula(codigo)  [real: UNIQUE sissa_matricula.codigo]';
     linhas_massa        := p_linhas;
     tempo_sem_indice_ms := ROUND(v_sem, 2);
     tempo_com_indice_ms := ROUND(v_com, 2);
@@ -188,7 +186,7 @@ BEGIN
     atende_min_20pct    := ganho_pct >= 20;
     RETURN NEXT;
 
-    DROP INDEX IF EXISTS idx_bench_matricula;
+    DROP INDEX IF EXISTS idx_bench_mat_codigo;
 END;
 $$;
 
@@ -197,7 +195,7 @@ $$;
 -- ----------------------------------------------------------------
 \echo ''
 \echo '════════════════════════════════════════════════════════════════'
-\echo '  BENCHMARK DE ÍNDICES — SISSA (massa de 500.000 linhas)'
+\echo '  BENCHMARK DE ÍNDICES — SISSA (massa de 500.000 linhas, com JOIN)'
 \echo '════════════════════════════════════════════════════════════════'
 
 -- roda o benchmark pesado UMA única vez e guarda o resultado
@@ -235,30 +233,35 @@ $$;
 
 -- ----------------------------------------------------------------
 -- PROVA VISUAL (planos de execução): recria a massa e mostra
--- EXPLAIN ANALYZE do Seq Scan (sem índice) vs Index Scan (com índice)
--- para o cenário 1. Útil para anexar ao relatório do trabalho.
+-- EXPLAIN ANALYZE do Seq Scan (sem índice) vs Index Scan + Nested Loop
+-- (com índice) para o cenário 1 (JOIN). Útil para anexar ao relatório.
 -- ----------------------------------------------------------------
 SELECT count(*) AS regerando_massa_para_explain
 FROM fu_sissa_benchmark_indice(200000, 1);  -- regenera a massa (200k p/ EXPLAIN rápido)
 
 \echo ''
-\echo '--- EXPLAIN ANALYZE SEM ÍNDICE (espera-se Seq Scan) ---'
-DROP INDEX IF EXISTS idx_bench_curso_risco;
-ANALYZE sissa_bench_risco;
+\echo '--- EXPLAIN ANALYZE SEM ÍNDICE (espera-se Seq Scan na matrícula) ---'
+DROP INDEX IF EXISTS idx_bench_mat_curso;
+ANALYZE sissa_bench_matricula;
 EXPLAIN (ANALYZE, BUFFERS, TIMING OFF)
-SELECT count(*) FROM sissa_bench_risco WHERE curso_id = 37 AND risco = 'Alto';
+SELECT count(*) FROM sissa_bench_matricula m
+JOIN sissa_bench_risco r ON r.matricula_id = m.id
+WHERE m.curso_id = 37 AND r.risco = 'Alto';
 
 \echo ''
-\echo '--- EXPLAIN ANALYZE COM ÍNDICE (espera-se Index Scan) ---'
-CREATE INDEX idx_bench_curso_risco ON sissa_bench_risco(curso_id, risco);
-ANALYZE sissa_bench_risco;
+\echo '--- EXPLAIN ANALYZE COM ÍNDICE (espera-se Index Scan + Nested Loop) ---'
+CREATE INDEX idx_bench_mat_curso ON sissa_bench_matricula(curso_id);
+ANALYZE sissa_bench_matricula;
 EXPLAIN (ANALYZE, BUFFERS, TIMING OFF)
-SELECT count(*) FROM sissa_bench_risco WHERE curso_id = 37 AND risco = 'Alto';
+SELECT count(*) FROM sissa_bench_matricula m
+JOIN sissa_bench_risco r ON r.matricula_id = m.id
+WHERE m.curso_id = 37 AND r.risco = 'Alto';
 
 -- ----------------------------------------------------------------
 -- LIMPEZA: remove a massa de benchmark (não polui a demonstração)
 -- ----------------------------------------------------------------
-DROP TABLE IF EXISTS sissa_bench_risco CASCADE;
+DROP TABLE IF EXISTS sissa_bench_risco     CASCADE;
+DROP TABLE IF EXISTS sissa_bench_matricula CASCADE;
 -- a função fu_sissa_benchmark_indice é mantida para reexecução do teste.
 
 \echo ''
