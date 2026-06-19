@@ -24,6 +24,7 @@ DROP VIEW IF EXISTS vw_sissa_resumo_intervencoes    CASCADE;
 DROP VIEW IF EXISTS vw_sissa_estudantes_risco       CASCADE;
 DROP VIEW IF EXISTS vw_sissa_grupos                 CASCADE;
 
+DROP FUNCTION IF EXISTS fu_sissa_classificar(INTEGER, NUMERIC, INTEGER)   CASCADE;
 DROP FUNCTION IF EXISTS fu_sissa_calcular_risco(INTEGER)                  CASCADE;
 DROP FUNCTION IF EXISTS fu_sissa_resumo_curso(INTEGER)                    CASCADE;
 DROP FUNCTION IF EXISTS fu_sissa_nivel_usuario(INTEGER)                   CASCADE;
@@ -285,6 +286,38 @@ CREATE INDEX idx_sissa_intervencao_semestre   ON sissa_intervencao(semestre_id);
 CREATE INDEX idx_sissa_risco_comp ON sissa_risco_evasao(risco, matricula_id);
 
 -- ================================================================
+-- FONTE ÚNICA DE RISCO
+-- ================================================================
+
+-- ----------------------------------------------------------------
+-- fu_sissa_classificar — ÚNICO lugar com os limiares Alto/Médio/Baixo.
+--   Função pura (IMMUTABLE) dos indicadores acadêmicos; a trigger e a
+--   fu_sissa_calcular_risco delegam a ela, sem repetir os limiares.
+--     Alto  → reprovacoes >= 3 OU media_global < 3.0
+--     Médio → reprovacoes >= 1 OU media_global < 5.5 OU ch_semestre < 400
+--     Baixo → caso contrário
+-- ----------------------------------------------------------------
+CREATE OR REPLACE FUNCTION fu_sissa_classificar(
+    p_reprovacoes  INTEGER,
+    p_media_global NUMERIC,
+    p_ch_semestre  INTEGER
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+BEGIN
+    IF p_reprovacoes >= 3 OR p_media_global < 3.0 THEN
+        RETURN 'Alto';
+    ELSIF p_reprovacoes >= 1 OR p_media_global < 5.5 OR p_ch_semestre < 400 THEN
+        RETURN 'Médio';
+    ELSE
+        RETURN 'Baixo';
+    END IF;
+END;
+$$;
+
+-- ================================================================
 -- TRIGGERS
 -- ================================================================
 
@@ -312,8 +345,8 @@ CREATE TRIGGER tg_sissa_risco_evasao_timestamp
 --   Classifica o nível de risco a cada INSERT/UPDATE em
 --   sissa_risco_evasao, lendo os indicadores (reprovações, média
 --   global, CH semestre) da MATRÍCULA referenciada. Garante que o
---   campo 'risco' nunca fique inconsistente com os dados.
---   (Fase 2: os limiares migram para fu_sissa_classificar.)
+--   campo 'risco' nunca fique inconsistente com os dados. Os limiares
+--   ficam em fu_sissa_classificar (fonte única); aqui só delegamos.
 -- ----------------------------------------------------------------
 CREATE OR REPLACE FUNCTION fn_tg_sissa_classificar_risco()
 RETURNS TRIGGER
@@ -321,7 +354,7 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
     v_rep   INTEGER;
-    v_media DECIMAL(4,2);
+    v_media NUMERIC;
     v_ch    INTEGER;
 BEGIN
     SELECT reprovacoes, media_global, ch_semestre
@@ -329,13 +362,7 @@ BEGIN
     FROM   sissa_matricula
     WHERE  id = NEW.matricula_id;
 
-    IF v_rep >= 3 OR v_media < 3.0 THEN
-        NEW.risco := 'Alto';
-    ELSIF v_rep >= 1 OR v_media < 5.5 OR v_ch < 400 THEN
-        NEW.risco := 'Médio';
-    ELSE
-        NEW.risco := 'Baixo';
-    END IF;
+    NEW.risco := fu_sissa_classificar(v_rep, v_media, v_ch);
     RETURN NEW;
 END;
 $$;
@@ -366,7 +393,7 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
     v_rep   INTEGER;
-    v_media DECIMAL(4,2);
+    v_media NUMERIC;
     v_ch    INTEGER;
 BEGIN
     SELECT reprovacoes, media_global, ch_semestre
@@ -378,13 +405,8 @@ BEGIN
         RETURN 'Sem dados';
     END IF;
 
-    IF v_rep >= 3 OR v_media < 3.0 THEN
-        RETURN 'Alto';
-    ELSIF v_rep >= 1 OR v_media < 5.5 OR v_ch < 400 THEN
-        RETURN 'Médio';
-    ELSE
-        RETURN 'Baixo';
-    END IF;
+    -- delega à fonte única dos limiares
+    RETURN fu_sissa_classificar(v_rep, v_media, v_ch);
 END;
 $$;
 
