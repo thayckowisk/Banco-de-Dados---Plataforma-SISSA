@@ -7,12 +7,14 @@
  * ║  Cobre: schema/DDL, funções, procedimentos, triggers, views, ║
  * ║         índices (com benchmark de ganho), segurança/roles e   ║
  * ║         todas as rotas da API /api/sissa/*                     ║
+ * ║  Modelo NORMALIZADO: aluno + matrícula; intervenção individual.║
  * ╠══════════════════════════════════════════════════════════════╣
  * ║  Pré-requisitos:                                              ║
- * ║   1. Banco recriado: psql sissa -f sql/01,02,03,05,06          ║
+ * ║   1. Banco recriado: psql sissa -f sql/01,05,06,07            ║
  * ║   2. cd backend && node server.js  (porta 3000)               ║
- * ║   3. Node.js >= 18 (fetch nativo)                             ║
+ * ║   3. Node.js >= 18 (fetch nativo)                            ║
  * ║  Uso: node test-sissa.js                                      ║
+ * ║  Local (peer/socket): PGHOST=/var/run/postgresql PGUSER=<você> ║
  * ╚══════════════════════════════════════════════════════════════╝
  */
 'use strict';
@@ -52,7 +54,7 @@ const info = (s) => `${C.dim}  → ${s}${C.reset}`;
 const results = [];
 let currentSuite = '';
 const tmp = {
-  estudanteIds: [], grupoIds: [], intervencaoIds: [], usuarioIds: [],
+  matriculaIds: [], alunoIds: [], grupoIds: [], intervencaoIds: [], usuarioIds: [],
 };
 
 function assert(cond, msg)          { if (!cond) throw new Error(msg || 'Falha na asserção'); }
@@ -78,6 +80,12 @@ async function test(name, fn) {
   }
 }
 function startSuite(name) { currentSuite = name; console.log(suite(name)); }
+
+async function assertRejects(fn) {
+  let threw = false;
+  try { await fn(); } catch { threw = true; }
+  if (!threw) throw new Error('Esperava que a operação fosse rejeitada pelo banco, mas foi aceita');
+}
 
 // ─── HTTP ─────────────────────────────────────────────────────────────────────
 async function api(path, opts = {}) {
@@ -118,6 +126,25 @@ async function waitForServer() {
   return false;
 }
 
+// Cria aluno + matrícula (curso 1) com os indicadores dados e devolve o matricula_id.
+// (Os indicadores moram na matrícula; o risco é derivado pela trigger.)
+let _seq = 0;
+async function mkMatricula(reprov = 0, media = 8.0, ch = 600, nome = 'ZZ Teste Aluno', withRisco = true) {
+  _seq++;
+  const cod = 'ZZ' + Date.now() + '_' + _seq;
+  const alunoId = await scalar(`INSERT INTO sissa_aluno(nome) VALUES($1) RETURNING id`, [nome]);
+  tmp.alunoIds.push(alunoId);
+  const matId = await scalar(
+    `INSERT INTO sissa_matricula(codigo, aluno_id, curso_id, media_global, reprovacoes, ch_semestre)
+     VALUES($1,$2,1,$3,$4,$5) RETURNING id`,
+    [cod, alunoId, media, reprov, ch]);
+  tmp.matriculaIds.push(matId);
+  // por padrão cria o registro de risco (risco derivado pela trigger), para que
+  // toda matrícula de curso conte tanto no total quanto num bucket de risco.
+  if (withRisco) await q(`INSERT INTO sissa_risco_evasao(matricula_id) VALUES($1)`, [matId]);
+  return matId;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUITE 1 — INFRAESTRUTURA & SCHEMA (DDL)
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -133,15 +160,21 @@ async function suiteSchema() {
   });
 
   const tabelas = [
-    'sissa_instituicao','sissa_curso','sissa_perfil','sissa_usuario_sissa',
-    'sissa_usuario_curso','sissa_estudante','sissa_risco_evasao',
-    'sissa_grupo_intervencao','sissa_grupo_estudante','sissa_intervencao',
-    'sissa_intervencao_estudante',
+    'sissa_instituicao','sissa_unidade','sissa_curso','sissa_perfil','sissa_usuario_sissa',
+    'sissa_usuario_curso','sissa_semestre','sissa_disciplina','sissa_aluno','sissa_matricula',
+    'sissa_risco_evasao','sissa_grupo_intervencao','sissa_grupo_matricula','sissa_intervencao',
   ];
   for (const t of tabelas) {
     await test(`Tabela ${t} existe`, async () => {
       const n = await scalar(`SELECT count(*) FROM information_schema.tables WHERE table_name=$1`, [t]);
       assertEqual(Number(n), 1);
+    });
+  }
+  // tabelas antigas não devem mais existir
+  for (const t of ['sissa_estudante','sissa_intervencao_estudante','sissa_grupo_estudante']) {
+    await test(`Tabela antiga ${t} foi removida`, async () => {
+      const n = await scalar(`SELECT count(*) FROM information_schema.tables WHERE table_name=$1`, [t]);
+      assertEqual(Number(n), 0);
     });
   }
 
@@ -155,32 +188,34 @@ async function suiteSchema() {
   await test('UNIQUE em sissa_instituicao.code_mec', async () => {
     await assertRejects(() => q(`INSERT INTO sissa_instituicao(code_mec,nome,tipo) VALUES('579','Dup','Universidade')`));
   });
-  await test('UNIQUE em sissa_risco_evasao.estudante_id (1:1 com estudante)', async () => {
-    // estudante 1 já possui registro de risco no seed → 2º insert viola o UNIQUE
-    await assertRejects(() => q(`INSERT INTO sissa_risco_evasao(estudante_id,media_global,reprovacoes,ch_semestre) VALUES(1,7.0,0,600)`));
+  await test('UNIQUE em sissa_risco_evasao.matricula_id (1:1 com matrícula)', async () => {
+    // matrícula 1 já possui registro de risco no seed → 2º insert viola o UNIQUE
+    await assertRejects(() => q(`INSERT INTO sissa_risco_evasao(matricula_id) VALUES(1)`));
   });
   await test('CHECK em sissa_intervencao.formato (Individual/Grupo)', async () => {
-    await assertRejects(() => q(`INSERT INTO sissa_intervencao(formato) VALUES('Coletivo')`));
+    await assertRejects(() => q(`INSERT INTO sissa_intervencao(matricula_id,formato) VALUES(1,'Coletivo')`));
   });
   await test('CHECK em sissa_grupo_intervencao.status (Ativo/Inativo)', async () => {
     await assertRejects(() => q(`INSERT INTO sissa_grupo_intervencao(titulo,status) VALUES('ZZ','Pausado')`));
   });
-  await test('FK sissa_estudante.curso_id NOT NULL', async () => {
-    await assertRejects(() => q(`INSERT INTO sissa_estudante(matricula,nome,curso_id) VALUES('ZZTESTNULL','X',NULL)`));
+  await test('FK sissa_matricula.curso_id NOT NULL', async () => {
+    await assertRejects(() => q(`INSERT INTO sissa_matricula(codigo,aluno_id,curso_id) VALUES('ZZTESTNULL',1,NULL)`));
   });
-  await test('FK sissa_curso → instituicao ON DELETE RESTRICT', async () => {
+  await test('FK sissa_matricula.aluno_id NOT NULL', async () => {
+    await assertRejects(() => q(`INSERT INTO sissa_matricula(codigo,aluno_id,curso_id) VALUES('ZZTESTNULL2',NULL,1)`));
+  });
+  await test('FK sissa_instituicao referenciada por unidade (ON DELETE RESTRICT)', async () => {
     await assertRejects(() => q(`DELETE FROM sissa_instituicao WHERE id=1`));
   });
-  await test('UNIQUE em sissa_estudante.matricula', async () => {
-    const m = await scalar(`SELECT matricula FROM sissa_estudante LIMIT 1`);
-    await assertRejects(() => q(`INSERT INTO sissa_estudante(matricula,nome,curso_id) VALUES($1,'Dup',1)`, [m]));
+  await test('UNIQUE em sissa_matricula.codigo', async () => {
+    const m = await scalar(`SELECT codigo FROM sissa_matricula LIMIT 1`);
+    await assertRejects(() => q(`INSERT INTO sissa_matricula(codigo,aluno_id,curso_id) VALUES($1,1,1)`, [m]));
   });
-}
-
-async function assertRejects(fn) {
-  let threw = false;
-  try { await fn(); } catch { threw = true; }
-  if (!threw) throw new Error('Esperava que a operação fosse rejeitada pelo banco, mas foi aceita');
+  await test('Entidades unidade/semestre/disciplina populadas', async () => {
+    assert(Number(await scalar(`SELECT count(*) FROM sissa_unidade`))    >= 1, 'sem unidades');
+    assert(Number(await scalar(`SELECT count(*) FROM sissa_semestre`))   >= 1, 'sem semestres');
+    assert(Number(await scalar(`SELECT count(*) FROM sissa_disciplina`)) >= 1, 'sem disciplinas');
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -189,6 +224,11 @@ async function assertRejects(fn) {
 async function suiteFuncoes() {
   startSuite('Funções');
 
+  await test('fu_sissa_classificar é FUNCTION (prokind=f) e IMMUTABLE', async () => {
+    const r = await q(`SELECT prokind::text k, provolatile::text v FROM pg_proc WHERE proname='fu_sissa_classificar'`);
+    assert(r.rows.length === 1, 'função inexistente');
+    assertEqual(r.rows[0].k, 'f'); assertEqual(r.rows[0].v, 'i');
+  });
   await test('fu_sissa_calcular_risco é FUNCTION (prokind=f)', async () => {
     assertEqual(await scalar(`SELECT prokind::text FROM pg_proc WHERE proname='fu_sissa_calcular_risco'`), 'f');
   });
@@ -196,39 +236,45 @@ async function suiteFuncoes() {
     assertEqual(await scalar(`SELECT prokind::text FROM pg_proc WHERE proname='fu_sissa_resumo_curso'`), 'f');
   });
 
-  // cria estudante com indicadores controlados p/ testar a classificação
-  async function mkEstudante(reprov, media, ch) {
-    const mat = 'ZZF' + Date.now() + Math.floor(Math.random()*1000);
-    const id = await scalar(
-      `INSERT INTO sissa_estudante(matricula,nome,curso_id,ingresso) VALUES($1,'ZZ Teste Funcao',1,2023) RETURNING id`, [mat]);
-    tmp.estudanteIds.push(id);
-    // insere risco (trigger classifica) — usamos a função para validar o cálculo
-    await q(`INSERT INTO sissa_risco_evasao(estudante_id,media_global,reprovacoes,ch_semestre) VALUES($1,$2,$3,$4)`,
-      [id, media, reprov, ch]);
-    return id;
-  }
+  // fonte única dos limiares — casos puros
+  await test('fu_sissa_classificar(3,8.0,600) → Alto (reprovacoes>=3)', async () => {
+    assertEqual(await scalar(`SELECT fu_sissa_classificar(3,8.0,600)`), 'Alto');
+  });
+  await test('fu_sissa_classificar(0,2.5,600) → Alto (media<3.0)', async () => {
+    assertEqual(await scalar(`SELECT fu_sissa_classificar(0,2.5,600)`), 'Alto');
+  });
+  await test('fu_sissa_classificar(1,7.0,600) → Médio (reprovacoes>=1)', async () => {
+    assertEqual(await scalar(`SELECT fu_sissa_classificar(1,7.0,600)`), 'Médio');
+  });
+  await test('fu_sissa_classificar(0,7.0,300) → Médio (ch<400)', async () => {
+    assertEqual(await scalar(`SELECT fu_sissa_classificar(0,7.0,300)`), 'Médio');
+  });
+  await test('fu_sissa_classificar(0,8.5,600) → Baixo', async () => {
+    assertEqual(await scalar(`SELECT fu_sissa_classificar(0,8.5,600)`), 'Baixo');
+  });
 
+  // fu_sissa_calcular_risco lê os indicadores da matrícula e delega à fonte única
   await test('fu_sissa_calcular_risco → Alto (reprovacoes>=3)', async () => {
-    const id = await mkEstudante(3, 8.0, 600);
+    const id = await mkMatricula(3, 8.0, 600);
     assertEqual(await scalar(`SELECT fu_sissa_calcular_risco($1)`, [id]), 'Alto');
   });
   await test('fu_sissa_calcular_risco → Alto (media<3.0)', async () => {
-    const id = await mkEstudante(0, 2.5, 600);
+    const id = await mkMatricula(0, 2.5, 600);
     assertEqual(await scalar(`SELECT fu_sissa_calcular_risco($1)`, [id]), 'Alto');
   });
   await test('fu_sissa_calcular_risco → Médio (reprovacoes=1)', async () => {
-    const id = await mkEstudante(1, 7.0, 600);
+    const id = await mkMatricula(1, 7.0, 600);
     assertEqual(await scalar(`SELECT fu_sissa_calcular_risco($1)`, [id]), 'Médio');
   });
   await test('fu_sissa_calcular_risco → Médio (ch<400)', async () => {
-    const id = await mkEstudante(0, 7.0, 300);
+    const id = await mkMatricula(0, 7.0, 300);
     assertEqual(await scalar(`SELECT fu_sissa_calcular_risco($1)`, [id]), 'Médio');
   });
   await test('fu_sissa_calcular_risco → Baixo (indicadores bons)', async () => {
-    const id = await mkEstudante(0, 8.5, 600);
+    const id = await mkMatricula(0, 8.5, 600);
     assertEqual(await scalar(`SELECT fu_sissa_calcular_risco($1)`, [id]), 'Baixo');
   });
-  await test('fu_sissa_calcular_risco → "Sem dados" (estudante inexistente)', async () => {
+  await test('fu_sissa_calcular_risco → "Sem dados" (matrícula inexistente)', async () => {
     assertEqual(await scalar(`SELECT fu_sissa_calcular_risco(999999)`), 'Sem dados');
   });
 
@@ -264,33 +310,33 @@ async function suiteProcedimentos() {
     assertEqual(await scalar(`SELECT prokind::text FROM pg_proc WHERE proname='pr_sissa_atualizar_status_grupos'`), 'p');
   });
 
-  // cria um grupo de teste com 2 estudantes
-  let grupoId, est1, est2;
-  await test('Setup: grupo de teste + estudantes', async () => {
+  // grupo de teste com 2 matrículas
+  let grupoId, m1, m2;
+  await test('Setup: grupo de teste + 2 matrículas', async () => {
     grupoId = await scalar(`INSERT INTO sissa_grupo_intervencao(titulo,semestre,status) VALUES('ZZ Proc Grupo','2025/1','Ativo') RETURNING id`);
     tmp.grupoIds.push(grupoId);
-    est1 = await scalar(`INSERT INTO sissa_estudante(matricula,nome,curso_id) VALUES('ZZP1${Date.now()}','ZZ P1',1) RETURNING id`);
-    est2 = await scalar(`INSERT INTO sissa_estudante(matricula,nome,curso_id) VALUES('ZZP2${Date.now()}','ZZ P2',1) RETURNING id`);
-    tmp.estudanteIds.push(est1, est2);
-    await q(`INSERT INTO sissa_grupo_estudante(grupo_id,estudante_id) VALUES($1,$2),($1,$3)`, [grupoId, est1, est2]);
+    m1 = await mkMatricula(0, 8.0, 600);
+    m2 = await mkMatricula(1, 6.0, 600);
+    await q(`INSERT INTO sissa_grupo_matricula(grupo_id,matricula_id) VALUES($1,$2),($1,$3)`, [grupoId, m1, m2]);
   });
 
-  await test('CALL pr_sissa_criar_intervencao_grupo cria intervenção (INOUT retorna id)', async () => {
+  await test('CALL pr_sissa_criar_intervencao_grupo retorna p_total (INOUT)', async () => {
     const r = await q(
-      `CALL pr_sissa_criar_intervencao_grupo($1,CURRENT_DATE,'2025/1','Chat','Apoio','Grupo','Pró-ativa','Conteúdo','Síncrono','proc teste',NULL)`,
+      `CALL pr_sissa_criar_intervencao_grupo($1, CURRENT_DATE, 5, 1, 'Chat', 'Apoio', 'Pró-ativa', 'Conteúdo', 'Síncrono', 'ZZ proc teste', 0)`,
       [grupoId]);
-    const novoId = r.rows[0].p_intervencao_id;
-    assert(novoId > 0, 'id da intervenção não retornado');
-    tmp.intervencaoIds.push(novoId);
+    assertEqual(Number(r.rows[0].p_total), 2);
   });
-  await test('Procedimento associou TODOS os estudantes do grupo à intervenção', async () => {
-    const iid = tmp.intervencaoIds[tmp.intervencaoIds.length-1];
-    const n = await scalar(`SELECT count(*) FROM sissa_intervencao_estudante WHERE intervencao_id=$1`, [iid]);
-    assertEqual(Number(n), 2);
+  await test('Procedimento cria 1 intervenção individual por matrícula do grupo', async () => {
+    const rows = (await q(`SELECT id, matricula_id, formato FROM sissa_intervencao WHERE observacoes='ZZ proc teste' ORDER BY matricula_id`)).rows;
+    rows.forEach(r => tmp.intervencaoIds.push(r.id));
+    assertEqual(rows.length, 2);
+    assertTrue(rows.every(r => r.formato === 'Individual'));
+    assertEqual([Number(rows[0].matricula_id), Number(rows[1].matricula_id)].sort((a,b)=>a-b).join(','),
+                [m1, m2].sort((a,b)=>a-b).join(','));
   });
   await test('CALL pr_sissa_criar_intervencao_grupo com grupo inexistente → erro', async () => {
     await assertRejects(() => q(
-      `CALL pr_sissa_criar_intervencao_grupo(999999,CURRENT_DATE,'2025/1','Chat','x','Grupo','Reativa','Conteúdo','Síncrono','x',NULL)`));
+      `CALL pr_sissa_criar_intervencao_grupo(999999, CURRENT_DATE, 5, 1, 'Chat','x','Reativa','Conteúdo','Síncrono','x',0)`));
   });
 
   await test('CALL pr_sissa_atualizar_status_grupos retorna total (INOUT)', async () => {
@@ -320,52 +366,41 @@ async function suiteProcedimentos() {
 async function suiteTriggers() {
   startSuite('Triggers');
 
-  for (const tg of ['tg_sissa_risco_evasao_timestamp','tg_sissa_grupo_inativo_auto','tg_sissa_classificar_risco']) {
+  for (const tg of ['tg_sissa_risco_evasao_timestamp','tg_sissa_classificar_risco']) {
     await test(`Trigger ${tg} existe`, async () => {
       const n = await scalar(`SELECT count(*) FROM pg_trigger WHERE tgname=$1`, [tg]);
       assertEqual(Number(n), 1);
     });
   }
-
-  let estId;
-  await test('Setup: estudante para triggers', async () => {
-    estId = await scalar(`INSERT INTO sissa_estudante(matricula,nome,curso_id) VALUES('ZZT${Date.now()}','ZZ Trigger',1) RETURNING id`);
-    tmp.estudanteIds.push(estId);
+  await test('tg_sissa_grupo_inativo_auto foi removida (pendência de redesenho)', async () => {
+    assertEqual(Number(await scalar(`SELECT count(*) FROM pg_trigger WHERE tgname='tg_sissa_grupo_inativo_auto'`)), 0);
   });
 
-  await test('tg_sissa_classificar_risco: classifica como Alto no INSERT (reprovacoes>=3)', async () => {
-    await q(`INSERT INTO sissa_risco_evasao(estudante_id,media_global,reprovacoes,ch_semestre) VALUES($1,8.0,4,600)`, [estId]);
-    assertEqual(await scalar(`SELECT risco FROM sissa_risco_evasao WHERE estudante_id=$1`, [estId]), 'Alto');
+  let matId;
+  await test('Setup: matrícula (reprovacoes=4) para triggers', async () => {
+    // sem risco ainda — o teste de INSERT abaixo cria o registro e dispara a trigger
+    matId = await mkMatricula(4, 8.0, 600, 'ZZ Teste Aluno', false);
   });
-  await test('tg_sissa_classificar_risco: reclassifica como Baixo no UPDATE (bons indicadores)', async () => {
-    await q(`UPDATE sissa_risco_evasao SET reprovacoes=0, media_global=9.0, ch_semestre=600 WHERE estudante_id=$1`, [estId]);
-    assertEqual(await scalar(`SELECT risco FROM sissa_risco_evasao WHERE estudante_id=$1`, [estId]), 'Baixo');
+
+  await test('tg_sissa_classificar_risco: classifica Alto no INSERT (reprovacoes>=3)', async () => {
+    await q(`INSERT INTO sissa_risco_evasao(matricula_id) VALUES($1)`, [matId]);
+    assertEqual(await scalar(`SELECT risco FROM sissa_risco_evasao WHERE matricula_id=$1`, [matId]), 'Alto');
+  });
+  await test('tg_sissa_classificar_risco: reclassifica Baixo ao mudar indicadores', async () => {
+    await q(`UPDATE sissa_matricula SET reprovacoes=0, media_global=9.0, ch_semestre=600 WHERE id=$1`, [matId]);
+    await q(`UPDATE sissa_risco_evasao SET turmas=turmas WHERE matricula_id=$1`, [matId]); // toca → dispara a trigger
+    assertEqual(await scalar(`SELECT risco FROM sissa_risco_evasao WHERE matricula_id=$1`, [matId]), 'Baixo');
   });
   await test('tg_sissa_classificar_risco: ignora valor de risco fornecido manualmente', async () => {
-    await q(`UPDATE sissa_risco_evasao SET risco='Alto', reprovacoes=0, media_global=9.5, ch_semestre=600 WHERE estudante_id=$1`, [estId]);
-    assertEqual(await scalar(`SELECT risco FROM sissa_risco_evasao WHERE estudante_id=$1`, [estId]), 'Baixo');
+    await q(`UPDATE sissa_risco_evasao SET risco='Alto' WHERE matricula_id=$1`, [matId]);
+    assertEqual(await scalar(`SELECT risco FROM sissa_risco_evasao WHERE matricula_id=$1`, [matId]), 'Baixo');
   });
   await test('tg_sissa_risco_evasao_timestamp: updated_at avança após UPDATE', async () => {
-    const t0 = await scalar(`SELECT updated_at FROM sissa_risco_evasao WHERE estudante_id=$1`, [estId]);
+    const t0 = await scalar(`SELECT updated_at FROM sissa_risco_evasao WHERE matricula_id=$1`, [matId]);
     await new Promise(r => setTimeout(r, 25));
-    await q(`UPDATE sissa_risco_evasao SET reprovacoes=1 WHERE estudante_id=$1`, [estId]);
-    const t1 = await scalar(`SELECT updated_at FROM sissa_risco_evasao WHERE estudante_id=$1`, [estId]);
+    await q(`UPDATE sissa_risco_evasao SET turmas=turmas+1 WHERE matricula_id=$1`, [matId]);
+    const t1 = await scalar(`SELECT updated_at FROM sissa_risco_evasao WHERE matricula_id=$1`, [matId]);
     assert(new Date(t1) > new Date(t0), `updated_at não avançou: ${t0} → ${t1}`);
-  });
-
-  await test('tg_sissa_grupo_inativo_auto: reativa grupo Inativo ao receber intervenção', async () => {
-    const gid = await scalar(`INSERT INTO sissa_grupo_intervencao(titulo,status) VALUES('ZZ Inativo Trigger','Inativo') RETURNING id`);
-    tmp.grupoIds.push(gid);
-    const iid = await scalar(`INSERT INTO sissa_intervencao(grupo_id,data_intervencao) VALUES($1,CURRENT_DATE) RETURNING id`, [gid]);
-    tmp.intervencaoIds.push(iid);
-    assertEqual(await scalar(`SELECT status FROM sissa_grupo_intervencao WHERE id=$1`, [gid]), 'Ativo');
-  });
-  await test('tg_sissa_grupo_inativo_auto: mantém grupo já Ativo', async () => {
-    const gid = await scalar(`INSERT INTO sissa_grupo_intervencao(titulo,status) VALUES('ZZ Ativo Trigger','Ativo') RETURNING id`);
-    tmp.grupoIds.push(gid);
-    const iid = await scalar(`INSERT INTO sissa_intervencao(grupo_id,data_intervencao) VALUES($1,CURRENT_DATE) RETURNING id`, [gid]);
-    tmp.intervencaoIds.push(iid);
-    assertEqual(await scalar(`SELECT status FROM sissa_grupo_intervencao WHERE id=$1`, [gid]), 'Ativo');
   });
 }
 
@@ -375,7 +410,8 @@ async function suiteTriggers() {
 async function suiteViews() {
   startSuite('Views');
 
-  for (const v of ['vw_sissa_estudantes_risco','vw_sissa_grupos','vw_sissa_risco_anonimo','vw_sissa_resumo_intervencoes','vw_roster_universidade']) {
+  for (const v of ['vw_sissa_estudantes_risco','vw_sissa_grupos','vw_sissa_risco_anonimo',
+                   'vw_sissa_resumo_intervencoes','vw_sissa_perfil_permissoes','vw_roster_universidade']) {
     await test(`View ${v} existe`, async () => {
       const n = await scalar(`SELECT count(*) FROM information_schema.views WHERE table_name=$1`, [v]);
       assertEqual(Number(n), 1);
@@ -387,31 +423,25 @@ async function suiteViews() {
     assert(r.rows.length === 1);
     assertHasKeys(r.rows[0], ['id','matricula','nome','curso_nome','instituicao_nome','risco','total_grupos']);
   });
-  await test('vw_sissa_estudantes_risco: total de linhas = total de estudantes', async () => {
+  await test('vw_sissa_estudantes_risco: total de linhas = total de matrículas', async () => {
     const a = Number(await scalar(`SELECT count(*) FROM vw_sissa_estudantes_risco`));
-    const b = Number(await scalar(`SELECT count(*) FROM sissa_estudante`));
+    const b = Number(await scalar(`SELECT count(*) FROM sissa_matricula`));
     assertEqual(a, b);
   });
-  await test('vw_sissa_grupos: total_estudantes confere com vínculos', async () => {
+  await test('vw_sissa_grupos: total_estudantes confere com vínculos (grupo_matricula)', async () => {
     const gid = await scalar(`SELECT id FROM sissa_grupo_intervencao ORDER BY id LIMIT 1`);
     const v = Number(await scalar(`SELECT total_estudantes FROM vw_sissa_grupos WHERE id=$1`, [gid]));
-    const real = Number(await scalar(`SELECT count(*) FROM sissa_grupo_estudante WHERE grupo_id=$1`, [gid]));
+    const real = Number(await scalar(`SELECT count(*) FROM sissa_grupo_matricula WHERE grupo_id=$1`, [gid]));
     assertEqual(v, real);
   });
 
   // ANONIMATO — requisito de segurança (view sem identificadores)
-  await test('vw_sissa_risco_anonimo NÃO expõe coluna "nome"', async () => {
-    const n = await scalar(`SELECT count(*) FROM information_schema.columns WHERE table_name='vw_sissa_risco_anonimo' AND column_name='nome'`);
-    assertEqual(Number(n), 0);
-  });
-  await test('vw_sissa_risco_anonimo NÃO expõe coluna "matricula"', async () => {
-    const n = await scalar(`SELECT count(*) FROM information_schema.columns WHERE table_name='vw_sissa_risco_anonimo' AND column_name='matricula'`);
-    assertEqual(Number(n), 0);
-  });
-  await test('vw_sissa_risco_anonimo NÃO expõe estudante_id', async () => {
-    const n = await scalar(`SELECT count(*) FROM information_schema.columns WHERE table_name='vw_sissa_risco_anonimo' AND column_name='estudante_id'`);
-    assertEqual(Number(n), 0);
-  });
+  for (const col of ['nome','matricula','aluno_id','matricula_id','estudante_id']) {
+    await test(`vw_sissa_risco_anonimo NÃO expõe coluna "${col}"`, async () => {
+      const n = await scalar(`SELECT count(*) FROM information_schema.columns WHERE table_name='vw_sissa_risco_anonimo' AND column_name=$1`, [col]);
+      assertEqual(Number(n), 0);
+    });
+  }
   await test('vw_sissa_risco_anonimo EXPÕE risco e curso_nome', async () => {
     const r = await q(`SELECT * FROM vw_sissa_risco_anonimo LIMIT 1`);
     assertHasKeys(r.rows[0], ['risco','curso_nome','instituicao_nome','media_global']);
@@ -426,10 +456,12 @@ async function suiteViews() {
     const r = await q(`SELECT * FROM vw_sissa_resumo_intervencoes LIMIT 1`);
     assertHasKeys(r.rows[0], ['grupo_id','grupo_titulo','total_intervencoes','objetivos_sim','objetivos_nao']);
   });
-  await test('vw_sissa_resumo_intervencoes: total_intervencoes confere', async () => {
-    const gid = await scalar(`SELECT grupo_id FROM sissa_intervencao WHERE grupo_id IS NOT NULL GROUP BY grupo_id ORDER BY grupo_id LIMIT 1`);
+  await test('vw_sissa_resumo_intervencoes: total_intervencoes confere via membros', async () => {
+    const gid = await scalar(`SELECT id FROM sissa_grupo_intervencao ORDER BY id LIMIT 1`);
     const v = Number(await scalar(`SELECT total_intervencoes FROM vw_sissa_resumo_intervencoes WHERE grupo_id=$1`, [gid]));
-    const real = Number(await scalar(`SELECT count(*) FROM sissa_intervencao WHERE grupo_id=$1`, [gid]));
+    const real = Number(await scalar(
+      `SELECT count(DISTINCT i.id) FROM sissa_intervencao i
+       JOIN sissa_grupo_matricula gm ON gm.matricula_id = i.matricula_id WHERE gm.grupo_id=$1`, [gid]));
     assertEqual(v, real);
   });
   await test('vw_roster_universidade calcula ch_semestre (>0 p/ aluno c/ inscrições)', async () => {
@@ -449,11 +481,11 @@ async function suiteIndices() {
   startSuite('Índices');
 
   const esperados = [
-    'idx_sissa_curso_inst','idx_sissa_usuario_perfil','idx_sissa_usuario_email',
-    'idx_sissa_estudante_curso','idx_sissa_estudante_mat','idx_sissa_estudante_nome',
+    'idx_sissa_unidade_inst','idx_sissa_curso_unidade','idx_sissa_usuario_perfil','idx_sissa_usuario_email',
+    'idx_sissa_aluno_nome','idx_sissa_matricula_curso','idx_sissa_matricula_aluno','idx_sissa_disciplina_curso',
     'idx_sissa_risco_nivel','idx_sissa_risco_updated','idx_sissa_grupo_status',
-    'idx_sissa_intervencao_grupo','idx_sissa_intervencao_data',
-    'idx_sissa_risco_comp','idx_sissa_est_curso_nome',
+    'idx_sissa_intervencao_matricula','idx_sissa_intervencao_data','idx_sissa_intervencao_disciplina',
+    'idx_sissa_intervencao_semestre','idx_sissa_risco_comp',
   ];
   for (const idx of esperados) {
     await test(`Índice ${idx} existe`, async () => {
@@ -463,7 +495,6 @@ async function suiteIndices() {
   }
 
   // ── Benchmark INLINE auto-contido (não depende do script 07) ──
-  // Mede o tempo de execução server-side via EXPLAIN ANALYZE (mínimo de 5 execuções).
   async function execMs(sql) {
     let best = Infinity;
     for (let i = 0; i < 5; i++) {
@@ -477,8 +508,8 @@ async function suiteIndices() {
   let g1, g2;
   await test('Massa de 150k linhas gerada para benchmark', async () => {
     await q(`DROP TABLE IF EXISTS sissa_bench_chk CASCADE`);
-    await q(`CREATE TABLE sissa_bench_chk(id serial primary key, matricula text, curso_id int, risco text)`);
-    await q(`INSERT INTO sissa_bench_chk(matricula,curso_id,risco)
+    await q(`CREATE TABLE sissa_bench_chk(id serial primary key, codigo text, curso_id int, risco text)`);
+    await q(`INSERT INTO sissa_bench_chk(codigo,curso_id,risco)
              SELECT 'EST'||lpad(g::text,9,'0'),(g%60)+1,(ARRAY['Alto','Médio','Baixo'])[(g%3)+1]
              FROM generate_series(1,150000) g`);
     await q(`ANALYZE sissa_bench_chk`);
@@ -493,13 +524,13 @@ async function suiteIndices() {
     console.log(info(`curso+risco: sem=${sem.toFixed(2)}ms com=${com.toFixed(2)}ms ganho=${g1.toFixed(1)}%`));
     assert(g1 >= 20, `ganho insuficiente: ${g1.toFixed(1)}%`);
   });
-  await test('Cenário "matrícula": ganho com índice (matricula) >= 20%', async () => {
-    await q(`DROP INDEX IF EXISTS idx_chk_mat`);
-    const sem = await execMs(`SELECT count(*) FROM sissa_bench_chk WHERE matricula='EST000075000'`);
-    await q(`CREATE INDEX idx_chk_mat ON sissa_bench_chk(matricula)`); await q(`ANALYZE sissa_bench_chk`);
-    const com = await execMs(`SELECT count(*) FROM sissa_bench_chk WHERE matricula='EST000075000'`);
+  await test('Cenário "código": ganho com índice (codigo) >= 20%', async () => {
+    await q(`DROP INDEX IF EXISTS idx_chk_cod`);
+    const sem = await execMs(`SELECT count(*) FROM sissa_bench_chk WHERE codigo='EST000075000'`);
+    await q(`CREATE INDEX idx_chk_cod ON sissa_bench_chk(codigo)`); await q(`ANALYZE sissa_bench_chk`);
+    const com = await execMs(`SELECT count(*) FROM sissa_bench_chk WHERE codigo='EST000075000'`);
     g2 = (sem - com) / sem * 100;
-    console.log(info(`matrícula: sem=${sem.toFixed(2)}ms com=${com.toFixed(2)}ms ganho=${g2.toFixed(1)}%`));
+    console.log(info(`código: sem=${sem.toFixed(2)}ms com=${com.toFixed(2)}ms ganho=${g2.toFixed(1)}%`));
     assert(g2 >= 20, `ganho insuficiente: ${g2.toFixed(1)}%`);
   });
   await test('EXPLAIN: sem índice usa Seq Scan / com índice usa Index', async () => {
@@ -516,6 +547,8 @@ async function suiteIndices() {
       const r = await q(`SELECT * FROM fu_sissa_benchmark_indice(50000, 6)`);
       assertEqual(r.rows.length, 2);
       assertTrue(r.rows.every(x => x.atende_min_20pct === true));
+      await q(`DROP TABLE IF EXISTS sissa_bench_matricula CASCADE`).catch(()=>{});
+      await q(`DROP TABLE IF EXISTS sissa_bench_risco CASCADE`).catch(()=>{});
     } else {
       console.log(info('07 não carregado — função de benchmark é opcional para a app (ok)'));
     }
@@ -540,20 +573,23 @@ async function suiteSeguranca() {
 
   // admin_sissa — todas as operações
   for (const priv of ['SELECT','INSERT','UPDATE','DELETE']) {
-    await test(`admin_sissa tem ${priv} em sissa_estudante`, async () => {
-      assertTrue(await scalar(`SELECT has_table_privilege('admin_sissa','sissa_estudante',$1)`, [priv]));
+    await test(`admin_sissa tem ${priv} em sissa_matricula`, async () => {
+      assertTrue(await scalar(`SELECT has_table_privilege('admin_sissa','sissa_matricula',$1)`, [priv]));
     });
   }
+  await test('admin_sissa tem INSERT em sissa_aluno', async () => {
+    assertTrue(await scalar(`SELECT has_table_privilege('admin_sissa','sissa_aluno','INSERT')`));
+  });
   await test('admin_sissa tem INSERT em sissa_intervencao', async () => {
     assertTrue(await scalar(`SELECT has_table_privilege('admin_sissa','sissa_intervencao','INSERT')`));
   });
 
   // leitura_sissa — somente leitura
-  await test('leitura_sissa TEM SELECT em sissa_estudante', async () => {
-    assertTrue(await scalar(`SELECT has_table_privilege('leitura_sissa','sissa_estudante','SELECT')`));
+  await test('leitura_sissa TEM SELECT em sissa_matricula', async () => {
+    assertTrue(await scalar(`SELECT has_table_privilege('leitura_sissa','sissa_matricula','SELECT')`));
   });
-  await test('leitura_sissa NÃO tem INSERT em sissa_estudante', async () => {
-    assertFalse(await scalar(`SELECT has_table_privilege('leitura_sissa','sissa_estudante','INSERT')`));
+  await test('leitura_sissa NÃO tem INSERT em sissa_matricula', async () => {
+    assertFalse(await scalar(`SELECT has_table_privilege('leitura_sissa','sissa_matricula','INSERT')`));
   });
   await test('leitura_sissa NÃO tem UPDATE em sissa_risco_evasao', async () => {
     assertFalse(await scalar(`SELECT has_table_privilege('leitura_sissa','sissa_risco_evasao','UPDATE')`));
@@ -566,8 +602,8 @@ async function suiteSeguranca() {
   await test('risco_anonimo_sissa TEM SELECT em vw_sissa_risco_anonimo', async () => {
     assertTrue(await scalar(`SELECT has_table_privilege('risco_anonimo_sissa','vw_sissa_risco_anonimo','SELECT')`));
   });
-  await test('risco_anonimo_sissa NÃO tem SELECT em sissa_estudante', async () => {
-    assertFalse(await scalar(`SELECT has_table_privilege('risco_anonimo_sissa','sissa_estudante','SELECT')`));
+  await test('risco_anonimo_sissa NÃO tem SELECT em sissa_matricula', async () => {
+    assertFalse(await scalar(`SELECT has_table_privilege('risco_anonimo_sissa','sissa_matricula','SELECT')`));
   });
   await test('risco_anonimo_sissa NÃO tem SELECT em vw_sissa_estudantes_risco', async () => {
     assertFalse(await scalar(`SELECT has_table_privilege('risco_anonimo_sissa','vw_sissa_estudantes_risco','SELECT')`));
@@ -576,7 +612,12 @@ async function suiteSeguranca() {
     assertFalse(await scalar(`SELECT has_table_privilege('risco_anonimo_sissa','sissa_risco_evasao','SELECT')`));
   });
 
-  // teste funcional de isolamento: SET ROLE risco_anonimo_sissa só lê a view anônima
+  // teste funcional de isolamento — exige que o usuário de conexão seja MEMBRO
+  // do role para poder SET ROLE; concedemos a associação (best-effort).
+  await test('Setup: associação ao role para SET ROLE', async () => {
+    await q(`GRANT risco_anonimo_sissa TO current_user`).catch(()=>{});
+    assert(true);
+  });
   await test('SET ROLE risco_anonimo_sissa: SELECT na view anônima funciona', async () => {
     const c = await pool.connect();
     try {
@@ -585,15 +626,15 @@ async function suiteSeguranca() {
       assert(Number(r.rows[0].count) >= 0);
     } finally { await c.query('RESET ROLE'); c.release(); }
   });
-  await test('SET ROLE risco_anonimo_sissa: SELECT em sissa_estudante é BLOQUEADO', async () => {
+  await test('SET ROLE risco_anonimo_sissa: SELECT em sissa_matricula é BLOQUEADO', async () => {
     const c = await pool.connect();
     let blocked = false;
     try {
       await c.query('SET ROLE risco_anonimo_sissa');
-      try { await c.query('SELECT * FROM sissa_estudante LIMIT 1'); }
+      try { await c.query('SELECT * FROM sissa_matricula LIMIT 1'); }
       catch { blocked = true; }
     } finally { await c.query('RESET ROLE'); c.release(); }
-    assertTrue(blocked, 'role anônimo conseguiu ler sissa_estudante (deveria ser negado)');
+    assertTrue(blocked, 'role anônimo conseguiu ler sissa_matricula (deveria ser negado)');
   });
 }
 
@@ -661,14 +702,14 @@ async function suiteApiEstudantes() {
     let prev = 0;
     for (const e of body.data) { const v = ordem[e.risco] || 4; assert(v >= prev); prev = v; }
   });
-  await test('POST /estudantes cria estudante e deriva risco automaticamente', async () => {
+  await test('POST /estudantes cria aluno+matrícula e deriva risco automaticamente', async () => {
     const { body } = await POST('/api/sissa/estudantes', {
       matricula: 'ZZAPI' + Date.now(), nome: 'ZZ API Estudante', curso_id: 1,
       ingresso: 2024, media_global: 1.5, reprovacoes: 4, ch_semestre: 600,
     });
-    assertTrue(body.success);
+    assertTrue(body.success, body.error);
     assertEqual(body.data.risco, 'Alto');
-    tmp.estudanteIds.push(body.data.id);
+    tmp.matriculaIds.push(body.data.id);
   });
   await test('POST /estudantes sem campos obrigatórios → 400', async () => {
     const { status, body } = await POST('/api/sissa/estudantes', { nome: 'x' });
@@ -715,14 +756,13 @@ async function suiteApiRoster() {
     assertEqual(status, 403); assertFalse(body.success);
   });
   let importadoId;
-  await test('POST /estudantes/importar importa aluno do roster', async () => {
-    // escolhe um aluno ainda não importado
+  await test('POST /estudantes/importar importa aluno do roster (aluno+matrícula+risco)', async () => {
     const { body: roster } = await GET('/api/sissa/roster');
     const alvo = roster.data.find(r => !r.ja_importado);
     if (!alvo) { console.log(info('todos já importados — pulando inserção')); return; }
     const { body } = await POST('/api/sissa/estudantes/importar', { aluno_id: alvo.aluno_id });
     assertTrue(body.success, body.error);
-    importadoId = body.data.id; tmp.estudanteIds.push(importadoId);
+    importadoId = body.data.id; tmp.matriculaIds.push(importadoId);
   });
   await test('POST /estudantes/importar duplicado → já importado', async () => {
     const { body: roster } = await GET('/api/sissa/roster');
@@ -731,9 +771,9 @@ async function suiteApiRoster() {
     const { body } = await POST('/api/sissa/estudantes/importar', { aluno_id: jaImp.aluno_id });
     assertFalse(body.success); assertIncludes(body.error, 'importado');
   });
-  await test('Estudante importado recebe risco via trigger', async () => {
+  await test('Matrícula importada recebe risco via trigger', async () => {
     if (!importadoId) { console.log(info('nada importado — pulando')); return; }
-    const risco = await scalar(`SELECT risco FROM sissa_risco_evasao WHERE estudante_id=$1`, [importadoId]);
+    const risco = await scalar(`SELECT risco FROM sissa_risco_evasao WHERE matricula_id=$1`, [importadoId]);
     assert(['Alto','Médio','Baixo'].includes(risco), `risco inválido: ${risco}`);
   });
 }
@@ -744,11 +784,10 @@ async function suiteApiRoster() {
 async function suiteApiGrupos() {
   startSuite('API — Grupos de Intervenção');
 
-  let estA, estB;
-  await test('Setup: estudantes para grupos', async () => {
-    estA = await scalar(`INSERT INTO sissa_estudante(matricula,nome,curso_id) VALUES('ZZG1${Date.now()}','ZZ G1',1) RETURNING id`);
-    estB = await scalar(`INSERT INTO sissa_estudante(matricula,nome,curso_id) VALUES('ZZG2${Date.now()}','ZZ G2',1) RETURNING id`);
-    tmp.estudanteIds.push(estA, estB);
+  let mA, mB;
+  await test('Setup: matrículas para grupos', async () => {
+    mA = await mkMatricula(0, 8, 600);
+    mB = await mkMatricula(1, 6, 600);
   });
 
   await test('GET /grupos retorna array', async () => {
@@ -756,10 +795,10 @@ async function suiteApiGrupos() {
     assertTrue(body.success); assertIsArray(body.data);
   });
   let grupoId;
-  await test('POST /grupos cria grupo com estudantes', async () => {
+  await test('POST /grupos cria grupo com matrículas', async () => {
     const { body } = await POST('/api/sissa/grupos', {
       titulo: 'ZZ Grupo API', semestre: '2025/1', observacoes: 'teste',
-      autoria_id: 1, estudante_ids: [estA, estB],
+      autoria_id: 1, estudante_ids: [mA, mB],
     });
     assertTrue(body.success); grupoId = body.data.id; tmp.grupoIds.push(grupoId);
   });
@@ -767,7 +806,7 @@ async function suiteApiGrupos() {
     const { status, body } = await POST('/api/sissa/grupos', { semestre: '2025/1' });
     assertEqual(status, 400); assertFalse(body.success);
   });
-  await test('GET /grupos/:id retorna grupo com estudantes', async () => {
+  await test('GET /grupos/:id retorna grupo com matrículas', async () => {
     const { body } = await GET(`/api/sissa/grupos/${grupoId}`);
     assertTrue(body.success); assertEqual(body.data.estudantes.length, 2);
   });
@@ -781,10 +820,10 @@ async function suiteApiGrupos() {
     assertTrue(body.success);
     assertEqual(await scalar(`SELECT titulo FROM sissa_grupo_intervencao WHERE id=$1`, [grupoId]), 'ZZ Grupo API Editado');
   });
-  await test('PUT /grupos/:id substitui lista de estudantes', async () => {
-    const { body } = await PUT(`/api/sissa/grupos/${grupoId}`, { estudante_ids: [estA] });
+  await test('PUT /grupos/:id substitui lista de matrículas', async () => {
+    const { body } = await PUT(`/api/sissa/grupos/${grupoId}`, { estudante_ids: [mA] });
     assertTrue(body.success);
-    assertEqual(Number(await scalar(`SELECT count(*) FROM sissa_grupo_estudante WHERE grupo_id=$1`, [grupoId])), 1);
+    assertEqual(Number(await scalar(`SELECT count(*) FROM sissa_grupo_matricula WHERE grupo_id=$1`, [grupoId])), 1);
   });
   await test('GET /grupos-intervencao (alias) funciona', async () => {
     const { body } = await GET('/api/sissa/grupos-intervencao');
@@ -803,17 +842,17 @@ async function suiteApiGrupos() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SUITE 12 — API: INTERVENÇÕES
+// SUITE 12 — API: INTERVENÇÕES (individuais)
 // ═══════════════════════════════════════════════════════════════════════════════
 async function suiteApiIntervencoes() {
   startSuite('API — Intervenções');
 
-  let estX, grupoX;
-  await test('Setup: grupo + estudante para intervenções', async () => {
-    estX = await scalar(`INSERT INTO sissa_estudante(matricula,nome,curso_id) VALUES('ZZI1${Date.now()}','ZZ I1',1) RETURNING id`);
-    tmp.estudanteIds.push(estX);
+  let mX, grupoX;
+  await test('Setup: grupo + matrícula para intervenções', async () => {
+    mX = await mkMatricula(0, 7, 600);
     grupoX = await scalar(`INSERT INTO sissa_grupo_intervencao(titulo,status) VALUES('ZZ Interv Grupo','Ativo') RETURNING id`);
     tmp.grupoIds.push(grupoX);
+    await q(`INSERT INTO sissa_grupo_matricula(grupo_id,matricula_id) VALUES($1,$2)`, [grupoX, mX]);
   });
 
   await test('GET /intervencoes retorna array', async () => {
@@ -821,23 +860,44 @@ async function suiteApiIntervencoes() {
     assertTrue(body.success); assertIsArray(body.data);
   });
   let intId;
-  await test('POST /intervencoes cria intervenção com estudante', async () => {
+  await test('POST /intervencoes cria intervenção individual (1 por matrícula)', async () => {
     const { body } = await POST('/api/sissa/intervencoes', {
-      grupo_id: grupoX, data_intervencao: '2025-03-10', semestre: '2025/1',
-      disciplina: 'Física Geral I', forma_meio: 'Chat', assunto: 'Apoio',
+      estudante_ids: [mX], disciplina_id: 1, semestre_id: 5,
+      data_intervencao: '2025-03-10', forma_meio: 'Chat', assunto: 'Apoio',
       formato: 'Individual', interacao: 'Pró-ativa', tipo: 'Conteúdo',
       acompanhamento: 'Assíncrono', duracao: '0:45', objetivo_alcancado: 'Sim',
-      observacoes: 'teste intervencao', estudante_ids: [estX],
+      observacoes: 'ZZ teste intervencao',
     });
-    assertTrue(body.success); intId = body.data.id; tmp.intervencaoIds.push(intId);
+    assertTrue(body.success, body.error); assertEqual(body.total, 1);
+    intId = body.data[0].id; tmp.intervencaoIds.push(intId);
   });
-  await test('GET /intervencoes?grupo_id filtra por grupo', async () => {
+  await test('Intervenção criada tem a matrícula vinculada', async () => {
+    assertEqual(Number(await scalar(`SELECT matricula_id FROM sissa_intervencao WHERE id=$1`, [intId])), mX);
+  });
+  await test('POST /intervencoes com 2 matrículas cria 2 intervenções individuais', async () => {
+    const m2 = await mkMatricula(0, 8, 600);
+    const { body } = await POST('/api/sissa/intervencoes', {
+      estudante_ids: [mX, m2], formato: 'Individual', observacoes: 'ZZ batch',
+    });
+    assertTrue(body.success); assertEqual(body.total, 2);
+    body.data.forEach(d => tmp.intervencaoIds.push(d.id));
+  });
+  await test('POST /intervencoes sem estudante_ids → 400', async () => {
+    const { status, body } = await POST('/api/sissa/intervencoes', { observacoes: 'x' });
+    assertEqual(status, 400); assertFalse(body.success);
+  });
+  await test('POST /grupos/:id/intervencoes dá CALL na procedure (1 por membro)', async () => {
+    const { body } = await POST(`/api/sissa/grupos/${grupoX}/intervencoes`, {
+      data_intervencao: '2025-03-11', semestre_id: 5, disciplina_id: 1,
+      forma_meio: 'Chat', assunto: 'Apoio', interacao: 'Pró-ativa', tipo: 'Conteúdo',
+      acompanhamento: 'Síncrono', observacoes: 'ZZ via proc',
+    });
+    assertTrue(body.success, body.error); assertEqual(body.total, 1);
+  });
+  await test('GET /intervencoes?grupo_id filtra pelos membros do grupo', async () => {
     const { body } = await GET(`/api/sissa/intervencoes?grupo_id=${grupoX}`);
-    assertTrue(body.data.every(i => i.grupo_id === grupoX));
-  });
-  await test('Intervenção criada vinculou o estudante', async () => {
-    const n = await scalar(`SELECT count(*) FROM sissa_intervencao_estudante WHERE intervencao_id=$1`, [intId]);
-    assertEqual(Number(n), 1);
+    assertTrue(body.success);
+    assertTrue(body.data.every(i => i.matricula_id === mX));
   });
   await test('GET /intervencoes?busca filtra por texto', async () => {
     const { body } = await GET('/api/sissa/intervencoes?busca=teste');
@@ -846,24 +906,35 @@ async function suiteApiIntervencoes() {
   await test('GET /intervencoes?data_min/data_max filtra por período', async () => {
     const { body } = await GET('/api/sissa/intervencoes?data_min=2025-01-01&data_max=2025-12-31');
     assertTrue(body.success);
-    assertTrue(body.data.every(i => !i.data_intervencao || (i.data_intervencao >= '2025-01-01' && i.data_intervencao <= '2025-12-31')));
+    assertTrue(body.data.every(i => !i.data_intervencao || (String(i.data_intervencao).slice(0,10) >= '2025-01-01' && String(i.data_intervencao).slice(0,10) <= '2025-12-31')));
   });
   await test('PUT /intervencoes/:id atualiza objetivo', async () => {
     const { body } = await PUT(`/api/sissa/intervencoes/${intId}`, { objetivo_alcancado: 'Parcialmente' });
     assertTrue(body.success);
     assertEqual(await scalar(`SELECT objetivo_alcancado FROM sissa_intervencao WHERE id=$1`, [intId]), 'Parcialmente');
   });
-  await test('PUT /intervencoes/:id substitui estudantes', async () => {
-    const { body } = await PUT(`/api/sissa/intervencoes/${intId}`, { estudante_ids: [] });
+  await test('PUT /intervencoes/:id atualiza disciplina_id/semestre_id', async () => {
+    const { body } = await PUT(`/api/sissa/intervencoes/${intId}`, { disciplina_id: 2, semestre_id: 4 });
     assertTrue(body.success);
-    assertEqual(Number(await scalar(`SELECT count(*) FROM sissa_intervencao_estudante WHERE intervencao_id=$1`, [intId])), 0);
+    assertEqual(Number(await scalar(`SELECT disciplina_id FROM sissa_intervencao WHERE id=$1`, [intId])), 2);
+    assertEqual(Number(await scalar(`SELECT semestre_id FROM sissa_intervencao WHERE id=$1`, [intId])), 4);
   });
   await test('POST /intervencoes formato inválido → 500 (CHECK)', async () => {
-    const { body } = await POST('/api/sissa/intervencoes', { formato: 'Coletivo' });
+    const { body } = await POST('/api/sissa/intervencoes', { estudante_ids: [mX], formato: 'Coletivo' });
     assertFalse(body.success);
   });
+  await test('POST /manutencao/status-grupos dá CALL na 2ª procedure', async () => {
+    const { body } = await POST('/api/sissa/manutencao/status-grupos', {});
+    assertTrue(body.success, body.error);
+    assert(Number.isInteger(body.total) && body.total >= 0);
+  });
+  await test('GET /disciplinas e GET /semestres alimentam os selects', async () => {
+    const d = await GET('/api/sissa/disciplinas'); assertTrue(d.body.success); assert(d.body.data.length > 0);
+    const s = await GET('/api/sissa/semestres');   assertTrue(s.body.success); assert(s.body.data.length > 0);
+    assertHasKeys(s.body.data[0], ['id','ano','periodo','rotulo']);
+  });
   await test('DELETE /intervencoes/:id remove', async () => {
-    const iid = await scalar(`INSERT INTO sissa_intervencao(grupo_id,data_intervencao) VALUES($1,CURRENT_DATE) RETURNING id`, [grupoX]);
+    const iid = await scalar(`INSERT INTO sissa_intervencao(matricula_id,data_intervencao) VALUES($1,CURRENT_DATE) RETURNING id`, [mX]);
     const { body } = await DELETE(`/api/sissa/intervencoes/${iid}`);
     assertTrue(body.success);
     assertEqual(Number(await scalar(`SELECT count(*) FROM sissa_intervencao WHERE id=$1`, [iid])), 0);
@@ -919,7 +990,7 @@ async function suiteApiUsuarios() {
   });
 
   // auxiliares
-  await test('GET /cursos retorna cursos com instituição', async () => {
+  await test('GET /cursos retorna cursos com instituição (via unidade)', async () => {
     const { body } = await GET('/api/sissa/cursos');
     assertTrue(body.success); assert(body.data.length > 0);
     assertHasKeys(body.data[0], ['id','nome','instituicao_nome','code_mec']);
@@ -958,7 +1029,12 @@ async function suiteApiPermissoes() {
     assert(tutor && tfisico && coordCurso && coordEnsino && coordUnidade);
   });
 
-  // ── Matriz / funções de domínio ──
+  // matrícula auxiliar para POSTs de intervenção (precisam de estudante_ids)
+  let mAux;
+  await test('Setup: matrícula auxiliar para intervenções', async () => {
+    mAux = await mkMatricula(0, 8, 600);
+  });
+
   await test('Níveis dos perfis estão corretos (5..1)', async () => {
     const r = await q(`SELECT nome, nivel FROM sissa_perfil ORDER BY nivel DESC`);
     const map = Object.fromEntries(r.rows.map(x => [x.nome, x.nivel]));
@@ -983,12 +1059,10 @@ async function suiteApiPermissoes() {
     assertFalse(await scalar(`SELECT fu_sissa_pode_gerenciar_usuario($1,$2)`, [tutor, coordUnidade]));
   });
   await test('fu_sissa_pode_gerenciar_usuario: mesmo nível (FALSE)', async () => {
-    // dois tutores (ambos nível 1) → não podem gerenciar um ao outro
     const outroTutor = await idDe('beatriz.cardoso@ifsp.edu.br');
     assertFalse(await scalar(`SELECT fu_sissa_pode_gerenciar_usuario($1,$2)`, [tutor, outroTutor]));
   });
 
-  // ── /auth devolve nível + permissões ──
   await test('/auth (tutor) devolve 3 permissões sem usuario_gerenciar', async () => {
     const { body } = await POST('/api/sissa/auth', { email: 'juliana.moraes@ifsp.edu.br', senha: '5678' });
     assertEqual(body.usuario.perfil_nivel, 1);
@@ -1001,16 +1075,16 @@ async function suiteApiPermissoes() {
     assert(body.usuario.permissoes.includes('usuario_excluir'));
   });
 
-  // ── Enforcement na API ──
+  // Enforcement na API
   await test('Sem header em rota mutadora → 401', async () => {
     const { status } = await POST('/api/sissa/grupos', { titulo: 'ZZ NoAuth' }, null);
     assertEqual(status, 401);
   });
   await test('Tutor pode CRIAR intervenção (intervencao_criar)', async () => {
     const { body } = await POST('/api/sissa/intervencoes',
-      { data_intervencao: '2025-04-01', formato: 'Individual', observacoes: 'ZZ tutor cria' }, tutor);
+      { estudante_ids: [mAux], data_intervencao: '2025-04-01', formato: 'Individual', observacoes: 'ZZ tutor cria' }, tutor);
     assertTrue(body.success, body.error);
-    tmp.intervencaoIds.push(body.data.id);
+    body.data.forEach(d => tmp.intervencaoIds.push(d.id));
   });
   await test('Tutor NÃO pode excluir intervenção → 403', async () => {
     const { status, body } = await DELETE('/api/sissa/intervencoes/1', tutor);
@@ -1066,18 +1140,18 @@ async function suiteApiPermissoes() {
     assertEqual(Number(await scalar(`SELECT count(*) FROM sissa_usuario_sissa WHERE id=$1`, [novo])), 0);
   });
 
-  // ── Regra "Tutor edita só as próprias intervenções" ──
+  // Regra "Tutor edita só as próprias intervenções"
   await test('Tutor edita a PRÓPRIA intervenção (200)', async () => {
     const cria = await POST('/api/sissa/intervencoes',
-      { data_intervencao: '2025-04-02', formato: 'Individual', observacoes: 'ZZ propria' }, tutor);
-    const id = cria.body.data.id; tmp.intervencaoIds.push(id);
+      { estudante_ids: [mAux], data_intervencao: '2025-04-02', formato: 'Individual', observacoes: 'ZZ propria' }, tutor);
+    const id = cria.body.data[0].id; tmp.intervencaoIds.push(id);
     const { body } = await PUT(`/api/sissa/intervencoes/${id}`, { observacoes: 'ZZ editada' }, tutor);
     assertTrue(body.success, body.error);
   });
   await test('Tutor NÃO edita intervenção de OUTRO autor → 403', async () => {
     const cria = await POST('/api/sissa/intervencoes',
-      { data_intervencao: '2025-04-03', formato: 'Individual', observacoes: 'ZZ do coord' }, coordUnidade);
-    const id = cria.body.data.id; tmp.intervencaoIds.push(id);
+      { estudante_ids: [mAux], data_intervencao: '2025-04-03', formato: 'Individual', observacoes: 'ZZ do coord' }, coordUnidade);
+    const id = cria.body.data[0].id; tmp.intervencaoIds.push(id);
     const { status } = await PUT(`/api/sissa/intervencoes/${id}`, { observacoes: 'hack' }, tutor);
     assertEqual(status, 403);
   });
@@ -1089,13 +1163,16 @@ async function runCleanup() {
   try {
     for (const id of tmp.intervencaoIds) await q(`DELETE FROM sissa_intervencao WHERE id=$1`, [id]).catch(()=>{});
     for (const id of tmp.grupoIds)       await q(`DELETE FROM sissa_grupo_intervencao WHERE id=$1`, [id]).catch(()=>{});
-    for (const id of tmp.estudanteIds)   await q(`DELETE FROM sissa_estudante WHERE id=$1`, [id]).catch(()=>{});
+    for (const id of tmp.matriculaIds)   await q(`DELETE FROM sissa_matricula WHERE id=$1`, [id]).catch(()=>{});
+    for (const id of tmp.alunoIds)       await q(`DELETE FROM sissa_aluno WHERE id=$1`, [id]).catch(()=>{});
     for (const id of tmp.usuarioIds)     await q(`DELETE FROM sissa_usuario_sissa WHERE id=$1`, [id]).catch(()=>{});
     // varredura por padrão ZZ / sissa.test (segurança)
-    await q(`DELETE FROM sissa_estudante      WHERE nome LIKE 'ZZ %' OR matricula LIKE 'ZZ%'`).catch(()=>{});
+    await q(`DELETE FROM sissa_matricula        WHERE codigo LIKE 'ZZ%'`).catch(()=>{});
+    await q(`DELETE FROM sissa_aluno            WHERE nome LIKE 'ZZ %'`).catch(()=>{});
     await q(`DELETE FROM sissa_grupo_intervencao WHERE titulo LIKE 'ZZ %'`).catch(()=>{});
-    await q(`DELETE FROM sissa_usuario_sissa   WHERE nome LIKE 'ZZ %' OR email_institucional LIKE '%@sissa.test'`).catch(()=>{});
+    await q(`DELETE FROM sissa_usuario_sissa     WHERE nome LIKE 'ZZ %' OR email_institucional LIKE '%@sissa.test'`).catch(()=>{});
     await q(`DROP TABLE IF EXISTS sissa_bench_chk CASCADE`).catch(()=>{});
+    await q(`DROP TABLE IF EXISTS sissa_bench_matricula CASCADE`).catch(()=>{});
     await q(`DROP TABLE IF EXISTS sissa_bench_risco CASCADE`).catch(()=>{});
     console.log(`  ${ok('Dados de teste removidos')}`);
   } catch (err) {
@@ -1176,9 +1253,9 @@ async function main() {
   } finally {
     await runCleanup();
   }
-  const ok = printReport(Date.now() - t0);
+  const okAll = printReport(Date.now() - t0);
   await pool.end();
-  process.exit(ok ? 0 : 1);
+  process.exit(okAll ? 0 : 1);
 }
 
 main().catch(async (err) => {
