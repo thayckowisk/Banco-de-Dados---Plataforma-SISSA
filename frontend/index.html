@@ -2113,20 +2113,11 @@
       <input type="password" id="sissa-cafe-senha" class="cafe-ufg-input"
              autocomplete="current-password" onkeydown="if(event.key==='Enter')sissaDoAuth()">
 
-      <label class="cafe-ufg-checkbox-wrap">
-        <input type="checkbox"> Salvar meu login
-      </label>
-
       <div id="sissa-cafe-error" class="sissa-cafe-error">
         Credenciais inválidas. Verifique seu login e senha.
       </div>
 
       <button class="cafe-ufg-entrar-btn" id="sissa-cafe-entrar-btn" onclick="sissaDoAuth()">Entrar</button>
-
-      <div class="cafe-ufg-links-row">
-        <a href="#" class="cafe-ufg-link" onclick="return false;">Esqueci minha senha</a>
-        <a href="#" class="cafe-ufg-link" onclick="return false;">Painel de Segurança 🔒</a>
-      </div>
     </div>
     <p class="cafe-version-text">Versão 2.0.0</p>
   </div>
@@ -2228,6 +2219,37 @@
 </div>
 
 <!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  SISSA – SELEÇÃO DE CURSO (contexto)     ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div id="sissa-cursos" class="screen">
+  <div class="sissa-app">
+    <aside class="sissa-sidebar">
+      <div class="sissa-sb-logo" onclick="showScreen('sissa-login')" title="Sissa">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+        </svg>
+      </div>
+      <div class="sissa-sb-bottom">
+        <div class="sissa-sb-item" title="Sair" onclick="sissaLogout()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </div>
+      </div>
+    </aside>
+    <main class="sissa-main">
+      <p class="sissa-breadcrumb" id="sissa-cursos-inst"></p>
+      <h1 class="sissa-page-title">Selecione o curso</h1>
+      <p class="sissa-page-sub">Escolha o curso que deseja gerenciar.</p>
+      <div id="sissa-cursos-list" style="margin-top:16px;max-width:680px;">
+        <div style="text-align:center;color:#ccc;padding:24px;">Carregando...</div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
 <!-- ║  SISSA – ESTUDANTES (risco de evasão)    ║ -->
 <!-- ╚══════════════════════════════════════════╝ -->
 <div id="sissa-estudantes" class="screen">
@@ -2312,6 +2334,9 @@
             <input type="text" id="sissa-search-est" class="sissa-search-inp"
                    placeholder="Pesquisar estudantes" oninput="filterSissaEstudantes(this.value)">
           </div>
+          <select id="sissa-turma-filter" class="sissa-select" onchange="filtrarPorTurma()">
+            <option value="">Turma</option>
+          </select>
         </div>
         <div class="sissa-toolbar-right">
           <div id="sissa-gauge-wrapper" class="sissa-gauge-wrap">
@@ -2338,15 +2363,6 @@
             Exportar dados
           </button>
         </div>
-      </div>
-
-      <!-- Resumo do curso (função fu_sissa_resumo_curso) -->
-      <div class="sissa-card sissa-resumo-card">
-        <div class="sissa-resumo-head">
-          <strong>Resumo do curso</strong>
-          <select id="sissa-resumo-curso" class="sissa-select" onchange="carregarResumoCurso()"></select>
-        </div>
-        <div id="sissa-resumo-out" class="sissa-resumo-out">Selecione um curso.</div>
       </div>
 
       <div class="sissa-card">
@@ -2425,9 +2441,9 @@
       </div>
     </aside>
     <main class="sissa-main">
-      <p class="sissa-breadcrumb">Licenciatura em Física – IFSP</p>
+      <p class="sissa-breadcrumb" id="sissa-grupos-breadcrumb">Licenciatura em Física – IFSP</p>
       <h1 class="sissa-page-title">Grupos</h1>
-      <p class="sissa-page-sub">Coordenação: Kalebe Xavier, Coordenador Física, Juliana Moraes, Beatriz Cardoso</p>
+      <p class="sissa-page-sub" id="sissa-grupos-coord">Coordenação: —</p>
 
       <div class="sissa-toolbar">
         <div class="sissa-search-wrap">
@@ -2527,9 +2543,9 @@
       </div>
     </aside>
     <main class="sissa-main">
-      <p class="sissa-breadcrumb">Técnico em mecânica integrado ao Ensino Médio</p>
+      <p class="sissa-breadcrumb" id="sissa-int-breadcrumb">Licenciatura em Física – IFSP</p>
       <h1 class="sissa-page-title">Intervenções</h1>
-      <p class="sissa-page-sub">19 turmas · 44 estudantes</p>
+      <p class="sissa-page-sub" id="sissa-int-sub">— turmas · — estudantes</p>
 
       <div class="sissa-tabs" id="sissa-int-tabs">
         <div class="sissa-tab active" onclick="switchIntTab('pedidos', this)">Pedidos de Intervenção <span id="sissa-pedidos-count">(0)</span></div>
@@ -2543,7 +2559,7 @@
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
             </svg>
             <input type="text" id="sissa-search-int" class="sissa-search-inp"
-                   placeholder="Pesquisar por grupo" oninput="filterSissaIntervencoes()">
+                   placeholder="Pesquisar (estudante/assunto)" oninput="filterSissaIntervencoes()">
           </div>
           <input type="date" id="sissa-int-data-filter" class="sissa-form-input"
                  style="width:160px;" onchange="filterSissaIntervencoes()">
@@ -2628,7 +2644,7 @@
       </div>
     </aside>
     <main class="sissa-main">
-      <p class="sissa-breadcrumb">IFSP</p>
+      <p class="sissa-breadcrumb" id="sissa-usr-breadcrumb">IFSP</p>
       <h1 class="sissa-page-title">Permissões de usuários</h1>
 
       <div class="sissa-toolbar">
@@ -3892,6 +3908,7 @@
     perfis: [],
     semestres: [],
     disciplinas: [],
+    turmas: [],
     instituicoes: [],
     riscoestat: null,          // dados da API /estatisticas/risco
     roster: [],                // alunos do cadastro acadêmico (importação)
@@ -3943,6 +3960,7 @@
     instSelecionada: null,   // { id, nome, tipo, code_mec }
     usuario: null,            // objeto do usuário logado (null = área pública)
     tipo: null,               // 'privado' | 'publico'
+    cursoSelecionado: null,   // curso ativo (contexto das telas) { id, nome, sigla, ... }
     permissoes: new Set()     // ações permitidas pelo nível do usuário
   };
 
@@ -3969,19 +3987,18 @@
     }
   }
 
-  // Espelho da matriz sissa_nivel_acao (usado apenas no fallback mock, sem banco)
+  // Espelho da matriz sissa_nivel_acao (usado apenas no fallback mock, sem banco) — 4 níveis
   const SISSA_ACOES_POR_NIVEL = {
     1: ['ver','intervencao_criar','intervencao_editar'],
-    2: ['ver','intervencao_criar','intervencao_editar','intervencao_excluir','grupo_gerenciar'],
-    3: ['ver','intervencao_criar','intervencao_editar','intervencao_excluir','grupo_gerenciar','grupo_excluir','estudante_gerenciar','usuario_gerenciar'],
-    4: ['ver','intervencao_criar','intervencao_editar','intervencao_excluir','grupo_gerenciar','grupo_excluir','estudante_gerenciar','usuario_gerenciar','usuario_excluir'],
-    5: ['ver','intervencao_criar','intervencao_editar','intervencao_excluir','grupo_gerenciar','grupo_excluir','estudante_gerenciar','usuario_gerenciar','usuario_excluir']
+    2: ['ver','intervencao_criar','intervencao_editar','intervencao_excluir','grupo_gerenciar','grupo_excluir','estudante_gerenciar','usuario_gerenciar'],
+    3: ['ver','intervencao_criar','intervencao_editar','intervencao_excluir','grupo_gerenciar','grupo_excluir','estudante_gerenciar','usuario_gerenciar','usuario_excluir'],
+    4: ['ver','intervencao_criar','intervencao_editar','intervencao_excluir','grupo_gerenciar','grupo_excluir','estudante_gerenciar','usuario_gerenciar','usuario_excluir']
   };
   const SISSA_USUARIOS_MOCK = {
-    'laishcandido@gmail.com':             { id: 3, nivel: 5, perfil: 'Coordenador de unidade' },
-    'beatriz.de.bastos.vianna@gmail.com': { id: 2, nivel: 4, perfil: 'Coordenador de ensino' },
-    'adailton@ufg.com':                   { id: 1, nivel: 3, perfil: 'Coordenador de curso' },
-    'kalebe.xavier@ifsp.edu.br':          { id: 4, nivel: 2, perfil: 'Tutor Físico' },
+    'laishcandido@gmail.com':             { id: 3, nivel: 4, perfil: 'Coordenador de unidade' },
+    'beatriz.de.bastos.vianna@gmail.com': { id: 2, nivel: 3, perfil: 'Coordenador de ensino' },
+    'adailton@ufg.com':                   { id: 1, nivel: 2, perfil: 'Coordenador de curso' },
+    'kalebe.xavier@ifsp.edu.br':          { id: 4, nivel: 1, perfil: 'Tutor' },
     'juliana.moraes@ifsp.edu.br':         { id: 5, nivel: 1, perfil: 'Tutor' },
     'beatriz.cardoso@ifsp.edu.br':        { id: 6, nivel: 1, perfil: 'Tutor' }
   };
@@ -4108,11 +4125,10 @@
       sissaSession.permissoes = new Set(res.usuario?.permissoes || []);
 
       if (res.tipo === 'privado') {
-        // Área privada – aplica permissões, carrega dados e vai para estudantes
+        // Área privada – aplica permissões e vai para a SELEÇÃO DE CURSO (contexto)
         sissaAplicarPermissoes();
-        await loadSissaAllData();
-        sissaAplicarPermissoes();
-        showScreen('sissa-estudantes');
+        await carregarReferencias();
+        mostrarSelecaoCurso();
       } else {
         // Área pública (sem permissões de escrita)
         sissaSession.permissoes = new Set();
@@ -4133,6 +4149,8 @@
       if (isPrivado) {
         sissaAplicarPermissoes();
         loadSissaMockData();
+        sissaSession.cursoSelecionado = { id: 1, nome: 'Licenciatura em Física', instituicao_sigla: 'IFSP' };
+        applyCursoContext();
         sissaAplicarPermissoes();
         showScreen('sissa-estudantes');
       } else {
@@ -4208,6 +4226,7 @@
     sissaSession.instSelecionada = null;
     sissaSession.usuario = null;
     sissaSession.tipo = null;
+    sissaSession.cursoSelecionado = null;
     sissaSession.permissoes = new Set();
     sissaState.estudantes = [];
     sissaState.grupos = [];
@@ -4229,20 +4248,75 @@
   }
 
   /* ══════════════════════════════════════════
-     SISSA – LOAD ALL
+     SISSA – CONTEXTO DE CURSO
+  ══════════════════════════════════════════ */
+  // Carrega dados de referência (cursos/perfis) antes de escolher o curso.
+  async function carregarReferencias() {
+    try {
+      const [cRes, pRes] = await Promise.all([sissaFetch('/cursos'), sissaFetch('/perfis')]);
+      if (cRes.success) sissaState.cursos = cRes.data || [];
+      if (pRes.success) sissaState.perfis = pRes.data || [];
+    } catch {}
+  }
+
+  // Tela de seleção de curso (cursos do usuário). Com 1 curso, entra direto.
+  function mostrarSelecaoCurso() {
+    const ids   = sissaSession.usuario?.curso_ids || [];
+    const meus  = ids.length ? sissaState.cursos.filter(c => ids.includes(c.id)) : sissaState.cursos;
+    const sigla = sissaSession.usuario?.instituicao_sigla || sissaSession.usuario?.instituicao_nome || '';
+    const inst  = document.getElementById('sissa-cursos-inst');
+    if (inst) inst.textContent = sigla;
+    if (meus.length === 1) { selecionarCurso(meus[0].id); return; }
+    const cont = document.getElementById('sissa-cursos-list');
+    if (cont) cont.innerHTML = meus.length ? meus.map(c => `
+      <div class="sissa-curso-card" onclick="selecionarCurso(${c.id})" style="cursor:pointer;">
+        <div>
+          <div class="sissa-curso-card-name">${escHtml(c.nome)}</div>
+          <div class="sissa-curso-card-inst">${escHtml(c.instituicao_nome||'')} · Cód.: ${escHtml(c.codigo||'')}</div>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </div>`).join('') : '<div style="color:#aaa;padding:24px;">Nenhum curso disponível.</div>';
+    showScreen('sissa-cursos');
+  }
+
+  // Define o curso ativo, atualiza o cabeçalho e carrega os dados do curso.
+  async function selecionarCurso(id) {
+    sissaSession.cursoSelecionado = sissaState.cursos.find(c => c.id === id) || { id };
+    applyCursoContext();
+    await loadSissaAllData();
+    sissaAplicarPermissoes();
+    showScreen('sissa-estudantes');
+  }
+
+  // Atualiza breadcrumbs/sigla de todas as telas a partir do curso ativo.
+  function applyCursoContext() {
+    const c = sissaSession.cursoSelecionado || {};
+    const sigla = sissaSession.usuario?.instituicao_sigla || c.instituicao_sigla || '';
+    const titulo = `${c.nome || ''}${sigla ? ' – ' + sigla : ''}`;
+    ['sissa-est-breadcrumb','sissa-grupos-breadcrumb','sissa-int-breadcrumb'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.textContent = titulo;
+    });
+    const ub = document.getElementById('sissa-usr-breadcrumb');
+    if (ub) ub.textContent = sigla;
+  }
+
+  /* ══════════════════════════════════════════
+     SISSA – LOAD ALL (escopado pelo curso ativo)
   ══════════════════════════════════════════ */
   async function loadSissaAllData() {
+    const cid = sissaSession.cursoSelecionado?.id;
+    const qs  = cid ? `?curso_id=${cid}` : '';
     try {
-      const [eRes, gRes, iRes, uRes, cRes, pRes, statRes, semRes, discRes] = await Promise.all([
-        sissaFetch('/estudantes'),
+      const [eRes, gRes, iRes, uRes, cRes, pRes, semRes, discRes, tRes] = await Promise.all([
+        sissaFetch('/estudantes' + qs),
         sissaFetch('/grupos'),
         sissaFetch('/intervencoes'),
-        sissaFetch('/usuarios'),
+        sissaFetch('/usuarios' + qs),
         sissaFetch('/cursos'),
         sissaFetch('/perfis'),
-        sissaFetch('/estatisticas/risco'),
         sissaFetch('/semestres'),
-        sissaFetch('/disciplinas')
+        sissaFetch('/disciplinas' + qs),
+        sissaFetch('/turmas' + qs)
       ]);
       if (eRes.success)    sissaState.estudantes   = eRes.data    || [];
       if (gRes.success)    sissaState.grupos       = gRes.data    || [];
@@ -4250,21 +4324,20 @@
       if (uRes.success)    sissaState.usuarios     = uRes.data    || [];
       if (cRes.success)    sissaState.cursos       = cRes.data    || [];
       if (pRes.success)    sissaState.perfis       = pRes.data    || [];
-      if (statRes.success) sissaState.riscoestat   = statRes.data || null;
       if (semRes.success)  sissaState.semestres    = semRes.data  || [];
       if (discRes.success) sissaState.disciplinas  = discRes.data || [];
+      if (tRes.success)    sissaState.turmas       = tRes.data    || [];
       populateIntSelects();
+      populateTurmaFilter();
 
       renderSissaEstudantes(sissaState.estudantes);
       renderSissaGrupos(sissaState.grupos);
       renderSissaIntervencoes(sissaState.intervencoes);
       renderSissaUsuarios(sissaState.usuarios);
-      if (sissaState.riscoestat) {
-        updateSissaGaugeFromStats(sissaState.riscoestat);
-      } else {
-        updateSissaGauge(sissaState.estudantes);
-      }
+      await carregarGaugeDoResumo(cid);
       updateEstSub(sissaState.estudantes);
+      atualizarCoordenacao();
+      updateIntSub();
       populateSissaFilters();
     } catch (err) {
       console.warn('Sissa API unavailable, using mock data:', err.message);
@@ -4272,13 +4345,62 @@
     }
   }
 
-  async function reloadSissaEstudantes() {
+  // Popula o filtro de Turma da tela de Estudantes.
+  function populateTurmaFilter() {
+    const sel = document.getElementById('sissa-turma-filter');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Turma</option>' +
+      (sissaState.turmas||[]).map(t =>
+        `<option value="${t.id}">${escHtml(t.disciplina_nome)} — ${escHtml(t.codigo)}</option>`).join('');
+  }
+
+  // Gauge "Risco de evasão" (%) alimentado pela função fu_sissa_resumo_curso.
+  async function carregarGaugeDoResumo(cursoId) {
+    if (!cursoId) { updateSissaGauge(sissaState.estudantes); return; }
     try {
-      const eRes = await sissaFetch('/estudantes');
+      const res = await sissaFetch(`/resumo-curso/${cursoId}`);
+      const d = res.data;
+      if (!res.success || !d || !Number(d.r_total)) { updateSissaGauge(sissaState.estudantes); return; }
+      const total = Number(d.r_total), alto = Number(d.r_alto), medio = Number(d.r_medio), baixo = Number(d.r_baixo);
+      const zero = total - alto - medio - baixo;
+      const pct = n => total ? Math.round(n / total * 100) : 0;
+      _renderGaugeBar(alto||0.1, medio||0.1, baixo||0.1, zero, pct(alto), pct(medio), pct(baixo));
+    } catch { updateSissaGauge(sissaState.estudantes); }
+  }
+
+  // Subtítulo "Coordenação: ..." da tela de Grupos (usuários do curso ativo).
+  function atualizarCoordenacao() {
+    const el = document.getElementById('sissa-grupos-coord');
+    if (!el) return;
+    const nomes = (sissaState.usuarios||[]).map(u => u.nome).filter(Boolean);
+    el.textContent = 'Coordenação: ' + (nomes.length ? nomes.slice(0, 4).join(', ') : '—');
+  }
+
+  // Subtítulo "X turmas · Y estudantes" da tela de Intervenções.
+  function updateIntSub() {
+    const el = document.getElementById('sissa-int-sub');
+    if (el) el.textContent = `${(sissaState.turmas||[]).length} turmas · ${(sissaState.estudantes||[]).length} estudantes`;
+  }
+
+  // Recarrega estudantes filtrando pela turma selecionada (backend: ?turma_id).
+  async function filtrarPorTurma() {
+    const cid = sissaSession.cursoSelecionado?.id;
+    const tid = document.getElementById('sissa-turma-filter')?.value || '';
+    const qs = `?${cid ? 'curso_id=' + cid : ''}${tid ? (cid ? '&' : '') + 'turma_id=' + tid : ''}`;
+    try {
+      const r = await sissaFetch('/estudantes' + qs);
+      if (r.success) { sissaState.estudantes = r.data || []; }
+    } catch {}
+    filterSissaEstudantes();
+  }
+
+  async function reloadSissaEstudantes() {
+    const cid = sissaSession.cursoSelecionado?.id;
+    const qs  = cid ? `?curso_id=${cid}` : '';
+    try {
+      const eRes = await sissaFetch('/estudantes' + qs);
       if (eRes.success) { sissaState.estudantes = eRes.data || []; }
-      const sRes = await sissaFetch('/estatisticas/risco');
-      if (sRes.success) { sissaState.riscoestat = sRes.data; updateSissaGaugeFromStats(sissaState.riscoestat); }
-      else { updateSissaGauge(sissaState.estudantes); }
+      await carregarGaugeDoResumo(cid);
       renderSissaEstudantes(sissaState.estudantes);
       updateEstSub(sissaState.estudantes);
     } catch { renderSissaEstudantes(sissaState.estudantes); }
@@ -4513,7 +4635,7 @@
 
   function updateEstSub(list) {
     const sub = document.getElementById('sissa-est-sub');
-    if (sub) sub.textContent = `${list.length} Estudantes`;
+    if (sub) sub.textContent = `${(sissaState.turmas||[]).length} turmas · ${list.length} estudantes`;
   }
 
   function exportarEstudantes() {
@@ -4901,7 +5023,12 @@
     const q   = (document.getElementById('sissa-search-int')?.value||'').toLowerCase().trim();
     const dt  = document.getElementById('sissa-int-data-filter')?.value||'';
     let list  = sissaState.intervencoes;
-    if (q)  list = list.filter(i=>(i.grupo_titulo||'').toLowerCase().includes(q)||(i.observacoes||'').toLowerCase().includes(q));
+    // intervenção é individual (não tem mais grupo): busca por estudante/assunto/observação
+    if (q)  list = list.filter(i =>
+      (i.estudante_nome||'').toLowerCase().includes(q) ||
+      ((i.estudante_nomes||[]).join(' ')).toLowerCase().includes(q) ||
+      (i.assunto||'').toLowerCase().includes(q) ||
+      (i.observacoes||'').toLowerCase().includes(q));
     if (dt) list = list.filter(i=> i.data_intervencao && i.data_intervencao.startsWith(dt));
     renderSissaIntervencoes(list);
   }
@@ -4944,12 +5071,19 @@
     sissaOpenModal('sissa-modal-intervencao');
   }
 
-  function openNovaIntervencaoDoGrupo(grupoId, grupoTitulo) {
+  async function openNovaIntervencaoDoGrupo(grupoId, grupoTitulo) {
     openNovaIntervencao();
-    // vincula a intervenção ao grupo de origem (dispara o trigger de reativação)
+    // a intervenção será criada para os MEMBROS do grupo (CALL da procedure)
     sissaState.intGrupoId = grupoId;
     document.getElementById('sissa-int-modal-title').textContent =
       `Nova intervenção — grupo "${grupoTitulo}"`;
+    // puxa os membros do grupo e exibe nas tags (somente leitura; quem cria é a procedure)
+    try {
+      const res = await sissaFetch(`/grupos/${grupoId}/estudantes`);
+      const est = res.data || [];
+      sissaState.intEstudanteTags = est.map(e => ({ id: e.id, nome: e.nome, matricula: e.matricula || '' }));
+      renderIntEstTags();
+    } catch {}
   }
 
   function openEditIntervencao(id) {
@@ -5131,7 +5265,8 @@
     document.getElementById('sissa-usr-id').value = '';
     document.getElementById('sissa-usr-modal-title').textContent = 'Criar usuário';
     document.getElementById('sissa-usr-btn-submit').textContent = 'Criar';
-    document.getElementById('sissa-usr-email').value = '';
+    const emailEl = document.getElementById('sissa-usr-email');
+    emailEl.value = ''; emailEl.readOnly = false;
     document.getElementById('sissa-usr-email-error').classList.remove('visible');
     populateSissaUsrModal(null);
     sissaOpenModal('sissa-modal-usuario');
@@ -5143,7 +5278,8 @@
     document.getElementById('sissa-usr-id').value = id;
     document.getElementById('sissa-usr-modal-title').textContent = 'Editar usuário';
     document.getElementById('sissa-usr-btn-submit').textContent = 'Salvar';
-    document.getElementById('sissa-usr-email').value = u.email_institucional||'';
+    const emailEl = document.getElementById('sissa-usr-email');
+    emailEl.value = u.email_institucional||''; emailEl.readOnly = true; // e-mail só p/ exibição
     document.getElementById('sissa-usr-email-error').classList.remove('visible');
     populateSissaUsrModal(u);
     sissaOpenModal('sissa-modal-usuario');
