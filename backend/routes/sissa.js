@@ -29,6 +29,34 @@ async function exigirPermissao(req, res, acao) {
   return actorId;
 }
 
+// Cursos (ids) que o ator pode ver — linhas da N:N sissa_usuario_curso.
+// (Coordenador de unidade já tem todos os cursos da sua unidade materializados aqui.)
+async function actorCursoIds(actorId) {
+  const r = await db.query('SELECT curso_id FROM sissa_usuario_curso WHERE usuario_id = $1', [actorId]);
+  return r.rows.map(x => Number(x.curso_id));
+}
+
+// Escopo de LEITURA por curso: exige ator (anônimo → 401) e restringe aos
+// cursos dele. Se um curso_id específico é pedido fora do escopo → 403.
+// Retorna { cursoIds: [...] } para filtrar com `= ANY($n)`, ou envia a
+// resposta de erro e retorna null. Fecha o vazamento entre instituições.
+async function exigirEscopoCurso(req, res, cursoIdPedido) {
+  const actorId = getActorId(req);
+  if (!actorId) {
+    res.status(401).json({ success: false, error: 'Autenticação necessária (faça login no SISSA).' });
+    return null;
+  }
+  const permitidos = await actorCursoIds(actorId);
+  if (cursoIdPedido !== undefined && cursoIdPedido !== null && cursoIdPedido !== '') {
+    if (!permitidos.includes(Number(cursoIdPedido))) {
+      res.status(403).json({ success: false, error: 'Você não tem acesso a este curso.' });
+      return null;
+    }
+    return { cursoIds: [Number(cursoIdPedido)] };
+  }
+  return { cursoIds: permitidos };
+}
+
 // Valida o :id da rota como inteiro positivo; responde 400 e retorna null se inválido.
 function getId(req, res) {
   const id = parseInt(req.params.id, 10);
@@ -115,6 +143,8 @@ router.post('/auth', async (req, res) => {
 router.get('/estatisticas/risco', async (req, res) => {
   try {
     const { curso_id } = req.query;
+    const esc = await exigirEscopoCurso(req, res, curso_id);
+    if (!esc) return;
     let q = `
       SELECT
         COUNT(*)                                        AS total,
@@ -125,7 +155,7 @@ router.get('/estatisticas/risco', async (req, res) => {
       JOIN sissa_matricula m ON m.id = r.matricula_id
       WHERE 1=1`;
     const p = [];
-    if (curso_id) { p.push(curso_id); q += ` AND m.curso_id = $${p.length}`; }
+    p.push(esc.cursoIds); q += ` AND m.curso_id = ANY($${p.length})`;
     const result = await db.query(q, p);
     const row = result.rows[0];
     const total = parseInt(row.total) || 0;
@@ -152,9 +182,11 @@ router.get('/estatisticas/risco', async (req, res) => {
 router.get('/estudantes', async (req, res) => {
   try {
     const { curso_id, risco, turma_id } = req.query;
+    const esc = await exigirEscopoCurso(req, res, curso_id);
+    if (!esc) return;
     let q = 'SELECT * FROM vw_sissa_estudantes_risco WHERE 1=1';
     const p = [];
-    if (curso_id) { p.push(curso_id); q += ` AND curso_id = $${p.length}`; }
+    p.push(esc.cursoIds); q += ` AND curso_id = ANY($${p.length})`;
     if (risco)    { p.push(risco);    q += ` AND risco = $${p.length}`; }
     if (turma_id) {
       p.push(turma_id);
@@ -350,23 +382,18 @@ router.post('/estudantes/importar', async (req, res) => {
 ══════════════════════════════════════════ */
 async function getGrupos(req, res) {
   try {
-    // Escopo por curso: o grupo é um favorito de matrículas; aparece para um
-    // curso quando tem ≥1 matrícula membro nele. Grupos sem membros (recém-
-    // criados, transitórios) continuam visíveis para não "sumirem" da tela.
+    // Escopo por curso do ator: o grupo é um favorito de matrículas e aparece
+    // quando tem ≥1 matrícula membro num curso do ator. Isola entre instituições
+    // (anônimo → 401; curso de outra instituição → 403).
     const { curso_id } = req.query;
-    const p = [];
-    let q = 'SELECT * FROM vw_sissa_grupos g WHERE 1=1';
-    if (curso_id) {
-      p.push(curso_id);
-      q += ` AND (
-               EXISTS (SELECT 1 FROM sissa_grupo_matricula gm
-                       JOIN sissa_matricula m ON m.id = gm.matricula_id
-                       WHERE gm.grupo_id = g.id AND m.curso_id = $${p.length})
-               OR NOT EXISTS (SELECT 1 FROM sissa_grupo_matricula gm WHERE gm.grupo_id = g.id)
-             )`;
-    }
-    q += ' ORDER BY created_at DESC';
-    const result = await db.query(q, p);
+    const esc = await exigirEscopoCurso(req, res, curso_id);
+    if (!esc) return;
+    const q = `SELECT * FROM vw_sissa_grupos g
+       WHERE EXISTS (SELECT 1 FROM sissa_grupo_matricula gm
+                     JOIN sissa_matricula m ON m.id = gm.matricula_id
+                     WHERE gm.grupo_id = g.id AND m.curso_id = ANY($1))
+       ORDER BY created_at DESC`;
+    const result = await db.query(q, [esc.cursoIds]);
     res.json({ success: true, data: result.rows });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -543,6 +570,8 @@ router.delete('/grupos-intervencao/:id',   deleteGrupo);
 router.get('/intervencoes', async (req, res) => {
   try {
     const { grupo_id, data_min, data_max, busca, curso_id } = req.query;
+    const esc = await exigirEscopoCurso(req, res, curso_id);
+    if (!esc) return;
     // Intervenção é individual: 1 linha por matrícula. Inclui rótulos de
     // disciplina/semestre e o nome do aluno (estudante_nomes como array de 1
     // elemento mantém o render atual do front).
@@ -560,7 +589,7 @@ router.get('/intervencoes', async (req, res) => {
       LEFT JOIN sissa_semestre s   ON s.id = i.semestre_id
       WHERE 1=1`;
     const p = [];
-    if (curso_id) { p.push(curso_id);  q += ` AND m.curso_id = $${p.length}`; }
+    p.push(esc.cursoIds); q += ` AND m.curso_id = ANY($${p.length})`;
     if (grupo_id) { p.push(grupo_id);  q += ` AND i.matricula_id IN (SELECT matricula_id FROM sissa_grupo_matricula WHERE grupo_id = $${p.length})`; }
     if (data_min) { p.push(data_min);  q += ` AND i.data_intervencao >= $${p.length}`; }
     if (data_max) { p.push(data_max);  q += ` AND i.data_intervencao <= $${p.length}`; }
@@ -686,6 +715,8 @@ router.delete('/intervencoes/:id', async (req, res) => {
 router.get('/usuarios', async (req, res) => {
   try {
     const { perfil_id, curso_id } = req.query;
+    const esc = await exigirEscopoCurso(req, res, curso_id);
+    if (!esc) return;
     let q = `
       SELECT u.id, u.nome, u.email_institucional, u.perfil_id, u.instituicao_id,
              u.ultimo_acesso, u.created_at,
@@ -701,7 +732,7 @@ router.get('/usuarios', async (req, res) => {
       WHERE 1=1`;
     const params = [];
     if (perfil_id) { params.push(perfil_id); q += ` AND u.perfil_id = $${params.length}`; }
-    if (curso_id)  { params.push(curso_id);  q += ` AND uc.curso_id = $${params.length}`; }
+    params.push(esc.cursoIds); q += ` AND u.id IN (SELECT usuario_id FROM sissa_usuario_curso WHERE curso_id = ANY($${params.length}))`;
     q += ' GROUP BY u.id, p.nome, p.nivel, inst.sigla, inst.nome ORDER BY u.nome';
     const result = await db.query(q, params);
     res.json({ success: true, data: result.rows });
@@ -816,14 +847,21 @@ router.delete('/usuarios/:id', async (req, res) => {
 ══════════════════════════════════════════ */
 router.get('/cursos', async (req, res) => {
   try {
-    const result = await db.query(`
+    // Ator logado → só os cursos dele (isola instituições). Sem ator (área
+    // pública) → todos os cursos: nomes de curso são informação pública.
+    const actorId = getActorId(req);
+    const cursos  = actorId ? await actorCursoIds(actorId) : null;
+    let q = `
       SELECT c.*, un.nome AS unidade_nome,
              i.id AS instituicao_id, i.nome AS instituicao_nome,
              i.sigla AS instituicao_sigla, i.code_mec
       FROM sissa_curso c
       JOIN sissa_unidade un     ON un.id = c.unidade_id
-      JOIN sissa_instituicao i  ON i.id = un.instituicao_id
-      ORDER BY i.nome, c.nome`);
+      JOIN sissa_instituicao i  ON i.id = un.instituicao_id`;
+    const p = [];
+    if (cursos) { p.push(cursos); q += ` WHERE c.id = ANY($${p.length})`; }
+    q += ' ORDER BY i.nome, c.nome';
+    const result = await db.query(q, p);
     res.json({ success: true, data: result.rows });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -833,6 +871,8 @@ router.get('/cursos', async (req, res) => {
 // Resumo agregado do curso (usa a função fu_sissa_resumo_curso)
 router.get('/resumo-curso/:curso_id', async (req, res) => {
   try {
+    const esc = await exigirEscopoCurso(req, res, req.params.curso_id);
+    if (!esc) return;
     const r = await db.query('SELECT * FROM fu_sissa_resumo_curso($1)', [req.params.curso_id]);
     res.json({ success: true, data: r.rows[0] || null });
   } catch (err) {
@@ -887,9 +927,11 @@ router.get('/instituicoes', async (req, res) => {
 router.get('/disciplinas', async (req, res) => {
   try {
     const { curso_id } = req.query;
+    const esc = await exigirEscopoCurso(req, res, curso_id);
+    if (!esc) return;
     let q = 'SELECT id, nome, codigo, carga_horaria, curso_id FROM sissa_disciplina WHERE 1=1';
     const p = [];
-    if (curso_id) { p.push(curso_id); q += ` AND curso_id = $${p.length}`; }
+    p.push(esc.cursoIds); q += ` AND curso_id = ANY($${p.length})`;
     q += ' ORDER BY nome';
     const result = await db.query(q, p);
     res.json({ success: true, data: result.rows });
@@ -914,6 +956,8 @@ router.get('/semestres', async (req, res) => {
 router.get('/turmas', async (req, res) => {
   try {
     const { curso_id } = req.query;
+    const esc = await exigirEscopoCurso(req, res, curso_id);
+    if (!esc) return;
     let q = `
       SELECT t.id, t.codigo, t.disciplina_id, t.professor_id, t.semestre_id,
              d.nome AS disciplina_nome, d.curso_id,
@@ -926,7 +970,7 @@ router.get('/turmas', async (req, res) => {
       LEFT JOIN sissa_semestre s   ON s.id = t.semestre_id
       WHERE 1=1`;
     const p = [];
-    if (curso_id) { p.push(curso_id); q += ` AND d.curso_id = $${p.length}`; }
+    p.push(esc.cursoIds); q += ` AND d.curso_id = ANY($${p.length})`;
     q += ' ORDER BY d.nome, t.codigo';
     const result = await db.query(q, p);
     res.json({ success: true, data: result.rows });

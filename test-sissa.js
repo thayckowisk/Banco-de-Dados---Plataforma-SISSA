@@ -105,7 +105,7 @@ function actorHeader(actor) {
   const a = actor === undefined ? ACTOR : actor;
   return a ? { 'x-sissa-usuario-id': String(a) } : {};
 }
-const GET    = (p)                    => api(p);
+const GET    = (p, actor)             => api(p, { headers: actorHeader(actor) });
 const POST   = (p, body, actor)       => api(p, { method: 'POST',   body, headers: actorHeader(actor) });
 const PUT    = (p, body, actor)       => api(p, { method: 'PUT',    body, headers: actorHeader(actor) });
 const DELETE = (p, actor)             => api(p, { method: 'DELETE',       headers: actorHeader(actor) });
@@ -687,6 +687,18 @@ async function suiteApiAuth() {
     const { status, body } = await POST('/api/sissa/auth', {});
     assertEqual(status, 400); assertFalse(body.success);
   });
+  await test('Leitura privada sem ator (anônimo) → 401', async () => {
+    // actor=null força ausência do header x-sissa-usuario-id (área pública não
+    // acessa dados nominais). Fecha o vazamento anônimo de dados de aluno.
+    for (const ep of ['/api/sissa/estudantes?curso_id=1', '/api/sissa/usuarios', '/api/sissa/intervencoes']) {
+      assertEqual((await GET(ep, null)).status, 401, `${ep} deveria exigir ator`);
+    }
+  });
+  await test('Curso de outra instituição (fora do escopo do ator) → 403', async () => {
+    // ACTOR = Laís (UFG, cursos 1+2) tentando o curso 6 (ADS/IFSP).
+    assertEqual((await GET('/api/sissa/estudantes?curso_id=6')).status, 403);
+    assertEqual((await GET('/api/sissa/resumo-curso/6')).status, 403);
+  });
   await test('POST /auth usuário cadastrado + senha correta → privado', async () => {
     const { body } = await POST('/api/sissa/auth', { email: 'adailton@ufg.com', senha: '1234' });
     assertTrue(body.success); assertEqual(body.tipo, 'privado');
@@ -878,20 +890,17 @@ async function suiteApiGrupos() {
     const { status, body } = await GET('/api/sissa/grupos/999999');
     assertEqual(status, 404); assertFalse(body.success);
   });
-  await test('GET /grupos?curso_id escopa por membros (UFG≠IFSP) e inclui grupos vazios', async () => {
-    const m1     = await mkMatricula(0, 8, 600);   // mkMatricula usa curso_id=1 (Física/UFG)
+  await test('GET /grupos?curso_id escopa por curso do ator (curso de outra inst → 403)', async () => {
+    // ACTOR = Laís (Coord. unidade UFG, cursos 1+2). mkMatricula usa curso 1.
+    const m1     = await mkMatricula(0, 8, 600);
     const gCurso = await scalar(`INSERT INTO sissa_grupo_intervencao(titulo,status) VALUES('ZZ Grupo Curso1','Ativo') RETURNING id`);
     tmp.grupoIds.push(gCurso);
     await q(`INSERT INTO sissa_grupo_matricula(grupo_id,matricula_id) VALUES($1,$2)`, [gCurso, m1]);
-    const gVazio = await scalar(`INSERT INTO sissa_grupo_intervencao(titulo,status) VALUES('ZZ Grupo Vazio','Ativo') RETURNING id`);
-    tmp.grupoIds.push(gVazio);
 
-    const c1 = (await GET('/api/sissa/grupos?curso_id=1')).body.data.map(g => g.id);  // UFG
-    const c6 = (await GET('/api/sissa/grupos?curso_id=6')).body.data.map(g => g.id);  // IFSP (ADS)
-    assertTrue(c1.includes(gCurso),  'grupo com membro do curso 1 deve aparecer no curso 1');
-    assertFalse(c6.includes(gCurso), 'grupo com membro do curso 1 NÃO deve aparecer no curso 6');
-    assertTrue(c1.includes(gVazio),  'grupo vazio aparece em qualquer curso');
-    assertTrue(c6.includes(gVazio),  'grupo vazio aparece em qualquer curso');
+    const c1 = (await GET('/api/sissa/grupos?curso_id=1')).body.data.map(g => g.id);  // curso do ator
+    assertTrue(c1.includes(gCurso), 'grupo com membro do curso 1 aparece para a ATOR do curso 1');
+    // curso 6 (ADS/IFSP) não pertence à ATOR UFG → 403 (isola instituições)
+    assertEqual((await GET('/api/sissa/grupos?curso_id=6')).status, 403);
   });
 }
 
@@ -956,11 +965,11 @@ async function suiteApiIntervencoes() {
     assertTrue(body.success);
     assertTrue(body.data.every(i => i.matricula_id === mX));
   });
-  await test('GET /intervencoes?curso_id escopa por curso (UFG≠IFSP)', async () => {
-    const c1 = (await GET('/api/sissa/intervencoes?curso_id=1')).body.data;  // mX é curso 1 (UFG)
-    const c6 = (await GET('/api/sissa/intervencoes?curso_id=6')).body.data;  // ADS (IFSP)
-    assertTrue(c1.some(i => i.id === intId), 'intervenção de matrícula do curso 1 aparece no curso 1');
-    assertFalse(c6.some(i => i.id === intId), 'intervenção de matrícula do curso 1 NÃO aparece no curso 6');
+  await test('GET /intervencoes?curso_id escopa por curso do ator (curso de outra inst → 403)', async () => {
+    const c1 = (await GET('/api/sissa/intervencoes?curso_id=1')).body.data;  // mX é curso 1 (curso do ator)
+    assertTrue(c1.some(i => i.id === intId), 'intervenção de matrícula do curso 1 aparece para a ATOR do curso 1');
+    // curso 6 (ADS/IFSP) não pertence à ATOR UFG → 403
+    assertEqual((await GET('/api/sissa/intervencoes?curso_id=6')).status, 403);
   });
   await test('GET /intervencoes?busca filtra por texto', async () => {
     const { body } = await GET('/api/sissa/intervencoes?busca=teste');
