@@ -214,7 +214,7 @@ Esta é a frente ativa do projeto (módulo **"Sistema Sissa →"**). Todo o dom�
 | Req | Conceito | Cenário identificado nos requisitos | Implementação |
 |-----|----------|--------------------------------------|---------------|
 | **1** | 2 **funções** | Calcular o risco de um estudante; consolidar KPIs de risco de um curso | `fu_sissa_calcular_risco(estudante_id)` · `fu_sissa_resumo_curso(curso_id)` |
-| **2** | 2 **procedimentos** | Registrar intervenção de grupo (vinculando todos os alunos); manutenção em lote do ciclo de vida dos grupos | `CALL pr_sissa_criar_intervencao_grupo(...)` · `CALL pr_sissa_atualizar_status_grupos(...)` (PROCEDURE reais, `INOUT`) |
+| **2** | 2 **procedimentos** | Registrar intervenção a partir de um grupo (uma intervenção individual por aluno, com autoria); manutenção em lote do ciclo de vida dos grupos | `CALL pr_sissa_criar_intervencao_grupo(...)` · `CALL pr_sissa_atualizar_status_grupos(...)` (PROCEDURE reais, `INOUT`) |
 | **3** | 2+ **triggers** | Classificar risco automaticamente; manter `updated_at`; reativar grupo ao receber intervenção | `tg_sissa_classificar_risco` · `tg_sissa_risco_evasao_timestamp` · `tg_sissa_grupo_inativo_auto` |
 | **4** | 2+ **views** | Lista de risco dos alunos do curso; resumo gerencial de intervenções; **view anônima** de risco | `vw_sissa_estudantes_risco` · `vw_sissa_grupos` · `vw_sissa_resumo_intervencoes` · `vw_sissa_risco_anonimo` |
 | **5** | 2 **índices** + massa + ganho ≥ 20 % | Consulta de risco por curso; identificação por matrícula | `(curso_id, risco)` → **≈84 %** · `(matricula)` → **≈99 %** (benchmark em `07`, massa de 500 mil linhas) |
@@ -282,7 +282,7 @@ Implementados como **`CREATE PROCEDURE`** reais do PostgreSQL (invocados com **`
 
 | Objeto | Invocação | Descrição |
 |--------|-----------|-----------|
-| `pr_sissa_criar_intervencao_grupo(grupo_id, data, semestre, forma, assunto, formato, interacao, tipo, acompanhamento, obs, INOUT intervencao_id)` | `CALL pr_sissa_criar_intervencao_grupo(1, CURRENT_DATE, '2025/1', 'Chat', 'Apoio', 'Grupo', 'Pró-ativa', 'Conteúdo', 'Síncrono', 'obs', NULL);` | Cria uma intervenção para o grupo e vincula automaticamente **todos** os estudantes do grupo; devolve o `id` criado em `INOUT intervencao_id` |
+| `pr_sissa_criar_intervencao_grupo(grupo_id, data, semestre_id, disciplina_id, forma_meio, assunto, interacao, tipo, acompanhamento, obs, autoria_id, INOUT total)` | `CALL pr_sissa_criar_intervencao_grupo(1, CURRENT_DATE, 5, 1, 'Chat', 'Apoio', 'Pró-ativa', 'Conteúdo', 'Síncrono', 'obs', 3, 0);` | Percorre as matrículas do grupo e cria **uma intervenção individual por matrícula** (intervenção é individual), gravando o autor (`autoria_id`) em cada uma; devolve a **quantidade criada** em `INOUT total` |
 | `pr_sissa_atualizar_status_grupos(INOUT total)` | `CALL pr_sissa_atualizar_status_grupos(0);` | Rotina de manutenção em lote: inativa grupos sem intervenção há mais de 180 dias; devolve o total inativado em `INOUT total` |
 
 #### Triggers

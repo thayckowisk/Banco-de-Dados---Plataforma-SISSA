@@ -354,21 +354,22 @@ async function suiteProcedimentos() {
 
   await test('CALL pr_sissa_criar_intervencao_grupo retorna p_total (INOUT)', async () => {
     const r = await q(
-      `CALL pr_sissa_criar_intervencao_grupo($1, CURRENT_DATE, 5, 1, 'Chat', 'Apoio', 'Pró-ativa', 'Conteúdo', 'Síncrono', 'ZZ proc teste', 0)`,
+      `CALL pr_sissa_criar_intervencao_grupo($1, CURRENT_DATE, 5, 1, 'Chat', 'Apoio', 'Pró-ativa', 'Conteúdo', 'Síncrono', 'ZZ proc teste', 1, 0)`,
       [grupoId]);
     assertEqual(Number(r.rows[0].p_total), 2);
   });
-  await test('Procedimento cria 1 intervenção individual por matrícula do grupo', async () => {
-    const rows = (await q(`SELECT id, matricula_id, formato FROM sissa_intervencao WHERE observacoes='ZZ proc teste' ORDER BY matricula_id`)).rows;
+  await test('Procedimento cria 1 intervenção individual por matrícula do grupo (com autoria)', async () => {
+    const rows = (await q(`SELECT id, matricula_id, formato, autoria_id FROM sissa_intervencao WHERE observacoes='ZZ proc teste' ORDER BY matricula_id`)).rows;
     rows.forEach(r => tmp.intervencaoIds.push(r.id));
     assertEqual(rows.length, 2);
     assertTrue(rows.every(r => r.formato === 'Individual'));
+    assertTrue(rows.every(r => Number(r.autoria_id) === 1), 'cada intervenção do grupo grava o autor (p_autoria_id)');
     assertEqual([Number(rows[0].matricula_id), Number(rows[1].matricula_id)].sort((a,b)=>a-b).join(','),
                 [m1, m2].sort((a,b)=>a-b).join(','));
   });
   await test('CALL pr_sissa_criar_intervencao_grupo com grupo inexistente → erro', async () => {
     await assertRejects(() => q(
-      `CALL pr_sissa_criar_intervencao_grupo(999999, CURRENT_DATE, 5, 1, 'Chat','x','Reativa','Conteúdo','Síncrono','x',0)`));
+      `CALL pr_sissa_criar_intervencao_grupo(999999, CURRENT_DATE, 5, 1, 'Chat','x','Reativa','Conteúdo','Síncrono','x',NULL,0)`));
   });
 
   await test('CALL pr_sissa_atualizar_status_grupos retorna total (INOUT)', async () => {
@@ -946,6 +947,9 @@ async function suiteApiIntervencoes() {
       acompanhamento: 'Síncrono', observacoes: 'ZZ via proc',
     });
     assertTrue(body.success, body.error); assertEqual(body.total, 1);
+    // a procedure grava o autor = ator logado (ACTOR), via p_autoria_id
+    const autoria = await scalar(`SELECT autoria_id FROM sissa_intervencao WHERE observacoes='ZZ via proc' ORDER BY id DESC LIMIT 1`);
+    assertEqual(Number(autoria), ACTOR);
   });
   await test('GET /intervencoes?grupo_id filtra pelos membros do grupo', async () => {
     const { body } = await GET(`/api/sissa/intervencoes?grupo_id=${grupoX}`);

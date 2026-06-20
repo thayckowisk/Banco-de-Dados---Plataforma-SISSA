@@ -603,6 +603,7 @@ CREATE OR REPLACE PROCEDURE pr_sissa_criar_intervencao_grupo(
     p_tipo           VARCHAR,
     p_acompanhamento VARCHAR,
     p_observacoes    TEXT,
+    p_autoria_id     INTEGER DEFAULT NULL,
     INOUT p_total    INTEGER DEFAULT 0
 )
 LANGUAGE plpgsql
@@ -618,12 +619,14 @@ BEGIN
     FOR v_matricula_id IN
         SELECT matricula_id FROM sissa_grupo_matricula WHERE grupo_id = p_grupo_id
     LOOP
+        -- Grava o autor (p_autoria_id) em cada intervenção, alinhando com o
+        -- fluxo direto POST /intervencoes (permite o Tutor editar só as suas).
         INSERT INTO sissa_intervencao
             (matricula_id, disciplina_id, semestre_id, data_intervencao,
-             forma_meio, assunto, formato, interacao, tipo, acompanhamento, observacoes)
+             forma_meio, assunto, formato, interacao, tipo, acompanhamento, observacoes, autoria_id)
         VALUES
             (v_matricula_id, p_disciplina_id, p_semestre_id, p_data,
-             p_forma_meio, p_assunto, 'Individual', p_interacao, p_tipo, p_acompanhamento, p_observacoes);
+             p_forma_meio, p_assunto, 'Individual', p_interacao, p_tipo, p_acompanhamento, p_observacoes, p_autoria_id);
         p_total := p_total + 1;
     END LOOP;
 END;

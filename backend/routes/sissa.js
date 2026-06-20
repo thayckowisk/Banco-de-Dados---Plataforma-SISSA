@@ -518,10 +518,10 @@ router.post('/grupos/:id/intervencoes', async (req, res) => {
   const num = (v) => (v === '' || v === undefined || v === null ? null : v);
   try {
     const r = await db.query(
-      'CALL pr_sissa_criar_intervencao_grupo($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+      'CALL pr_sissa_criar_intervencao_grupo($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',
       [grupoId, data_intervencao || null, num(semestre_id), num(disciplina_id),
        forma_meio || null, assunto || null, interacao || null, tipo || null,
-       acompanhamento || null, observacoes || null, 0]
+       acompanhamento || null, observacoes || null, actorId, 0]
     );
     res.json({ success: true, total: r.rows[0] ? r.rows[0].p_total : 0 });
   } catch (err) {
