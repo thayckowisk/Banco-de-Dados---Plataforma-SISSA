@@ -1797,18 +1797,22 @@
 .sissa-gauge-wrap strong { color: var(--s-text); font-size: 13px; margin-right: 4px; }
 .sissa-gauge-bar {
   display: flex; height: 8px; border-radius: 4px; overflow: hidden;
-  width: 120px; gap: 2px;
+  width: 140px; gap: 2px;
 }
-.sissa-gauge-bar div { height: 100%; border-radius: 2px; position: relative; overflow: visible; }
+.sissa-gauge-bar div { height: 100%; border-radius: 2px; }
 .sissa-gauge-alto  { background: #dc2626; }
 .sissa-gauge-medio { background: #f59e0b; }
 .sissa-gauge-baixo { background: #10b981; }
 .sissa-gauge-zero  { background: #e5e7eb; }
-.gauge-pct {
-  position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
-  font-size: 10px; font-weight: 600; color: #555; white-space: nowrap;
-  pointer-events: none;
-}
+/* legenda de % ao lado da barra */
+.sissa-gauge-legend { display: inline-flex; gap: 8px; font-size: 11px; font-weight: 600; }
+.sissa-gauge-legend .gl { display: inline-flex; align-items: center; gap: 3px; }
+.sissa-gauge-legend .gl::before { content: ''; width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
+.sissa-gauge-legend .gl-a { color: #dc2626; } .sissa-gauge-legend .gl-a::before { background: #dc2626; }
+.sissa-gauge-legend .gl-m { color: #d97706; } .sissa-gauge-legend .gl-m::before { background: #f59e0b; }
+.sissa-gauge-legend .gl-b { color: #059669; } .sissa-gauge-legend .gl-b::before { background: #10b981; }
+/* e-mail read-only acinzentado (editar usuário) */
+.sissa-form-input[readonly] { background: #f3f4f6; color: #6b7280; cursor: not-allowed; }
 
 /* Status badges */
 .sissa-status {
@@ -1914,8 +1918,18 @@
   border: 1px solid var(--s-border); border-radius: 8px;
   padding: 6px 10px; min-height: 44px;
   display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
-  background: #fff; cursor: text;
+  background: #fff; cursor: text; position: relative;
 }
+/* autocomplete de alunos */
+.sissa-ac-dropdown {
+  display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+  margin-top: 4px; background: #fff; border: 1px solid var(--s-border);
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  max-height: 220px; overflow-y: auto;
+}
+.sissa-ac-item { padding: 8px 12px; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
+.sissa-ac-item:hover { background: #f3f4f6; }
+.sissa-ac-mat { color: #9ca3af; font-size: 12px; }
 .sissa-tag {
   background: var(--s-primary-m); color: var(--s-primary);
   padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 500;
@@ -2347,6 +2361,7 @@
               <div class="sissa-gauge-baixo" style="flex:3"></div>
               <div class="sissa-gauge-zero" style="flex:1"></div>
             </div>
+            <span class="sissa-gauge-legend" id="sissa-gauge-legend"></span>
           </div>
           <button class="sissa-btn-primary" data-perm="estudante_gerenciar" onclick="openNovoEstudante()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
@@ -2707,9 +2722,10 @@
       <label class="sissa-form-label">Estudantes <span class="req">*</span></label>
       <div class="sissa-tags-wrap" id="sissa-int-estudantes-tags">
         <input type="text" id="sissa-int-estudante-input" class="sissa-form-input"
-               style="border:none;padding:0;width:180px;" placeholder="Adicionar estudantes"
-               list="sissa-est-datalist" oninput="handleEstudanteTagInput(this)">
-        <datalist id="sissa-est-datalist"></datalist>
+               style="border:none;padding:0;width:180px;" placeholder="Digite para filtrar alunos"
+               autocomplete="off" oninput="estAutocomplete(this,'int')"
+               onfocus="estAutocomplete(this,'int')" onblur="hideEstAc('int')">
+        <div class="sissa-ac-dropdown" id="sissa-int-ac"></div>
       </div>
     </div>
 
@@ -2843,9 +2859,10 @@
       <label class="sissa-form-label">Estudantes</label>
       <div class="sissa-tags-wrap" id="sissa-grupo-est-tags">
         <input type="text" id="sissa-grupo-est-input" class="sissa-form-input"
-               style="border:none;padding:0;width:180px;" placeholder="Adicionar estudante"
-               list="sissa-est-datalist2" oninput="handleGrupoEstudanteInput(this)">
-        <datalist id="sissa-est-datalist2"></datalist>
+               style="border:none;padding:0;width:180px;" placeholder="Digite para filtrar alunos"
+               autocomplete="off" oninput="estAutocomplete(this,'grupo')"
+               onfocus="estAutocomplete(this,'grupo')" onblur="hideEstAc('grupo')">
+        <div class="sissa-ac-dropdown" id="sissa-grupo-ac"></div>
       </div>
     </div>
 
@@ -4625,12 +4642,14 @@
 
   function _renderGaugeBar(fA, fM, fB, zero, pA, pM, pB) {
     const bar = document.getElementById('sissa-gauge-bar');
-    if (!bar) return;
-    bar.innerHTML = `
-      <div class="sissa-gauge-alto"  style="flex:${fA}" title="Alto – ${pA}%"><span class="gauge-pct">${pA}%</span></div>
-      <div class="sissa-gauge-medio" style="flex:${fM}" title="Médio – ${pM}%"><span class="gauge-pct">${pM}%</span></div>
-      <div class="sissa-gauge-baixo" style="flex:${fB}" title="Baixo – ${pB}%"><span class="gauge-pct">${pB}%</span></div>
+    if (bar) bar.innerHTML = `
+      <div class="sissa-gauge-alto"  style="flex:${fA}" title="Alto ${pA}%"></div>
+      <div class="sissa-gauge-medio" style="flex:${fM}" title="Médio ${pM}%"></div>
+      <div class="sissa-gauge-baixo" style="flex:${fB}" title="Baixo ${pB}%"></div>
       ${zero>0?`<div class="sissa-gauge-zero" style="flex:${zero}" title="Sem dados"></div>`:''}`;
+    const leg = document.getElementById('sissa-gauge-legend');
+    if (leg) leg.innerHTML =
+      `<span class="gl gl-a">${pA}%</span><span class="gl gl-m">${pM}%</span><span class="gl gl-b">${pB}%</span>`;
   }
 
   function updateEstSub(list) {
@@ -5033,11 +5052,15 @@
     renderSissaIntervencoes(list);
   }
 
-  // Popula os selects de semestre/disciplina do modal com value = id (vindos da API)
+  // Popula os selects de semestre/disciplina do modal com value = id (vindos da API).
+  // Semestre: mostra só os do ANO MAIS RECENTE (ex.: 2025/1 e 2025/2).
   function populateIntSelects() {
     const sem = document.getElementById('sissa-int-semestre');
+    const sems = sissaState.semestres || [];
+    const maxAno = sems.reduce((m, s) => Math.max(m, Number(s.ano) || 0), 0);
+    const semsRecentes = sems.filter(s => Number(s.ano) === maxAno);
     if (sem) sem.innerHTML = '<option value="">Selecione</option>' +
-      sissaState.semestres.map(s => `<option value="${s.id}">${escHtml(s.rotulo || (s.ano+'/'+s.periodo))}</option>`).join('');
+      semsRecentes.map(s => `<option value="${s.id}">${escHtml(s.rotulo || (s.ano+'/'+s.periodo))}</option>`).join('');
     const disc = document.getElementById('sissa-int-disciplina');
     if (disc) disc.innerHTML = '<option value="">Selecione</option>' +
       sissaState.disciplinas.map(d => `<option value="${d.id}">${escHtml(d.nome)}</option>`).join('');
@@ -5347,6 +5370,47 @@
     dl.innerHTML = sissaState.estudantes.map(e =>
       `<option value="${escHtml(e.nome)} - ${escHtml(e.matricula)}" data-id="${e.id}">`
     ).join('');
+  }
+
+  /* ══════════════════════════════════════════
+     SISSA – AUTOCOMPLETE DE ALUNOS (intervenção / grupo)
+  ══════════════════════════════════════════ */
+  // kind = 'int' (intervenção) ou 'grupo'. Filtra sissaState.estudantes por
+  // nome/matrícula ao digitar e mostra um dropdown clicável.
+  function estAutocomplete(inp, kind) {
+    const ddId = kind === 'int' ? 'sissa-int-ac' : 'sissa-grupo-ac';
+    const dd = document.getElementById(ddId);
+    if (!dd) return;
+    const q = (inp.value || '').toLowerCase().trim();
+    const tags = kind === 'int' ? sissaState.intEstudanteTags : sissaState.grupoEstudanteTags;
+    const taken = new Set(tags.map(t => t.id));
+    let list = (sissaState.estudantes || []).filter(e => !taken.has(e.id));
+    if (q) list = list.filter(e =>
+      (e.nome || '').toLowerCase().includes(q) || (e.matricula || '').toLowerCase().includes(q));
+    list = list.slice(0, 8);
+    if (!list.length) { dd.style.display = 'none'; dd.innerHTML = ''; return; }
+    dd.innerHTML = list.map(e =>
+      `<div class="sissa-ac-item" onmousedown="pickEst('${kind}',${e.id})">
+         <span>${escHtml(e.nome)}</span><span class="sissa-ac-mat">${escHtml(e.matricula || '')}</span>
+       </div>`).join('');
+    dd.style.display = 'block';
+  }
+  function pickEst(kind, id) {
+    const e = (sissaState.estudantes || []).find(x => x.id === id);
+    const tags = kind === 'int' ? sissaState.intEstudanteTags : sissaState.grupoEstudanteTags;
+    if (e && !tags.find(t => t.id === id)) tags.push({ id: e.id, nome: e.nome, matricula: e.matricula });
+    const inp = document.getElementById(kind === 'int' ? 'sissa-int-estudante-input' : 'sissa-grupo-est-input');
+    if (inp) inp.value = '';
+    const dd = document.getElementById(kind === 'int' ? 'sissa-int-ac' : 'sissa-grupo-ac');
+    if (dd) { dd.style.display = 'none'; dd.innerHTML = ''; }
+    if (kind === 'int') renderIntEstTags(); else renderGrupoEstTags();
+  }
+  function hideEstAc(kind) {
+    // delay para o onmousedown do item disparar antes do blur fechar o dropdown
+    setTimeout(() => {
+      const dd = document.getElementById(kind === 'int' ? 'sissa-int-ac' : 'sissa-grupo-ac');
+      if (dd) dd.style.display = 'none';
+    }, 150);
   }
 
   function handleEstudanteTagInput(inp) {
