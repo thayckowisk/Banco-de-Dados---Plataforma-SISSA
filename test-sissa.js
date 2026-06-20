@@ -1241,7 +1241,12 @@ async function runCleanup() {
     await q(`DROP TABLE IF EXISTS sissa_bench_chk CASCADE`).catch(()=>{});
     await q(`DROP TABLE IF EXISTS sissa_bench_matricula CASCADE`).catch(()=>{});
     await q(`DROP TABLE IF EXISTS sissa_bench_risco CASCADE`).catch(()=>{});
-    console.log(`  ${ok('Dados de teste removidos')}`);
+    // Restaura o status dos grupos do seed: a procedure de manutenção
+    // (pr_sissa_atualizar_status_grupos) é global e inativa o Grupo A ao rodar.
+    // Espelha o UPDATE final do sql/05 para o banco voltar ao estado de seed.
+    await q(`UPDATE sissa_grupo_intervencao SET status='Ativo'   WHERE titulo='Grupo A'`).catch(()=>{});
+    await q(`UPDATE sissa_grupo_intervencao SET status='Inativo' WHERE titulo IN ('Grupo B','Grupo C')`).catch(()=>{});
+    console.log(`  ${ok('Dados de teste removidos; grupos do seed restaurados')}`);
   } catch (err) {
     console.log(`  ${fail('Limpeza parcial: ' + err.message)}`);
   }
