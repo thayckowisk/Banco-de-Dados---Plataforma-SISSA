@@ -163,6 +163,7 @@ async function suiteSchema() {
     'sissa_instituicao','sissa_unidade','sissa_curso','sissa_perfil','sissa_usuario_sissa',
     'sissa_usuario_curso','sissa_semestre','sissa_disciplina','sissa_aluno','sissa_matricula',
     'sissa_risco_evasao','sissa_grupo_intervencao','sissa_grupo_matricula','sissa_intervencao',
+    'sissa_professor','sissa_turma','sissa_inscricao_turma',
   ];
   for (const t of tabelas) {
     await test(`Tabela ${t} existe`, async () => {
@@ -215,6 +216,37 @@ async function suiteSchema() {
     assert(Number(await scalar(`SELECT count(*) FROM sissa_unidade`))    >= 1, 'sem unidades');
     assert(Number(await scalar(`SELECT count(*) FROM sissa_semestre`))   >= 1, 'sem semestres');
     assert(Number(await scalar(`SELECT count(*) FROM sissa_disciplina`)) >= 1, 'sem disciplinas');
+  });
+
+  // ── Modelo expandido (turma/professor + multi-instituição) ──
+  await test('professor/turma/inscricao_turma populadas', async () => {
+    assert(Number(await scalar(`SELECT count(*) FROM sissa_professor`))       >= 1, 'sem professores');
+    assert(Number(await scalar(`SELECT count(*) FROM sissa_turma`))           >= 1, 'sem turmas');
+    assert(Number(await scalar(`SELECT count(*) FROM sissa_inscricao_turma`)) >= 1, 'sem inscrições');
+  });
+  await test('sissa_instituicao.sigla existe', async () => {
+    assertEqual(Number(await scalar(
+      `SELECT count(*) FROM information_schema.columns WHERE table_name='sissa_instituicao' AND column_name='sigla'`)), 1);
+  });
+  await test('sissa_usuario_sissa.instituicao_id existe', async () => {
+    assertEqual(Number(await scalar(
+      `SELECT count(*) FROM information_schema.columns WHERE table_name='sissa_usuario_sissa' AND column_name='instituicao_id'`)), 1);
+  });
+  await test('sissa_risco_evasao.turmas foi REMOVIDA (turmas é derivado)', async () => {
+    assertEqual(Number(await scalar(
+      `SELECT count(*) FROM information_schema.columns WHERE table_name='sissa_risco_evasao' AND column_name='turmas'`)), 0);
+  });
+  await test('turmas do aluno é derivado de sissa_inscricao_turma (via view)', async () => {
+    const m = await scalar(`SELECT matricula_id FROM sissa_inscricao_turma LIMIT 1`);
+    const esperado = await scalar(`SELECT count(*) FROM sissa_inscricao_turma WHERE matricula_id=$1`, [m]);
+    const naView    = await scalar(`SELECT turmas FROM vw_sissa_estudantes_risco WHERE id=$1`, [m]);
+    assertEqual(Number(naView), Number(esperado));
+  });
+  await test('UNIQUE em sissa_inscricao_turma (turma_id, matricula_id)', async () => {
+    const r = await q(`SELECT turma_id, matricula_id FROM sissa_inscricao_turma LIMIT 1`);
+    const { turma_id, matricula_id } = r.rows[0];
+    await assertRejects(() => q(
+      `INSERT INTO sissa_inscricao_turma(turma_id,matricula_id) VALUES($1,$2)`, [turma_id, matricula_id]));
   });
 }
 
@@ -388,7 +420,7 @@ async function suiteTriggers() {
   });
   await test('tg_sissa_classificar_risco: reclassifica Baixo ao mudar indicadores', async () => {
     await q(`UPDATE sissa_matricula SET reprovacoes=0, media_global=9.0, ch_semestre=600 WHERE id=$1`, [matId]);
-    await q(`UPDATE sissa_risco_evasao SET turmas=turmas WHERE matricula_id=$1`, [matId]); // toca → dispara a trigger
+    await q(`UPDATE sissa_risco_evasao SET percentual=percentual WHERE matricula_id=$1`, [matId]); // toca → dispara a trigger
     assertEqual(await scalar(`SELECT risco FROM sissa_risco_evasao WHERE matricula_id=$1`, [matId]), 'Baixo');
   });
   await test('tg_sissa_classificar_risco: ignora valor de risco fornecido manualmente', async () => {
@@ -398,7 +430,7 @@ async function suiteTriggers() {
   await test('tg_sissa_risco_evasao_timestamp: updated_at avança após UPDATE', async () => {
     const t0 = await scalar(`SELECT updated_at FROM sissa_risco_evasao WHERE matricula_id=$1`, [matId]);
     await new Promise(r => setTimeout(r, 25));
-    await q(`UPDATE sissa_risco_evasao SET turmas=turmas+1 WHERE matricula_id=$1`, [matId]);
+    await q(`UPDATE sissa_risco_evasao SET percentual=percentual WHERE matricula_id=$1`, [matId]);
     const t1 = await scalar(`SELECT updated_at FROM sissa_risco_evasao WHERE matricula_id=$1`, [matId]);
     assert(new Date(t1) > new Date(t0), `updated_at não avançou: ${t0} → ${t1}`);
   });
@@ -960,7 +992,7 @@ async function suiteApiUsuarios() {
   await test('POST /usuarios cria usuário com cursos', async () => {
     const { body } = await POST('/api/sissa/usuarios', {
       nome: 'ZZ Usuario API', email_institucional: `zzuser${Date.now()}@sissa.test`,
-      perfil_id: 5, curso_ids: [1],
+      perfil_id: 1, curso_ids: [1],
     });
     assertTrue(body.success); novoUserId = body.data.id; tmp.usuarioIds.push(novoUserId);
   });
@@ -995,9 +1027,9 @@ async function suiteApiUsuarios() {
     assertTrue(body.success); assert(body.data.length > 0);
     assertHasKeys(body.data[0], ['id','nome','instituicao_nome','code_mec']);
   });
-  await test('GET /perfis retorna perfis', async () => {
+  await test('GET /perfis retorna os 4 perfis', async () => {
     const { body } = await GET('/api/sissa/perfis');
-    assertTrue(body.success); assert(body.data.length >= 5);
+    assertTrue(body.success); assertEqual(body.data.length, 4);
   });
   await test('GET /instituicoes retorna instituições', async () => {
     const { body } = await GET('/api/sissa/instituicoes');
@@ -1018,15 +1050,14 @@ async function suiteApiPermissoes() {
 
   const idDe = async (email) =>
     Number(await scalar(`SELECT id FROM sissa_usuario_sissa WHERE email_institucional=$1`, [email]));
-  let tutor, tfisico, coordCurso, coordEnsino, coordUnidade;
+  let tutor, coordCurso, coordEnsino, coordUnidade;
 
   await test('Setup: resolve atores por nível', async () => {
-    tutor        = await idDe('juliana.moraes@ifsp.edu.br');          // nv1
-    tfisico      = await idDe('kalebe.xavier@ifsp.edu.br');           // nv2
-    coordCurso   = await idDe('adailton@ufg.com');                   // nv3
-    coordEnsino  = await idDe('beatriz.de.bastos.vianna@gmail.com'); // nv4
-    coordUnidade = await idDe('laishcandido@gmail.com');             // nv5
-    assert(tutor && tfisico && coordCurso && coordEnsino && coordUnidade);
+    tutor        = await idDe('juliana.moraes@ifsp.edu.br');          // nv1 Tutor
+    coordCurso   = await idDe('adailton@ufg.com');                   // nv2 Coord. de curso
+    coordEnsino  = await idDe('beatriz.de.bastos.vianna@gmail.com'); // nv3 Coord. de ensino
+    coordUnidade = await idDe('laishcandido@gmail.com');             // nv4 Coord. de unidade
+    assert(tutor && coordCurso && coordEnsino && coordUnidade);
   });
 
   // matrícula auxiliar para POSTs de intervenção (precisam de estudante_ids)
@@ -1035,18 +1066,19 @@ async function suiteApiPermissoes() {
     mAux = await mkMatricula(0, 8, 600);
   });
 
-  await test('Níveis dos perfis estão corretos (5..1)', async () => {
+  await test('Níveis dos perfis estão corretos (4..1, sem Tutor Físico)', async () => {
     const r = await q(`SELECT nome, nivel FROM sissa_perfil ORDER BY nivel DESC`);
     const map = Object.fromEntries(r.rows.map(x => [x.nome, x.nivel]));
-    assertEqual(map['Coordenador de unidade'], 5);
-    assertEqual(map['Coordenador de ensino'], 4);
-    assertEqual(map['Coordenador de curso'], 3);
-    assertEqual(map['Tutor Físico'], 2);
+    assertEqual(Object.keys(map).length, 4);
+    assertEqual(map['Coordenador de unidade'], 4);
+    assertEqual(map['Coordenador de ensino'], 3);
+    assertEqual(map['Coordenador de curso'], 2);
     assertEqual(map['Tutor'], 1);
+    assert(map['Tutor Físico'] === undefined, 'Tutor Físico não deveria mais existir');
   });
-  await test('Matriz: nível 1 tem 3 ações; nível 5 tem 9', async () => {
+  await test('Matriz: nível 1 tem 3 ações; nível 4 tem 9', async () => {
     assertEqual(Number(await scalar(`SELECT count(*) FROM sissa_nivel_acao WHERE nivel=1`)), 3);
-    assertEqual(Number(await scalar(`SELECT count(*) FROM sissa_nivel_acao WHERE nivel=5`)), 9);
+    assertEqual(Number(await scalar(`SELECT count(*) FROM sissa_nivel_acao WHERE nivel=4`)), 9);
   });
   await test('fu_sissa_pode: tutor pode intervencao_criar, não pode usuario_gerenciar', async () => {
     assertTrue(await scalar(`SELECT fu_sissa_pode($1,'intervencao_criar')`, [tutor]));
@@ -1071,7 +1103,7 @@ async function suiteApiPermissoes() {
   });
   await test('/auth (coord unidade) inclui usuario_excluir', async () => {
     const { body } = await POST('/api/sissa/auth', { email: 'laishcandido@gmail.com', senha: '3456' });
-    assertEqual(body.usuario.perfil_nivel, 5);
+    assertEqual(body.usuario.perfil_nivel, 4);
     assert(body.usuario.permissoes.includes('usuario_excluir'));
   });
 
@@ -1099,28 +1131,23 @@ async function suiteApiPermissoes() {
       { nome: 'ZZ x', email_institucional: `zz${Date.now()}@sissa.test` }, tutor);
     assertEqual(status, 403);
   });
-  await test('Tutor Físico PODE criar grupo (grupo_gerenciar)', async () => {
-    const { body } = await POST('/api/sissa/grupos', { titulo: 'ZZ TFisicoGrupo' }, tfisico);
+  await test('Coord. de curso PODE criar grupo (grupo_gerenciar)', async () => {
+    const { body } = await POST('/api/sissa/grupos', { titulo: 'ZZ CoordGrupo' }, coordCurso);
     assertTrue(body.success, body.error);
     tmp.grupoIds.push(body.data.id);
   });
-  await test('Tutor Físico NÃO pode gerenciar usuários → 403', async () => {
-    const { status } = await POST('/api/sissa/usuarios',
-      { nome: 'ZZ y', email_institucional: `zz${Date.now()}@sissa.test` }, tfisico);
-    assertEqual(status, 403);
-  });
   await test('Coord. de curso PODE criar usuário de nível menor (Tutor)', async () => {
     const { body } = await POST('/api/sissa/usuarios',
-      { nome: 'ZZ NovoTutor', email_institucional: `zztutor${Date.now()}@sissa.test`, perfil_id: 5 }, coordCurso);
+      { nome: 'ZZ NovoTutor', email_institucional: `zztutor${Date.now()}@sissa.test`, perfil_id: 1 }, coordCurso);
     assertTrue(body.success, body.error);
     tmp.usuarioIds.push(body.data.id);
   });
   await test('Coord. de curso NÃO pode criar usuário de nível ≥ (Coord. ensino) → 403', async () => {
     const { status } = await POST('/api/sissa/usuarios',
-      { nome: 'ZZ Z', email_institucional: `zz${Date.now()}@sissa.test`, perfil_id: 2 }, coordCurso);
+      { nome: 'ZZ Z', email_institucional: `zz${Date.now()}@sissa.test`, perfil_id: 3 }, coordCurso);
     assertEqual(status, 403);
   });
-  await test('Coord. de curso NÃO pode excluir usuários (usuario_excluir é nv4+) → 403', async () => {
+  await test('Coord. de curso NÃO pode excluir usuários (usuario_excluir é nv3+) → 403', async () => {
     const { status } = await DELETE(`/api/sissa/usuarios/${tutor}`, coordCurso);
     assertEqual(status, 403);
   });
@@ -1134,7 +1161,7 @@ async function suiteApiPermissoes() {
   });
   await test('Coord. de ensino PODE excluir um Tutor', async () => {
     const novo = await scalar(
-      `INSERT INTO sissa_usuario_sissa(nome,email_institucional,perfil_id) VALUES('ZZ DelTutor','zzdel${Date.now()}@sissa.test',5) RETURNING id`);
+      `INSERT INTO sissa_usuario_sissa(nome,email_institucional,perfil_id) VALUES('ZZ DelTutor','zzdel${Date.now()}@sissa.test',1) RETURNING id`);
     const { body } = await DELETE(`/api/sissa/usuarios/${novo}`, coordEnsino);
     assertTrue(body.success, body.error);
     assertEqual(Number(await scalar(`SELECT count(*) FROM sissa_usuario_sissa WHERE id=$1`, [novo])), 0);
