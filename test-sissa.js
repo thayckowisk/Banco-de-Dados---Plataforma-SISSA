@@ -398,14 +398,20 @@ async function suiteProcedimentos() {
 async function suiteTriggers() {
   startSuite('Triggers');
 
-  for (const tg of ['tg_sissa_risco_evasao_timestamp','tg_sissa_classificar_risco']) {
+  for (const tg of ['tg_sissa_risco_evasao_timestamp','tg_sissa_classificar_risco','tg_sissa_grupo_inativo_auto']) {
     await test(`Trigger ${tg} existe`, async () => {
       const n = await scalar(`SELECT count(*) FROM pg_trigger WHERE tgname=$1`, [tg]);
       assertEqual(Number(n), 1);
     });
   }
-  await test('tg_sissa_grupo_inativo_auto foi removida (pendência de redesenho)', async () => {
-    assertEqual(Number(await scalar(`SELECT count(*) FROM pg_trigger WHERE tgname='tg_sissa_grupo_inativo_auto'`)), 0);
+  await test('tg_sissa_grupo_inativo_auto: intervenção reativa grupo inativo', async () => {
+    const m   = await mkMatricula(0, 8.0, 600);
+    const gid = await scalar(`INSERT INTO sissa_grupo_intervencao(titulo,status) VALUES('ZZ Grupo Reativar','Inativo') RETURNING id`);
+    tmp.grupoIds.push(gid);
+    await q(`INSERT INTO sissa_grupo_matricula(grupo_id,matricula_id) VALUES($1,$2)`, [gid, m]);
+    assertEqual(await scalar(`SELECT status FROM sissa_grupo_intervencao WHERE id=$1`, [gid]), 'Inativo');
+    await q(`INSERT INTO sissa_intervencao(matricula_id,data_intervencao,formato) VALUES($1,CURRENT_DATE,'Individual')`, [m]);
+    assertEqual(await scalar(`SELECT status FROM sissa_grupo_intervencao WHERE id=$1`, [gid]), 'Ativo');
   });
 
   let matId;
