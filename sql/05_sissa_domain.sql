@@ -522,7 +522,7 @@ $$;
 
 -- ----------------------------------------------------------------
 -- FUNÇÃO 3 – fu_sissa_nivel_usuario
---   Retorna o nível (1..5) do perfil de um usuário SISSA. 0 se não houver.
+--   Retorna o nível (1..4) do perfil de um usuário SISSA. 0 se não houver.
 -- ----------------------------------------------------------------
 CREATE OR REPLACE FUNCTION fu_sissa_nivel_usuario(p_usuario_id INTEGER)
 RETURNS INTEGER

@@ -98,7 +98,7 @@ async function api(path, opts = {}) {
   const json = await res.json().catch(() => ({}));
   return { status: res.status, body: json };
 }
-// Ator padrão das chamadas mutadoras: Coordenador de unidade (nível 5, acesso total).
+// Ator padrão das chamadas mutadoras: Coordenador de unidade (nível 4, acesso total).
 // Resolvido em main(). Passe `actor` explícito para testar outros níveis; passe null p/ 401.
 let ACTOR = null;
 function actorHeader(actor) {
@@ -1297,7 +1297,7 @@ async function main() {
   await q('SELECT 1');
   console.log(`${C.green}OK${C.reset}`);
 
-  // Ator padrão das chamadas mutadoras = Coordenador de unidade (nível 5)
+  // Ator padrão das chamadas mutadoras = Coordenador de unidade (nível 4)
   ACTOR = Number(await scalar(
     `SELECT id FROM sissa_usuario_sissa WHERE email_institucional='laishcandido@gmail.com'`));
 

@@ -1542,18 +1542,6 @@
   font-size: 14px; color: #333; outline: none; margin-bottom: 12px;
 }
 .sissa-search-input:focus { border-color: var(--s-primary); }
-.sissa-inst-list { list-style: none; margin-bottom: 20px; }
-.sissa-inst-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px; border: 1px solid var(--s-border);
-  border-radius: 8px; margin-bottom: 6px; cursor: pointer;
-  transition: border-color .15s, background .15s;
-}
-.sissa-inst-item:hover,
-.sissa-inst-item.selected { border-color: var(--s-primary); background: var(--s-primary-l); }
-.sissa-inst-item svg { flex-shrink: 0; }
-.sissa-inst-name { font-size: 13px; font-weight: 500; color: #333; }
-.sissa-inst-code { font-size: 11px; color: #aaa; }
 .sissa-login-sep {
   text-align: center; font-size: 11px; color: #ccc;
   margin: 14px 0; position: relative;
@@ -4000,7 +3988,7 @@
   function sissaPode(acao) {
     return sissaSession.permissoes.has(acao);
   }
-  // Nível (1..5) do usuário logado; 0 se público/visitante.
+  // Nível (1..4) do usuário logado; 0 se público/visitante.
   function sissaNivel() {
     return sissaSession.usuario?.perfil_nivel || 0;
   }
@@ -4034,86 +4022,6 @@
     'juliana.moraes@ufg.br':              { id: 5, nivel: 1, perfil: 'Tutor' },
     'beatriz.cardoso@ufg.br':             { id: 6, nivel: 1, perfil: 'Tutor' }
   };
-
-  /* ══════════════════════════════════════════
-     SISSA – PASSO 1: SELEÇÃO DE INSTITUIÇÃO
-  ══════════════════════════════════════════ */
-  async function loadSissaInst() {
-    const ul = document.getElementById('sissa-inst-list');
-    if (ul) ul.innerHTML = '<li style="text-align:center;color:#ccc;font-size:13px;padding:16px 0;">Carregando...</li>';
-    try {
-      const res = await sissaFetch('/instituicoes');
-      sissaState.instituicoes = res.data || [];
-    } catch {
-      sissaState.instituicoes = [
-        { id:1, code_mec:'26358', nome:'Instituto Federal de São Paulo',  tipo:'Instituto Federal' },
-        { id:2, code_mec:'579',   nome:'Universidade Federal de Goiás',    tipo:'Universidade' },
-        { id:3, code_mec:'12075', nome:'Instituto Federal de Rondônia',    tipo:'Instituto Federal' }
-      ];
-    }
-    renderSissaInstList(sissaState.instituicoes);
-    // Reset ao chegar na tela
-    sissaSession.instSelecionada = null;
-    document.getElementById('sissa-btn-entrar-fed').disabled = true;
-    sissaVoltarStep1();
-  }
-
-  function renderSissaInstList(list) {
-    const ul = document.getElementById('sissa-inst-list');
-    if (!ul) return;
-    if (!list.length) {
-      ul.innerHTML = '<li style="text-align:center;color:#ccc;font-size:13px;padding:16px 0;">Nenhuma instituição encontrada.</li>';
-      return;
-    }
-    ul.innerHTML = list.map(i => `
-      <li class="sissa-inst-item" data-id="${i.id}"
-          data-nome="${escAttr(i.nome)}" data-tipo="${escAttr(i.tipo||'')}" data-code="${escAttr(i.code_mec||'')}"
-          onclick="selectSissaInst(this, ${i.id}, '${escAttr(i.nome)}', '${escAttr(i.tipo||'')}', '${escAttr(i.code_mec||'')}')">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--s-primary)" stroke-width="2">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-          <polyline points="9,22 9,12 15,12 15,22"/>
-        </svg>
-        <div>
-          <div class="sissa-inst-name">${escHtml(i.nome)}</div>
-          <div class="sissa-inst-code">${escHtml(i.tipo||'')} · Cód. MEC: ${escHtml(i.code_mec||'')}</div>
-        </div>
-      </li>`).join('');
-  }
-
-  function selectSissaInst(el, id, nome, tipo, code_mec) {
-    document.querySelectorAll('.sissa-inst-item').forEach(li => li.classList.remove('selected'));
-    el.classList.add('selected');
-    sissaSession.instSelecionada = { id, nome, tipo, code_mec };
-    document.getElementById('sissa-btn-entrar-fed').disabled = false;
-  }
-
-  function filterSissaInst(term) {
-    const q = term.toLowerCase().trim();
-    const filtered = q
-      ? sissaState.instituicoes.filter(i => i.nome.toLowerCase().includes(q) || (i.code_mec||'').includes(q))
-      : sissaState.instituicoes;
-    renderSissaInstList(filtered);
-  }
-
-  function sissaGoToStep2() {
-    if (!sissaSession.instSelecionada) return;
-    // Preenche header do passo 2
-    document.getElementById('sissa-cafe-inst-display').textContent      = sissaSession.instSelecionada.nome;
-    document.getElementById('sissa-cafe-inst-type-display').textContent = sissaSession.instSelecionada.tipo || '';
-    document.getElementById('sissa-cafe-login').value = '';
-    document.getElementById('sissa-cafe-senha').value = '';
-    document.getElementById('sissa-cafe-error').classList.remove('visible');
-    // Troca os painéis
-    document.getElementById('sissa-step1').classList.add('hidden');
-    document.getElementById('sissa-step2').classList.remove('hidden');
-    document.getElementById('sissa-cafe-login').focus();
-  }
-
-  function sissaVoltarStep1() {
-    document.getElementById('sissa-step1').classList.remove('hidden');
-    document.getElementById('sissa-step2').classList.add('hidden');
-    document.getElementById('sissa-cafe-error').classList.remove('visible');
-  }
 
   /* ══════════════════════════════════════════
      SISSA – PASSO 2: AUTENTICAÇÃO CAFe
@@ -4181,7 +4089,7 @@
       if (isPrivado) {
         sissaAplicarPermissoes();
         loadSissaMockData();
-        sissaSession.cursoSelecionado = { id: 1, nome: 'Licenciatura em Física', instituicao_sigla: 'IFSP' };
+        sissaSession.cursoSelecionado = { id: 1, nome: 'Licenciatura em Física', instituicao_sigla: 'UFG' };
         applyCursoContext();
         sissaAplicarPermissoes();
         showScreen('sissa-estudantes');
