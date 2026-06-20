@@ -704,10 +704,10 @@ async function suiteApiAuth() {
     assertTrue(body.success); assertEqual(body.tipo, 'publico');
   });
   await test('POST /auth atualiza ultimo_acesso do usuário privado', async () => {
-    const before = await scalar(`SELECT ultimo_acesso FROM sissa_usuario_sissa WHERE email_institucional='kalebe.xavier@ifsp.edu.br'`);
+    const before = await scalar(`SELECT ultimo_acesso FROM sissa_usuario_sissa WHERE email_institucional='kalebe.xavier@ufg.br'`);
     await new Promise(r => setTimeout(r, 20));
-    await POST('/api/sissa/auth', { email: 'kalebe.xavier@ifsp.edu.br', senha: '4567' });
-    const after = await scalar(`SELECT ultimo_acesso FROM sissa_usuario_sissa WHERE email_institucional='kalebe.xavier@ifsp.edu.br'`);
+    await POST('/api/sissa/auth', { email: 'kalebe.xavier@ufg.br', senha: '4567' });
+    const after = await scalar(`SELECT ultimo_acesso FROM sissa_usuario_sissa WHERE email_institucional='kalebe.xavier@ufg.br'`);
     assert(!before || new Date(after) >= new Date(before));
   });
   await test('POST /auth case-insensitive no e-mail', async () => {
@@ -1059,7 +1059,7 @@ async function suiteApiPermissoes() {
   let tutor, coordCurso, coordEnsino, coordUnidade;
 
   await test('Setup: resolve atores por nível', async () => {
-    tutor        = await idDe('juliana.moraes@ifsp.edu.br');          // nv1 Tutor
+    tutor        = await idDe('juliana.moraes@ufg.br');          // nv1 Tutor
     coordCurso   = await idDe('adailton@ufg.com');                   // nv2 Coord. de curso
     coordEnsino  = await idDe('beatriz.de.bastos.vianna@gmail.com'); // nv3 Coord. de ensino
     coordUnidade = await idDe('laishcandido@gmail.com');             // nv4 Coord. de unidade
@@ -1097,12 +1097,12 @@ async function suiteApiPermissoes() {
     assertFalse(await scalar(`SELECT fu_sissa_pode_gerenciar_usuario($1,$2)`, [tutor, coordUnidade]));
   });
   await test('fu_sissa_pode_gerenciar_usuario: mesmo nível (FALSE)', async () => {
-    const outroTutor = await idDe('beatriz.cardoso@ifsp.edu.br');
+    const outroTutor = await idDe('beatriz.cardoso@ufg.br');
     assertFalse(await scalar(`SELECT fu_sissa_pode_gerenciar_usuario($1,$2)`, [tutor, outroTutor]));
   });
 
   await test('/auth (tutor) devolve 3 permissões sem usuario_gerenciar', async () => {
-    const { body } = await POST('/api/sissa/auth', { email: 'juliana.moraes@ifsp.edu.br', senha: '5678' });
+    const { body } = await POST('/api/sissa/auth', { email: 'juliana.moraes@ufg.br', senha: '5678' });
     assertEqual(body.usuario.perfil_nivel, 1);
     assertEqual(body.usuario.permissoes.length, 3);
     assert(!body.usuario.permissoes.includes('usuario_gerenciar'));

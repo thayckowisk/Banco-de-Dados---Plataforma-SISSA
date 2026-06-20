@@ -910,9 +910,9 @@ INSERT INTO sissa_usuario_sissa (nome, email_institucional, senha, perfil_id, ul
     ('Adailton Araújo',                  'adailton@ufg.com',                    '1234', 2, NOW() - INTERVAL '2 hours'),  -- id 1 UFG
     ('Beatriz de Barros Vianna Cardoso', 'beatriz.de.bastos.vianna@gmail.com',  '2345', 3, NOW() - INTERVAL '30 days'), -- id 2 UFG
     ('Laís Hauptli Cândido',             'laishcandido@gmail.com',              '3456', 4, NULL),                        -- id 3 UFG
-    ('Kalebe Xavier',                    'kalebe.xavier@ifsp.edu.br',           '4567', 1, NOW() - INTERVAL '1 day'),    -- id 4 UFG
-    ('Juliana Moraes',                   'juliana.moraes@ifsp.edu.br',          '5678', 1, NOW() - INTERVAL '3 hours'),  -- id 5 UFG
-    ('Beatriz Cardoso',                  'beatriz.cardoso@ifsp.edu.br',         '6789', 1, NOW() - INTERVAL '6 hours'),  -- id 6 UFG
+    ('Kalebe Xavier',                    'kalebe.xavier@ufg.br',           '4567', 1, NOW() - INTERVAL '1 day'),    -- id 4 UFG
+    ('Juliana Moraes',                   'juliana.moraes@ufg.br',          '5678', 1, NOW() - INTERVAL '3 hours'),  -- id 5 UFG
+    ('Beatriz Cardoso',                  'beatriz.cardoso@ufg.br',         '6789', 1, NOW() - INTERVAL '6 hours'),  -- id 6 UFG
     ('Ricardo Tavares Lima',             'ricardo.tavares@ifsp.edu.br',         '7890', 4, NOW() - INTERVAL '5 hours'),  -- id 7 IFSP (Coord. unidade)
     ('Patrícia Nunes Rocha',             'patricia.rocha@ifsp.edu.br',          '8901', 2, NOW() - INTERVAL '20 hours'); -- id 8 IFSP (Coord. curso)
 
