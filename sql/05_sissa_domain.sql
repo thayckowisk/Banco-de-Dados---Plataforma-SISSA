@@ -52,6 +52,9 @@ END
 $drop_procs$;
 
 -- Tabelas (filhas → pais). Inclui nomes antigos para reexecução limpa.
+DROP TABLE IF EXISTS sissa_inscricao_turma        CASCADE;
+DROP TABLE IF EXISTS sissa_turma                  CASCADE;
+DROP TABLE IF EXISTS sissa_professor              CASCADE;
 DROP TABLE IF EXISTS sissa_intervencao_estudante  CASCADE;  -- antigo
 DROP TABLE IF EXISTS sissa_intervencao            CASCADE;
 DROP TABLE IF EXISTS sissa_grupo_estudante        CASCADE;  -- antigo
@@ -82,6 +85,7 @@ CREATE TABLE sissa_instituicao (
     id       SERIAL       PRIMARY KEY,
     code_mec VARCHAR(20)  NOT NULL UNIQUE,
     nome     VARCHAR(255) NOT NULL,
+    sigla    VARCHAR(20),
     tipo     VARCHAR(30)  CHECK (tipo IN ('Universidade','Instituto Federal'))
 );
 
@@ -101,10 +105,11 @@ CREATE INDEX idx_sissa_unidade_inst ON sissa_unidade(instituicao_id);
 -- SISSA_CURSO  (alcança a instituição via unidade)
 -- ----------------------------------------------------------------
 CREATE TABLE sissa_curso (
-    id         SERIAL       PRIMARY KEY,
-    codigo     VARCHAR(20),
-    nome       VARCHAR(255) NOT NULL,
-    unidade_id INTEGER      NOT NULL REFERENCES sissa_unidade(id) ON DELETE RESTRICT
+    id                   SERIAL       PRIMARY KEY,
+    codigo               VARCHAR(20),
+    nome                 VARCHAR(255) NOT NULL,
+    quantidade_semestres SMALLINT,
+    unidade_id           INTEGER      NOT NULL REFERENCES sissa_unidade(id) ON DELETE RESTRICT
 );
 
 CREATE INDEX idx_sissa_curso_unidade ON sissa_curso(unidade_id);
@@ -136,6 +141,7 @@ CREATE TABLE sissa_usuario_sissa (
     email_institucional VARCHAR(255) NOT NULL UNIQUE,
     senha               VARCHAR(4),   -- senha simples de 4 dígitos (projeto educacional/local)
     perfil_id           INTEGER      REFERENCES sissa_perfil(id) ON DELETE SET NULL,
+    instituicao_id      INTEGER      REFERENCES sissa_instituicao(id) ON DELETE SET NULL,
     ultimo_acesso       TIMESTAMP,
     created_at          TIMESTAMP    NOT NULL DEFAULT NOW()
 );
@@ -163,6 +169,14 @@ CREATE TABLE sissa_semestre (
 );
 
 -- ----------------------------------------------------------------
+-- SISSA_PROFESSOR  (entidade; leciona turmas). Necessário para turma.
+-- ----------------------------------------------------------------
+CREATE TABLE sissa_professor (
+    id   SERIAL       PRIMARY KEY,
+    nome VARCHAR(255) NOT NULL
+);
+
+-- ----------------------------------------------------------------
 -- SISSA_ALUNO  (pessoa)
 -- ----------------------------------------------------------------
 CREATE TABLE sissa_aluno (
@@ -187,6 +201,7 @@ CREATE TABLE sissa_matricula (
     status          VARCHAR(20)  NOT NULL DEFAULT 'Ativa',
     naturalidade_uf CHAR(2),
     forma_ingresso  VARCHAR(50),
+    data_matricula  DATE,
     media_global    DECIMAL(4,2),
     reprovacoes     INTEGER      DEFAULT 0,
     ch_semestre     INTEGER      DEFAULT 0,
@@ -210,6 +225,36 @@ CREATE TABLE sissa_disciplina (
 CREATE INDEX idx_sissa_disciplina_curso ON sissa_disciplina(curso_id);
 
 -- ----------------------------------------------------------------
+-- SISSA_TURMA  (uma disciplina tem 1+ turmas; cada turma é de um
+--   professor e acontece num semestre)
+-- ----------------------------------------------------------------
+CREATE TABLE sissa_turma (
+    id            SERIAL      PRIMARY KEY,
+    codigo        VARCHAR(10) NOT NULL,
+    disciplina_id INTEGER     NOT NULL REFERENCES sissa_disciplina(id) ON DELETE CASCADE,
+    professor_id  INTEGER     REFERENCES sissa_professor(id) ON DELETE SET NULL,
+    semestre_id   INTEGER     REFERENCES sissa_semestre(id) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_sissa_turma_disciplina ON sissa_turma(disciplina_id);
+CREATE INDEX idx_sissa_turma_semestre   ON sissa_turma(semestre_id);
+
+-- ----------------------------------------------------------------
+-- SISSA_INSCRICAO_TURMA  (N:N matrícula↔turma; é daqui que sai a
+--   contagem de "turmas" de cada aluno)
+-- ----------------------------------------------------------------
+CREATE TABLE sissa_inscricao_turma (
+    id           SERIAL       PRIMARY KEY,
+    situacao     VARCHAR(30)  NOT NULL DEFAULT 'Cursando',
+    turma_id     INTEGER      NOT NULL REFERENCES sissa_turma(id) ON DELETE CASCADE,
+    matricula_id INTEGER      NOT NULL REFERENCES sissa_matricula(id) ON DELETE CASCADE,
+    CONSTRAINT uq_sissa_inscricao UNIQUE (turma_id, matricula_id)
+);
+
+CREATE INDEX idx_sissa_inscricao_matricula ON sissa_inscricao_turma(matricula_id);
+CREATE INDEX idx_sissa_inscricao_turma     ON sissa_inscricao_turma(turma_id);
+
+-- ----------------------------------------------------------------
 -- SISSA_RISCO_EVASAO  (1:1 com matrícula; guarda o derivado de risco)
 -- ----------------------------------------------------------------
 CREATE TABLE sissa_risco_evasao (
@@ -220,7 +265,6 @@ CREATE TABLE sissa_risco_evasao (
     semestre_atual   INTEGER,
     maior_influencia VARCHAR(100),
     percentual       DECIMAL(5,2),
-    turmas           INTEGER     DEFAULT 0,
     updated_at       TIMESTAMP   NOT NULL DEFAULT NOW()
 );
 
@@ -622,7 +666,12 @@ SELECT
     m.reprovacoes,
     m.ch_semestre,
     r.maior_influencia,
-    r.turmas,
+    (
+        SELECT COUNT(*)
+        FROM sissa_inscricao_turma it
+        WHERE it.matricula_id = m.id
+    ) AS turmas,
+    i.sigla  AS instituicao_sigla,
     r.updated_at AS risco_updated_at,
     (
         SELECT COUNT(*)
@@ -670,7 +719,11 @@ SELECT
     m.reprovacoes,
     m.ch_semestre,
     r.maior_influencia,
-    r.turmas,
+    (
+        SELECT COUNT(*)
+        FROM sissa_inscricao_turma it
+        WHERE it.matricula_id = m.id
+    ) AS turmas,
     r.updated_at
 FROM sissa_risco_evasao r
 JOIN sissa_matricula m     ON m.id = r.matricula_id
@@ -741,6 +794,7 @@ REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM admin_sissa, leitur
 GRANT SELECT, INSERT, UPDATE, DELETE
     ON sissa_instituicao, sissa_unidade, sissa_curso, sissa_perfil, sissa_nivel_acao,
        sissa_usuario_sissa, sissa_usuario_curso, sissa_semestre, sissa_disciplina,
+       sissa_professor, sissa_turma, sissa_inscricao_turma,
        sissa_aluno, sissa_matricula, sissa_risco_evasao,
        sissa_grupo_intervencao, sissa_grupo_matricula, sissa_intervencao
     TO admin_sissa;
@@ -754,6 +808,7 @@ GRANT SELECT ON vw_sissa_estudantes_risco, vw_sissa_grupos,
 GRANT SELECT
     ON sissa_instituicao, sissa_unidade, sissa_curso, sissa_perfil, sissa_nivel_acao,
        sissa_usuario_sissa, sissa_usuario_curso, sissa_semestre, sissa_disciplina,
+       sissa_professor, sissa_turma, sissa_inscricao_turma,
        sissa_aluno, sissa_matricula, sissa_risco_evasao,
        sissa_grupo_intervencao, sissa_grupo_matricula, sissa_intervencao
     TO leitura_sissa;
@@ -769,12 +824,12 @@ GRANT SELECT ON vw_sissa_risco_anonimo TO risco_anonimo_sissa;
 -- SEED DATA (massa robusta para demonstração)
 -- ================================================================
 
--- Instituições (2 principais + 2 extras)
-INSERT INTO sissa_instituicao (code_mec, nome, tipo) VALUES
-    ('26358', 'Instituto Federal de São Paulo',  'Instituto Federal'),
-    ('579',   'Universidade Federal de Goiás',   'Universidade'),
-    ('12075', 'Instituto Federal de Rondônia',   'Instituto Federal'),
-    ('23040', 'Instituto Federal do Mato Grosso','Instituto Federal')
+-- Instituições (2 principais + 2 extras). A sigla alimenta o cabeçalho das telas.
+INSERT INTO sissa_instituicao (code_mec, nome, sigla, tipo) VALUES
+    ('26358', 'Instituto Federal de São Paulo',  'IFSP', 'Instituto Federal'),
+    ('579',   'Universidade Federal de Goiás',   'UFG',  'Universidade'),
+    ('12075', 'Instituto Federal de Rondônia',   'IFRO', 'Instituto Federal'),
+    ('23040', 'Instituto Federal do Mato Grosso','IFMT', 'Instituto Federal')
 ON CONFLICT (code_mec) DO NOTHING;
 
 -- Unidades (câmpus/regionais) — uma instituição tem várias unidades
@@ -785,13 +840,12 @@ INSERT INTO sissa_unidade (nome, sigla, instituicao_id) VALUES
     ('Câmpus Colorado do Oeste',  'COL', 3),  -- id 4
     ('Câmpus Cuiabá',             'CBA', 4);  -- id 5
 
--- Perfis (nível: 5 = mais alto … 1 = mais baixo). Ordem preservada (ids 1..5).
+-- Perfis (4 níveis: 4 = mais alto … 1 = Tutor). id == nível, em ordem crescente.
 INSERT INTO sissa_perfil (nome, nivel) VALUES
-    ('Coordenador de curso',   3),   -- id 1
-    ('Coordenador de ensino',  4),   -- id 2
-    ('Coordenador de unidade', 5),   -- id 3
-    ('Tutor Físico',           2),   -- id 4
-    ('Tutor',                  1)    -- id 5
+    ('Tutor',                  1),   -- id 1
+    ('Coordenador de curso',   2),   -- id 2
+    ('Coordenador de ensino',  3),   -- id 3
+    ('Coordenador de unidade', 4)    -- id 4
 ON CONFLICT (nome) DO NOTHING;
 
 -- ----------------------------------------------------------------
@@ -800,39 +854,37 @@ ON CONFLICT (nome) DO NOTHING;
 INSERT INTO sissa_nivel_acao (nivel, acao) VALUES
     -- Nível 1 — Tutor
     (1,'ver'), (1,'intervencao_criar'), (1,'intervencao_editar'),
-    -- Nível 2 — Tutor Físico
+    -- Nível 2 — Coordenador de curso
     (2,'ver'), (2,'intervencao_criar'), (2,'intervencao_editar'),
-    (2,'intervencao_excluir'), (2,'grupo_gerenciar'),
-    -- Nível 3 — Coordenador de curso
+    (2,'intervencao_excluir'), (2,'grupo_gerenciar'), (2,'grupo_excluir'),
+    (2,'estudante_gerenciar'), (2,'usuario_gerenciar'),
+    -- Nível 3 — Coordenador de ensino
     (3,'ver'), (3,'intervencao_criar'), (3,'intervencao_editar'),
     (3,'intervencao_excluir'), (3,'grupo_gerenciar'), (3,'grupo_excluir'),
-    (3,'estudante_gerenciar'), (3,'usuario_gerenciar'),
-    -- Nível 4 — Coordenador de ensino
+    (3,'estudante_gerenciar'), (3,'usuario_gerenciar'), (3,'usuario_excluir'),
+    -- Nível 4 — Coordenador de unidade
     (4,'ver'), (4,'intervencao_criar'), (4,'intervencao_editar'),
     (4,'intervencao_excluir'), (4,'grupo_gerenciar'), (4,'grupo_excluir'),
-    (4,'estudante_gerenciar'), (4,'usuario_gerenciar'), (4,'usuario_excluir'),
-    -- Nível 5 — Coordenador de unidade
-    (5,'ver'), (5,'intervencao_criar'), (5,'intervencao_editar'),
-    (5,'intervencao_excluir'), (5,'grupo_gerenciar'), (5,'grupo_excluir'),
-    (5,'estudante_gerenciar'), (5,'usuario_gerenciar'), (5,'usuario_excluir')
+    (4,'estudante_gerenciar'), (4,'usuario_gerenciar'), (4,'usuario_excluir')
 ON CONFLICT DO NOTHING;
 
 -- Cursos (5) — cada um pertence a uma unidade
-INSERT INTO sissa_curso (codigo, nome, unidade_id) VALUES
-    ('LFI',   'Licenciatura em Física',                                 1),  -- id 1
-    ('LMA',   'Licenciatura em Matemática',                             1),  -- id 2
-    ('12075', 'Técnico em Agroecologia Integrado ao Ensino Médio',      4),  -- id 3
-    ('52921', 'Bacharelado em Agronomia',                              3),  -- id 4
-    ('50',    'Técnico em Administração Subsequente ao Ensino Médio',   4);  -- id 5
+INSERT INTO sissa_curso (codigo, nome, quantidade_semestres, unidade_id) VALUES
+    ('LFI',   'Licenciatura em Física',                                 8,  1),  -- id 1
+    ('LMA',   'Licenciatura em Matemática',                             8,  1),  -- id 2
+    ('12075', 'Técnico em Agroecologia Integrado ao Ensino Médio',      6,  4),  -- id 3
+    ('52921', 'Bacharelado em Agronomia',                             10,  3),  -- id 4
+    ('50',    'Técnico em Administração Subsequente ao Ensino Médio',   4,  4);  -- id 5
 
--- Usuários SISSA (6 usuários)
+-- Usuários SISSA (6 usuários). perfil_id: 1=Tutor 2=Coord.curso 3=Coord.ensino 4=Coord.unidade.
+-- instituicao_id é derivado mais abaixo (a partir dos cursos vinculados).
 INSERT INTO sissa_usuario_sissa (nome, email_institucional, senha, perfil_id, ultimo_acesso) VALUES
-    ('Adailton Araújo',                  'adailton@ufg.com',                    '1234', 1, NOW() - INTERVAL '2 hours'),
-    ('Beatriz de Barros Vianna Cardoso', 'beatriz.de.bastos.vianna@gmail.com',  '2345', 2, NOW() - INTERVAL '30 days'),
-    ('Laís Hauptli Cândido',             'laishcandido@gmail.com',              '3456', 3, NULL),
-    ('Kalebe Xavier',                    'kalebe.xavier@ifsp.edu.br',           '4567', 4, NOW() - INTERVAL '1 day'),
-    ('Juliana Moraes',                   'juliana.moraes@ifsp.edu.br',          '5678', 5, NOW() - INTERVAL '3 hours'),
-    ('Beatriz Cardoso',                  'beatriz.cardoso@ifsp.edu.br',         '6789', 5, NOW() - INTERVAL '6 hours');
+    ('Adailton Araújo',                  'adailton@ufg.com',                    '1234', 2, NOW() - INTERVAL '2 hours'),
+    ('Beatriz de Barros Vianna Cardoso', 'beatriz.de.bastos.vianna@gmail.com',  '2345', 3, NOW() - INTERVAL '30 days'),
+    ('Laís Hauptli Cândido',             'laishcandido@gmail.com',              '3456', 4, NULL),
+    ('Kalebe Xavier',                    'kalebe.xavier@ifsp.edu.br',           '4567', 1, NOW() - INTERVAL '1 day'),
+    ('Juliana Moraes',                   'juliana.moraes@ifsp.edu.br',          '5678', 1, NOW() - INTERVAL '3 hours'),
+    ('Beatriz Cardoso',                  'beatriz.cardoso@ifsp.edu.br',         '6789', 1, NOW() - INTERVAL '6 hours');
 
 -- Vínculo usuário-curso:
 --   user3 (Coord. de unidade) ↔ TODOS os cursos da sua unidade (Câmpus SP: cursos 1 e 2);
@@ -900,20 +952,72 @@ VALUES
 -- a partir dos indicadores da matrícula; semeamos os campos derivados.
 -- ----------------------------------------------------------------
 INSERT INTO sissa_risco_evasao
-    (matricula_id, semestre_saida, semestre_atual, maior_influencia, percentual, turmas)
+    (matricula_id, semestre_saida, semestre_atual, maior_influencia, percentual)
 VALUES
-    (1,  1, 2, 'Reprovações',            70.0, 4),
-    (2,  1, 2, 'Média global',           65.0, 5),
-    (3,  2, 1, 'Reprovações',            78.0, 5),
-    (4,  1, 4, 'Reprovações',            85.0, 5),
-    (5,  3, 2, 'Forma de ingresso',      40.0, 5),
-    (6,  2, 1, 'Média global',           38.0, 3),
-    (7,  2, 1, 'CH semestre',            33.0, 3),
-    (8,  3, 5, 'Reprovações',            45.0, 4),
-    (9,  5, 3, 'Sem risco identificado',  9.0, 5),
-    (10, 6, 2, 'Sem risco identificado',  7.0, 5),
-    (11, 5, 2, 'Sem risco identificado', 10.0, 5),
-    (12, 6, 1, 'Sem risco identificado',  8.0, 5);
+    (1,  1, 2, 'Reprovações',            70.0),
+    (2,  1, 2, 'Média global',           65.0),
+    (3,  2, 1, 'Reprovações',            78.0),
+    (4,  1, 4, 'Reprovações',            85.0),
+    (5,  3, 2, 'Forma de ingresso',      40.0),
+    (6,  2, 1, 'Média global',           38.0),
+    (7,  2, 1, 'CH semestre',            33.0),
+    (8,  3, 5, 'Reprovações',            45.0),
+    (9,  5, 3, 'Sem risco identificado',  9.0),
+    (10, 6, 2, 'Sem risco identificado',  7.0),
+    (11, 5, 2, 'Sem risco identificado', 10.0),
+    (12, 6, 1, 'Sem risco identificado',  8.0);
+
+-- ----------------------------------------------------------------
+-- PROFESSORES + TURMAS + INSCRIÇÕES (curso 1 = Física, semestre 2024/1 = id 3).
+-- A contagem de "turmas" de cada aluno passa a vir de sissa_inscricao_turma.
+-- ----------------------------------------------------------------
+INSERT INTO sissa_professor (nome) VALUES
+    ('Dr. Roberto Almeida'),   -- id 1
+    ('Dra. Helena Martins'),   -- id 2
+    ('Dr. Paulo Ribeiro'),     -- id 3
+    ('Dra. Sandra Lopes');     -- id 4
+
+-- 6 turmas das disciplinas de Física (ids 1..5) no semestre 2024/1 (id 3)
+INSERT INTO sissa_turma (codigo, disciplina_id, professor_id, semestre_id) VALUES
+    ('A', 1, 1, 3),   -- id 1  Física Geral I
+    ('A', 2, 2, 3),   -- id 2  Física Geral II
+    ('A', 3, 3, 3),   -- id 3  Eletromagnetismo
+    ('B', 3, 1, 3),   -- id 4  Eletromagnetismo (turma B)
+    ('A', 4, 2, 3),   -- id 5  Mecânica Clássica
+    ('A', 5, 4, 3);   -- id 6  Cálculo I
+
+-- Inscrições (N:N matrícula↔turma); a quantidade por matrícula reproduz o
+-- número de turmas de cada aluno (3 a 5). situacao default = 'Cursando'.
+INSERT INTO sissa_inscricao_turma (matricula_id, turma_id) VALUES
+    (1,1),(1,2),(1,3),(1,4),
+    (2,1),(2,2),(2,3),(2,4),(2,5),
+    (3,1),(3,2),(3,3),(3,4),(3,6),
+    (4,1),(4,2),(4,3),(4,4),(4,5),
+    (5,1),(5,2),(5,3),(5,5),(5,6),
+    (6,1),(6,2),(6,3),
+    (7,1),(7,2),(7,6),
+    (8,1),(8,2),(8,3),(8,5),
+    (9,1),(9,2),(9,3),(9,4),(9,6),
+    (10,1),(10,2),(10,3),(10,5),(10,6),
+    (11,1),(11,2),(11,3),(11,4),(11,6),
+    (12,2),(12,3),(12,4),(12,5),(12,6);
+
+-- ----------------------------------------------------------------
+-- DERIVADOS DE SEED (multi-instituição + data de matrícula)
+-- ----------------------------------------------------------------
+-- instituicao_id de cada usuário = instituição do(s) curso(s) que ele acessa
+-- (curso → unidade → instituição). O cabeçalho das telas usa esta sigla.
+UPDATE sissa_usuario_sissa u SET instituicao_id = (
+    SELECT un.instituicao_id
+    FROM   sissa_usuario_curso uc
+    JOIN   sissa_curso c    ON c.id  = uc.curso_id
+    JOIN   sissa_unidade un ON un.id = c.unidade_id
+    WHERE  uc.usuario_id = u.id
+    LIMIT 1
+);
+
+-- data_matricula derivada do ano de ingresso (1º de março)
+UPDATE sissa_matricula SET data_matricula = make_date(ingresso, 3, 1) WHERE ingresso IS NOT NULL;
 
 -- ----------------------------------------------------------------
 -- GRUPOS DE INTERVENÇÃO (3) — Grupo B já nasce Inativo (arquivado)
