@@ -945,7 +945,9 @@ INSERT INTO sissa_disciplina (nome, carga_horaria, codigo, curso_id) VALUES
     ('Álgebra Linear',         60, 'MAT201', 2),  -- id 6
     ('Lógica de Programação',  80, 'ADS101', 6),  -- id 7 (IFSP)
     ('Banco de Dados',         80, 'ADS201', 6),  -- id 8 (IFSP)
-    ('Engenharia de Software', 80, 'ADS301', 6);  -- id 9 (IFSP)
+    ('Engenharia de Software', 80, 'ADS301', 6),  -- id 9 (IFSP)
+    ('Cálculo II',             60, 'MAT202', 2),  -- id 10 (UFG/Matemática)
+    ('Geometria Analítica',    60, 'MAT203', 2);  -- id 11 (UFG/Matemática)
 
 -- ----------------------------------------------------------------
 -- ALUNOS (pessoas) — ids 1..12 (UFG/Física) + 13..22 (IFSP/ADS)
@@ -973,7 +975,14 @@ INSERT INTO sissa_aluno (nome, email) VALUES
     ('Henrique Oliveira Costa',               'henrique.costa@aluno.ifsp.edu.br'),     -- 19
     ('Isadora Martins Rocha',                 'isadora.rocha@aluno.ifsp.edu.br'),      -- 20
     ('João Vitor Barbosa',                    'joao.barbosa@aluno.ifsp.edu.br'),       -- 21
-    ('Larissa Mendes Araujo',                 'larissa.araujo@aluno.ifsp.edu.br');     -- 22
+    ('Larissa Mendes Araujo',                 'larissa.araujo@aluno.ifsp.edu.br'),     -- 22
+    -- UFG / Licenciatura em Matemática
+    ('Beatriz Nogueira Campos',               'beatriz.campos@discente.ufg.br'),       -- 23
+    ('Caio Fernandes Moreira',                'caio.moreira@discente.ufg.br'),         -- 24
+    ('Daniela Ribeiro Pinto',                 'daniela.pinto@discente.ufg.br'),        -- 25
+    ('Eduardo Tavares Lima',                  'eduardo.lima@discente.ufg.br'),         -- 26
+    ('Fernanda Castro Dias',                  'fernanda.dias@discente.ufg.br'),        -- 27
+    ('Gustavo Henrique Soares',               'gustavo.soares@discente.ufg.br');       -- 28
 
 -- ----------------------------------------------------------------
 -- MATRÍCULAS — ids 1..12 (todas no curso 1). Os indicadores
@@ -1005,7 +1014,14 @@ VALUES
     ('IF2022ADS0019', 19, 6, 2021, 'Ativa', 'SP', 'SISU',          8.00, 0, 600),  -- Baixo
     ('IF2022ADS0020', 20, 6, 2022, 'Ativa', 'SP', 'ENEM',          7.50, 0, 600),  -- Baixo
     ('IF2022ADS0021', 21, 6, 2023, 'Ativa', 'RJ', 'SISU',          9.20, 0, 600),  -- Baixo
-    ('IF2022ADS0022', 22, 6, 2022, 'Ativa', 'SP', 'SISU',          8.80, 0, 600);  -- Baixo
+    ('IF2022ADS0022', 22, 6, 2022, 'Ativa', 'SP', 'SISU',          8.80, 0, 600),  -- Baixo
+    -- UFG / Matemática (curso 2) — ids 23..28
+    ('2022110020023', 23, 2, 2022, 'Ativa', 'GO', 'SISU',          3.80, 3, 600),  -- Alto
+    ('2022110020024', 24, 2, 2021, 'Ativa', 'GO', 'ENEM',          2.50, 0, 600),  -- Alto
+    ('2022110020025', 25, 2, 2022, 'Ativa', 'TO', 'SISU',          6.00, 1, 600),  -- Médio
+    ('2022110020026', 26, 2, 2023, 'Ativa', 'GO', 'Vestibular',    5.20, 0, 600),  -- Médio
+    ('2022110020027', 27, 2, 2021, 'Ativa', 'DF', 'SISU',          8.50, 0, 600),  -- Baixo
+    ('2022110020028', 28, 2, 2022, 'Ativa', 'GO', 'ENEM',          9.00, 0, 600);  -- Baixo
 
 -- ----------------------------------------------------------------
 -- RISCO DE EVASÃO (1 por matrícula). 'risco' é definido pela trigger
@@ -1036,7 +1052,14 @@ VALUES
     (19, 5, 3, 'Sem risco identificado', 11.0),
     (20, 6, 2, 'Sem risco identificado',  9.0),
     (21, 5, 2, 'Sem risco identificado',  6.0),
-    (22, 6, 1, 'Sem risco identificado',  8.0);
+    (22, 6, 1, 'Sem risco identificado',  8.0),
+    -- UFG / Matemática
+    (23, 1, 2, 'Reprovações',            74.0),
+    (24, 1, 2, 'Média global',           69.0),
+    (25, 3, 2, 'Reprovações',            41.0),
+    (26, 2, 1, 'Média global',           35.0),
+    (27, 5, 3, 'Sem risco identificado', 10.0),
+    (28, 6, 2, 'Sem risco identificado',  7.0);
 
 -- ----------------------------------------------------------------
 -- PROFESSORES + TURMAS + INSCRIÇÕES (curso 1 = Física, semestre 2024/1 = id 3).
@@ -1058,7 +1081,9 @@ INSERT INTO sissa_turma (codigo, disciplina_id, professor_id, semestre_id) VALUE
     ('A', 5, 4, 3),   -- id 6  Cálculo I
     ('A', 7, 1, 5),   -- id 7  Lógica de Programação (ADS/IFSP, 2025/1)
     ('A', 8, 3, 5),   -- id 8  Banco de Dados (ADS/IFSP)
-    ('A', 9, 2, 5);   -- id 9  Engenharia de Software (ADS/IFSP)
+    ('A', 9, 2, 5),   -- id 9  Engenharia de Software (ADS/IFSP)
+    ('A', 6, 2, 5),   -- id 10 Álgebra Linear (UFG/Matemática, 2025/1)
+    ('A', 10, 4, 5);  -- id 11 Cálculo II (UFG/Matemática)
 
 -- Inscrições (N:N matrícula↔turma); a quantidade por matrícula reproduz o
 -- número de turmas de cada aluno (3 a 5). situacao default = 'Cursando'.
@@ -1085,7 +1110,14 @@ INSERT INTO sissa_inscricao_turma (matricula_id, turma_id) VALUES
     (19,7),(19,8),(19,9),
     (20,7),(20,8),
     (21,7),(21,9),
-    (22,7),(22,8),(22,9);
+    (22,7),(22,8),(22,9),
+    -- UFG / Matemática (turmas 10,11)
+    (23,10),(23,11),
+    (24,10),(24,11),
+    (25,10),
+    (26,10),(26,11),
+    (27,11),
+    (28,10),(28,11);
 
 -- ----------------------------------------------------------------
 -- DERIVADOS DE SEED (multi-instituição + data de matrícula)

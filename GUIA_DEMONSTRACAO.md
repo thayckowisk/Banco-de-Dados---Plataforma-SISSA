@@ -64,16 +64,17 @@ livre) → cai na **área pública**, que mostra risco de evasão **anonimizado*
 | Curso | Código | Instituição | Semestres | Alunos |
 |-------|:------:|:----------:|:--------:|:-----:|
 | Licenciatura em Física | LFI | UFG | 8 | **12** |
-| Licenciatura em Matemática | LMA | UFG | 8 | 0 |
+| Licenciatura em Matemática | LMA | UFG | 8 | **6** |
 | Bacharelado em Agronomia | 52921 | UFG | 10 | 0 |
 | Tecnologia em ADS | ADS | IFSP | 6 | **10** |
 | Técnico em Agroecologia | 12075 | IFRO | 6 | 0 |
 | Técnico em Administração | 50 | IFRO | 4 | 0 |
 
-### Alunos e risco de evasão (22 no total)
+### Alunos e risco de evasão (28 no total)
 | Curso | Alunos | Alto risco | Médio | Baixo |
 |-------|:-----:|:---------:|:----:|:----:|
 | Física (UFG) | 12 | 4 | 4 | 4 |
+| Matemática (UFG) | 6 | 2 | 2 | 2 |
 | ADS (IFSP) | 10 | 3 | 3 | 4 |
 
 O nível de risco (Alto/Médio/Baixo) é calculado pela função
@@ -83,10 +84,10 @@ e gravado automaticamente por trigger.
 ### Disciplinas, turmas e semestres
 - **Semestres:** 2023/1, 2023/2, 2024/1, 2024/2, 2025/1, 2025/2.
 - **Disciplinas:** Física (5: Física Geral I/II, Eletromagnetismo, Mecânica
-  Clássica, Cálculo I) · Matemática (1: Álgebra Linear) · ADS (3: Lógica de
-  Programação, Banco de Dados, Engenharia de Software).
-- **Turmas:** 9 turmas, 4 professores; o nº de turmas de um aluno é **derivado**
-  de `sissa_inscricao_turma` (78 inscrições no total).
+  Clássica, Cálculo I) · Matemática (3: Álgebra Linear, Cálculo II, Geometria
+  Analítica) · ADS (3: Lógica de Programação, Banco de Dados, Engenharia de Software).
+- **Turmas:** 11 turmas, 4 professores; o nº de turmas de um aluno é **derivado**
+  de `sissa_inscricao_turma` (88 inscrições no total).
 
 ### Grupos de intervenção (3, todos de Física)
 | Grupo | Status | Membros |
