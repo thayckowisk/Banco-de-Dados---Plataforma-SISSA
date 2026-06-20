@@ -62,19 +62,22 @@ router.post('/auth', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Informe login e senha.' });
   }
   try {
+    // Multi-instituição: o cabeçalho usa a instituição DO USUÁRIO (u.instituicao_id),
+    // não a do login federado. curso_ids alimenta a tela de seleção de curso.
     const result = await db.query(
-      `SELECT u.id, u.nome, u.email_institucional, u.senha, u.perfil_id, u.ultimo_acesso,
-              p.nome AS perfil_nome, p.nivel AS perfil_nivel,
+      `SELECT u.id, u.nome, u.email_institucional, u.senha, u.perfil_id, u.instituicao_id,
+              u.ultimo_acesso, p.nome AS perfil_nome, p.nivel AS perfil_nivel,
+              array_agg(DISTINCT c.id)   FILTER (WHERE c.id   IS NOT NULL) AS curso_ids,
               array_agg(DISTINCT c.nome) FILTER (WHERE c.nome IS NOT NULL) AS cursos,
-              i.nome AS instituicao_nome
+              i.nome AS instituicao_nome, i.sigla AS instituicao_sigla
        FROM sissa_usuario_sissa u
        LEFT JOIN sissa_perfil        p  ON p.id = u.perfil_id
        LEFT JOIN sissa_usuario_curso uc ON uc.usuario_id = u.id
        LEFT JOIN sissa_curso         c  ON c.id = uc.curso_id
-       LEFT JOIN sissa_instituicao   i  ON i.id = $2
+       LEFT JOIN sissa_instituicao   i  ON i.id = u.instituicao_id
        WHERE LOWER(u.email_institucional) = LOWER($1)
-       GROUP BY u.id, p.nome, p.nivel, i.nome`,
-      [email.trim(), instituicao_id || 1]
+       GROUP BY u.id, p.nome, p.nivel, i.nome, i.sigla`,
+      [email.trim()]
     );
 
     if (result.rows.length > 0) {
@@ -148,11 +151,15 @@ router.get('/estatisticas/risco', async (req, res) => {
 ══════════════════════════════════════════ */
 router.get('/estudantes', async (req, res) => {
   try {
-    const { curso_id, risco } = req.query;
+    const { curso_id, risco, turma_id } = req.query;
     let q = 'SELECT * FROM vw_sissa_estudantes_risco WHERE 1=1';
     const p = [];
     if (curso_id) { p.push(curso_id); q += ` AND curso_id = $${p.length}`; }
     if (risco)    { p.push(risco);    q += ` AND risco = $${p.length}`; }
+    if (turma_id) {
+      p.push(turma_id);
+      q += ` AND id IN (SELECT matricula_id FROM sissa_inscricao_turma WHERE turma_id = $${p.length})`;
+    }
     q += " ORDER BY CASE risco WHEN 'Alto' THEN 1 WHEN 'Médio' THEN 2 WHEN 'Baixo' THEN 3 ELSE 4 END, nome";
     const result = await db.query(q, p);
     res.json({ success: true, data: result.rows });
