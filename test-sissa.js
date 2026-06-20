@@ -35,7 +35,7 @@ const DB_CONFIG = {
   host:     process.env.PGHOST     || 'localhost',
   port:     parseInt(process.env.PGPORT || '5432'),
   database: process.env.PGDATABASE || 'sissa',
-  user:     process.env.PGUSER     || 'thiagohonoratoferreira',
+  user:     process.env.PGUSER,
   password: process.env.PGPASSWORD || '',
 };
 const POLL_TIMEOUT_MS = 8000;
