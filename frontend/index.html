@@ -2030,18 +2030,14 @@
         <svg class="cafe-search-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
-        <div id="cafe-dropdown" class="cafe-dropdown" style="display:none;">
-          <div class="cafe-dropdown-item" onclick="cafeSelectUFG()">
-            UFG - Universidade Federal de Goias
-          </div>
-        </div>
+        <div id="cafe-dropdown" class="cafe-dropdown" style="display:none;"></div>
       </div>
 
       <div id="cafe-ufg-result" class="cafe-result-block" style="display:none;">
-        <p class="cafe-result-short">UFG</p>
-        <p class="cafe-result-full">Universidade Federal de Goias</p>
-        <button class="cafe-prosseguir-btn" onclick="cafeProsseguir()">
-          Prosseguir para login em UFG
+        <p class="cafe-result-short" id="cafe-result-sigla">UFG</p>
+        <p class="cafe-result-full"  id="cafe-result-nome">Universidade Federal de Goiás</p>
+        <button class="cafe-prosseguir-btn" id="cafe-result-btn" onclick="cafeProsseguir()">
+          Prosseguir para login
         </button>
       </div>
 
@@ -2077,7 +2073,7 @@
     </div>
     <div class="cafe-redirect-card">
       <p class="cafe-redir-label">Redirecionando para:</p>
-      <p class="cafe-redir-inst">UFG</p>
+      <p class="cafe-redir-inst" id="cafe-redir-inst">UFG</p>
       <div class="cafe-redir-logos">
         <div class="cafe-redir-fed">
           <span class="cafe-chimarro-ico" style="font-size:22px;">🧉</span>
@@ -2086,7 +2082,7 @@
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1a56d9" stroke-width="2.5">
           <path d="M5 12h14M12 5l7 7-7 7"/>
         </svg>
-        <span class="cafe-redir-to-inst">UFG</span>
+        <span class="cafe-redir-to-inst" id="cafe-redir-to-inst">UFG</span>
       </div>
       <div class="cafe-progress-outer">
         <div class="cafe-progress-inner" id="cafe-progress"></div>
@@ -2104,18 +2100,14 @@
       <p class="cafe-ufg-access">Acesso pela instituição:</p>
 
       <div class="cafe-ufg-logo-row">
-        <!-- Logo UFG aproximado em SVG -->
-        <svg width="70" height="64" viewBox="0 0 70 64" fill="#1a4080">
-          <polygon points="35,3 43.7,8 43.7,18 35,23 26.3,18 26.3,8"/>
-          <polygon points="18,13 26.7,18 26.7,28 18,33 9.3,28 9.3,18"/>
-          <polygon points="52,13 60.7,18 60.7,28 52,33 43.3,28 43.3,18"/>
-          <polygon points="18,35 26.7,40 26.7,50 18,55 9.3,50 9.3,40"/>
-          <polygon points="35,25 43.7,30 43.7,40 35,45 26.3,40 26.3,30"/>
-          <polygon points="52,35 60.7,40 60.7,50 52,55 43.3,50 43.3,40"/>
+        <!-- Ícone genérico de instituição (serve a qualquer instituição) -->
+        <svg width="58" height="58" viewBox="0 0 24 24" fill="none" stroke="#1a4080" stroke-width="1.6">
+          <path d="M3 21h18M4 21V10l8-5 8 5v11M9 21v-6h6v6"/>
+          <path d="M2 10l10-6 10 6"/>
         </svg>
         <div class="cafe-ufg-name">
-          <span class="cafe-ufg-abbr">UFG</span>
-          <span class="cafe-ufg-fullname">UNIVERSIDADE<br>FEDERAL DE GOIAS</span>
+          <span class="cafe-ufg-abbr" id="cafe-s4-sigla">UFG</span>
+          <span class="cafe-ufg-fullname" id="cafe-s4-nome">Universidade Federal de Goiás</span>
         </div>
       </div>
 
@@ -3143,34 +3135,57 @@
   /* ══════════════════════════════════════════
      CAFe INSTITUTION FLOW
   ══════════════════════════════════════════ */
+  // Carrega as instituições reais (CAFe é provedor de identidade multi-inst).
+  async function cafeEnterLogin() {
+    try {
+      const res = await sissaFetch('/instituicoes');
+      sissaState.instituicoes = res.data || [];
+    } catch {
+      sissaState.instituicoes = [
+        { id:1, code_mec:'26358', nome:'Instituto Federal de São Paulo', sigla:'IFSP', tipo:'Instituto Federal' },
+        { id:2, code_mec:'579',   nome:'Universidade Federal de Goiás',   sigla:'UFG',  tipo:'Universidade' }
+      ];
+    }
+    cafeReset();
+  }
+
   function cafeSearch(val) {
     const q = val.toLowerCase().trim();
     const dropdown = document.getElementById('cafe-dropdown');
     const result   = document.getElementById('cafe-ufg-result');
-    if (q.length === 0) {
-      dropdown.style.display = 'none';
-      result.style.display   = 'none';
-      return;
-    }
-    const matches = 'ufg'.startsWith(q) ||
-                    'universidade federal de goias'.includes(q) ||
-                    q.includes('ufg');
-    if (matches) {
-      dropdown.style.display = 'block';
-      result.style.display   = 'none';
-    } else {
-      dropdown.style.display = 'none';
-      result.style.display   = 'none';
-    }
+    result.style.display = 'none';
+    const list = sissaState.instituicoes || [];
+    const matches = q.length === 0 ? [] : list.filter(i =>
+        (i.sigla||'').toLowerCase().includes(q) ||
+        (i.nome ||'').toLowerCase().includes(q) ||
+        (i.code_mec||'').includes(q));
+    if (!matches.length) { dropdown.style.display = 'none'; dropdown.innerHTML = ''; return; }
+    dropdown.innerHTML = matches.map(i =>
+      `<div class="cafe-dropdown-item" onclick="cafeSelectInst(${i.id})">${escHtml(i.sigla||'')} - ${escHtml(i.nome||'')}</div>`
+    ).join('');
+    dropdown.style.display = 'block';
   }
 
-  function cafeSelectUFG() {
-    document.getElementById('cafe-search').value = 'UFG - Universidade Federal de Goias';
-    document.getElementById('cafe-dropdown').style.display = 'none';
+  function cafeSelectInst(id) {
+    const inst = (sissaState.instituicoes || []).find(i => i.id === id);
+    if (!inst) return;
+    sissaSession.instSelecionada = inst;
+    document.getElementById('cafe-search').value = `${inst.sigla||''} - ${inst.nome||''}`;
+    document.getElementById('cafe-dropdown').style.display   = 'none';
+    document.getElementById('cafe-result-sigla').textContent = inst.sigla || '';
+    document.getElementById('cafe-result-nome').textContent  = inst.nome  || '';
+    document.getElementById('cafe-result-btn').textContent   = `Prosseguir para login em ${inst.sigla||''}`;
     document.getElementById('cafe-ufg-result').style.display = 'block';
   }
 
   function cafeProsseguir() {
+    const inst  = sissaSession.instSelecionada || {};
+    const sigla = inst.sigla || '';
+    const set = (elId, txt) => { const el = document.getElementById(elId); if (el) el.textContent = txt; };
+    set('cafe-redir-inst', sigla);
+    set('cafe-redir-to-inst', sigla);
+    set('cafe-s4-sigla', sigla);
+    set('cafe-s4-nome', inst.nome || '');
     document.getElementById('cafe-s12').style.display = 'none';
     document.getElementById('cafe-s3').style.display  = 'flex';
     const bar = document.getElementById('cafe-progress');
@@ -5482,7 +5497,7 @@
   ══════════════════════════════════════════ */
   function sissaScreenHook(id) {
     if (id === 'sissa-login') {
-      loadSissaInst();
+      cafeEnterLogin();
       return;
     }
     // First visit: load everything
