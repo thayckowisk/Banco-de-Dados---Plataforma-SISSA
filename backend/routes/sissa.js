@@ -350,7 +350,23 @@ router.post('/estudantes/importar', async (req, res) => {
 ══════════════════════════════════════════ */
 async function getGrupos(req, res) {
   try {
-    const result = await db.query('SELECT * FROM vw_sissa_grupos ORDER BY created_at DESC');
+    // Escopo por curso: o grupo é um favorito de matrículas; aparece para um
+    // curso quando tem ≥1 matrícula membro nele. Grupos sem membros (recém-
+    // criados, transitórios) continuam visíveis para não "sumirem" da tela.
+    const { curso_id } = req.query;
+    const p = [];
+    let q = 'SELECT * FROM vw_sissa_grupos g WHERE 1=1';
+    if (curso_id) {
+      p.push(curso_id);
+      q += ` AND (
+               EXISTS (SELECT 1 FROM sissa_grupo_matricula gm
+                       JOIN sissa_matricula m ON m.id = gm.matricula_id
+                       WHERE gm.grupo_id = g.id AND m.curso_id = $${p.length})
+               OR NOT EXISTS (SELECT 1 FROM sissa_grupo_matricula gm WHERE gm.grupo_id = g.id)
+             )`;
+    }
+    q += ' ORDER BY created_at DESC';
+    const result = await db.query(q, p);
     res.json({ success: true, data: result.rows });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -526,7 +542,7 @@ router.delete('/grupos-intervencao/:id',   deleteGrupo);
 ══════════════════════════════════════════ */
 router.get('/intervencoes', async (req, res) => {
   try {
-    const { grupo_id, data_min, data_max, busca } = req.query;
+    const { grupo_id, data_min, data_max, busca, curso_id } = req.query;
     // Intervenção é individual: 1 linha por matrícula. Inclui rótulos de
     // disciplina/semestre e o nome do aluno (estudante_nomes como array de 1
     // elemento mantém o render atual do front).
@@ -544,6 +560,7 @@ router.get('/intervencoes', async (req, res) => {
       LEFT JOIN sissa_semestre s   ON s.id = i.semestre_id
       WHERE 1=1`;
     const p = [];
+    if (curso_id) { p.push(curso_id);  q += ` AND m.curso_id = $${p.length}`; }
     if (grupo_id) { p.push(grupo_id);  q += ` AND i.matricula_id IN (SELECT matricula_id FROM sissa_grupo_matricula WHERE grupo_id = $${p.length})`; }
     if (data_min) { p.push(data_min);  q += ` AND i.data_intervencao >= $${p.length}`; }
     if (data_max) { p.push(data_max);  q += ` AND i.data_intervencao <= $${p.length}`; }

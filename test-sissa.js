@@ -877,6 +877,21 @@ async function suiteApiGrupos() {
     const { status, body } = await GET('/api/sissa/grupos/999999');
     assertEqual(status, 404); assertFalse(body.success);
   });
+  await test('GET /grupos?curso_id escopa por membros (UFG≠IFSP) e inclui grupos vazios', async () => {
+    const m1     = await mkMatricula(0, 8, 600);   // mkMatricula usa curso_id=1 (Física/UFG)
+    const gCurso = await scalar(`INSERT INTO sissa_grupo_intervencao(titulo,status) VALUES('ZZ Grupo Curso1','Ativo') RETURNING id`);
+    tmp.grupoIds.push(gCurso);
+    await q(`INSERT INTO sissa_grupo_matricula(grupo_id,matricula_id) VALUES($1,$2)`, [gCurso, m1]);
+    const gVazio = await scalar(`INSERT INTO sissa_grupo_intervencao(titulo,status) VALUES('ZZ Grupo Vazio','Ativo') RETURNING id`);
+    tmp.grupoIds.push(gVazio);
+
+    const c1 = (await GET('/api/sissa/grupos?curso_id=1')).body.data.map(g => g.id);  // UFG
+    const c6 = (await GET('/api/sissa/grupos?curso_id=6')).body.data.map(g => g.id);  // IFSP (ADS)
+    assertTrue(c1.includes(gCurso),  'grupo com membro do curso 1 deve aparecer no curso 1');
+    assertFalse(c6.includes(gCurso), 'grupo com membro do curso 1 NÃO deve aparecer no curso 6');
+    assertTrue(c1.includes(gVazio),  'grupo vazio aparece em qualquer curso');
+    assertTrue(c6.includes(gVazio),  'grupo vazio aparece em qualquer curso');
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -936,6 +951,12 @@ async function suiteApiIntervencoes() {
     const { body } = await GET(`/api/sissa/intervencoes?grupo_id=${grupoX}`);
     assertTrue(body.success);
     assertTrue(body.data.every(i => i.matricula_id === mX));
+  });
+  await test('GET /intervencoes?curso_id escopa por curso (UFG≠IFSP)', async () => {
+    const c1 = (await GET('/api/sissa/intervencoes?curso_id=1')).body.data;  // mX é curso 1 (UFG)
+    const c6 = (await GET('/api/sissa/intervencoes?curso_id=6')).body.data;  // ADS (IFSP)
+    assertTrue(c1.some(i => i.id === intId), 'intervenção de matrícula do curso 1 aparece no curso 1');
+    assertFalse(c6.some(i => i.id === intId), 'intervenção de matrícula do curso 1 NÃO aparece no curso 6');
   });
   await test('GET /intervencoes?busca filtra por texto', async () => {
     const { body } = await GET('/api/sissa/intervencoes?busca=teste');

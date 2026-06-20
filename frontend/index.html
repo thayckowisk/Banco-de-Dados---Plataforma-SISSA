@@ -4326,8 +4326,8 @@
     try {
       const [eRes, gRes, iRes, uRes, cRes, pRes, semRes, discRes, tRes] = await Promise.all([
         sissaFetch('/estudantes' + qs),
-        sissaFetch('/grupos'),
-        sissaFetch('/intervencoes'),
+        sissaFetch('/grupos' + qs),
+        sissaFetch('/intervencoes' + qs),
         sissaFetch('/usuarios' + qs),
         sissaFetch('/cursos'),
         sissaFetch('/perfis'),
@@ -4423,16 +4423,22 @@
     } catch { renderSissaEstudantes(sissaState.estudantes); }
   }
 
+  // Querystring do curso ativo (escopo das telas de grupos/intervenções).
+  function cursoQS() {
+    const cid = sissaSession.cursoSelecionado?.id;
+    return cid ? `?curso_id=${cid}` : '';
+  }
+
   async function reloadSissaGrupos() {
     try {
-      const r = await sissaFetch('/grupos');
+      const r = await sissaFetch('/grupos' + cursoQS());
       if (r.success) { sissaState.grupos = r.data || []; renderSissaGrupos(sissaState.grupos); }
     } catch {}
   }
 
   async function reloadSissaIntervencoes() {
     try {
-      const r = await sissaFetch('/intervencoes');
+      const r = await sissaFetch('/intervencoes' + cursoQS());
       if (r.success) { sissaState.intervencoes = r.data || []; renderSissaIntervencoes(sissaState.intervencoes); }
     } catch {}
   }
@@ -4840,7 +4846,7 @@
       const res = await sissaFetch('/manutencao/status-grupos', { method:'POST' });
       if (res.success) {
         showSissaNotif(`${res.total||0} grupo(s) inativado(s) pela manutenção`);
-        const rg = await sissaFetch('/grupos');
+        const rg = await sissaFetch('/grupos' + cursoQS());
         if (rg.success) { sissaState.grupos = rg.data||[]; renderSissaGrupos(sissaState.grupos); }
       } else {
         showToast(res.error||'Falha na manutenção de grupos.','error');
@@ -4924,7 +4930,7 @@
 
         // Reload groups
         try {
-          const r2 = await sissaFetch('/grupos');
+          const r2 = await sissaFetch('/grupos' + cursoQS());
           if (r2.success) { sissaState.grupos = r2.data||[]; renderSissaGrupos(sissaState.grupos); }
         } catch { loadSissaMockData(); }
       } else {
@@ -5179,10 +5185,10 @@
         sissaCloseModal('sissa-modal-intervencao');
         sissaState.selectedEstudanteIds.clear();
         document.getElementById('sissa-sel-bar').classList.remove('visible');
-        const r2 = await sissaFetch('/intervencoes');
+        const r2 = await sissaFetch('/intervencoes' + cursoQS());
         if (r2.success) { sissaState.intervencoes = r2.data||[]; renderSissaIntervencoes(sissaState.intervencoes); }
         // recarrega grupos: o trigger pode ter reativado o grupo de origem
-        const rg = await sissaFetch('/grupos');
+        const rg = await sissaFetch('/grupos' + cursoQS());
         if (rg.success) { sissaState.grupos = rg.data||[]; renderSissaGrupos(sissaState.grupos); }
       } else {
         showToast(res.error||'Erro ao salvar intervenção.','error');
