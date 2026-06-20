@@ -167,8 +167,8 @@ SELECT
     e.nivel_risco,
     e.percentual,
     EXISTS (
-        SELECT 1 FROM sissa_estudante se
-        WHERE se.matricula = 'UNI' || LPAD(a.id::text, 6, '0')
+        SELECT 1 FROM sissa_matricula sm
+        WHERE sm.codigo = 'UNI' || LPAD(a.id::text, 6, '0')
     )                                             AS ja_importado
 FROM uni_aluno a
 JOIN uni_matricula m ON m.id_estudante = a.id

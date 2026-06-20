@@ -62,19 +62,22 @@ router.post('/auth', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Informe login e senha.' });
   }
   try {
+    // Multi-instituição: o cabeçalho usa a instituição DO USUÁRIO (u.instituicao_id),
+    // não a do login federado. curso_ids alimenta a tela de seleção de curso.
     const result = await db.query(
-      `SELECT u.id, u.nome, u.email_institucional, u.senha, u.perfil_id, u.ultimo_acesso,
-              p.nome AS perfil_nome, p.nivel AS perfil_nivel,
+      `SELECT u.id, u.nome, u.email_institucional, u.senha, u.perfil_id, u.instituicao_id,
+              u.ultimo_acesso, p.nome AS perfil_nome, p.nivel AS perfil_nivel,
+              array_agg(DISTINCT c.id)   FILTER (WHERE c.id   IS NOT NULL) AS curso_ids,
               array_agg(DISTINCT c.nome) FILTER (WHERE c.nome IS NOT NULL) AS cursos,
-              i.nome AS instituicao_nome
+              i.nome AS instituicao_nome, i.sigla AS instituicao_sigla
        FROM sissa_usuario_sissa u
        LEFT JOIN sissa_perfil        p  ON p.id = u.perfil_id
        LEFT JOIN sissa_usuario_curso uc ON uc.usuario_id = u.id
        LEFT JOIN sissa_curso         c  ON c.id = uc.curso_id
-       LEFT JOIN sissa_instituicao   i  ON i.id = $2
+       LEFT JOIN sissa_instituicao   i  ON i.id = u.instituicao_id
        WHERE LOWER(u.email_institucional) = LOWER($1)
-       GROUP BY u.id, p.nome, p.nivel, i.nome`,
-      [email.trim(), instituicao_id || 1]
+       GROUP BY u.id, p.nome, p.nivel, i.nome, i.sigla`,
+      [email.trim()]
     );
 
     if (result.rows.length > 0) {
@@ -119,10 +122,10 @@ router.get('/estatisticas/risco', async (req, res) => {
         COUNT(*) FILTER (WHERE r.risco = 'Médio')      AS medio,
         COUNT(*) FILTER (WHERE r.risco = 'Baixo')      AS baixo
       FROM sissa_risco_evasao r
-      JOIN sissa_estudante e ON e.id = r.estudante_id
+      JOIN sissa_matricula m ON m.id = r.matricula_id
       WHERE 1=1`;
     const p = [];
-    if (curso_id) { p.push(curso_id); q += ` AND e.curso_id = $${p.length}`; }
+    if (curso_id) { p.push(curso_id); q += ` AND m.curso_id = $${p.length}`; }
     const result = await db.query(q, p);
     const row = result.rows[0];
     const total = parseInt(row.total) || 0;
@@ -148,11 +151,15 @@ router.get('/estatisticas/risco', async (req, res) => {
 ══════════════════════════════════════════ */
 router.get('/estudantes', async (req, res) => {
   try {
-    const { curso_id, risco } = req.query;
+    const { curso_id, risco, turma_id } = req.query;
     let q = 'SELECT * FROM vw_sissa_estudantes_risco WHERE 1=1';
     const p = [];
     if (curso_id) { p.push(curso_id); q += ` AND curso_id = $${p.length}`; }
     if (risco)    { p.push(risco);    q += ` AND risco = $${p.length}`; }
+    if (turma_id) {
+      p.push(turma_id);
+      q += ` AND id IN (SELECT matricula_id FROM sissa_inscricao_turma WHERE turma_id = $${p.length})`;
+    }
     q += " ORDER BY CASE risco WHEN 'Alto' THEN 1 WHEN 'Médio' THEN 2 WHEN 'Baixo' THEN 3 ELSE 4 END, nome";
     const result = await db.query(q, p);
     res.json({ success: true, data: result.rows });
@@ -166,7 +173,7 @@ router.post('/estudantes', async (req, res) => {
   const {
     matricula, nome, curso_id, ingresso,
     semestre_saida, media_global, semestre_atual,
-    reprovacoes, ch_semestre, maior_influencia, turmas
+    reprovacoes, ch_semestre, maior_influencia
   } = req.body;
   if (!matricula || !nome || !curso_id) {
     return res.status(400).json({ success: false, error: 'matricula, nome e curso_id são obrigatórios' });
@@ -179,30 +186,34 @@ router.post('/estudantes', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    const eRes = await client.query(
-      'INSERT INTO sissa_estudante (matricula, nome, curso_id, ingresso) VALUES ($1,$2,$3,$4) RETURNING id',
-      [matricula, nome, curso_id, num(ingresso)]
+    // Aluno (pessoa) + matrícula (vínculo curso, guarda os indicadores)
+    const aRes = await client.query(
+      'INSERT INTO sissa_aluno (nome) VALUES ($1) RETURNING id',
+      [nome]
     );
-    const estudanteId = eRes.rows[0].id;
+    const alunoId = aRes.rows[0].id;
 
+    const mRes = await client.query(
+      `INSERT INTO sissa_matricula
+         (codigo, aluno_id, curso_id, ingresso, media_global, reprovacoes, ch_semestre)
+       VALUES ($1,$2,$3,$4,$5,COALESCE($6,0),COALESCE($7,0)) RETURNING id`,
+      [matricula, alunoId, curso_id, num(ingresso),
+       num(media_global), num(reprovacoes), num(ch_semestre)]
+    );
+    const matriculaId = mRes.rows[0].id;
+
+    // 'risco' é derivado pela trigger tg_sissa_classificar_risco (fonte única)
     await client.query(
       `INSERT INTO sissa_risco_evasao
-         (estudante_id, semestre_saida, media_global, semestre_atual,
-          reprovacoes, ch_semestre, maior_influencia, turmas)
-       VALUES ($1,$2,$3,$4,COALESCE($5,0),COALESCE($6,0),$7,COALESCE($8,0))`,
-      [estudanteId, num(semestre_saida), num(media_global), num(semestre_atual),
-       num(reprovacoes), num(ch_semestre), maior_influencia || null, num(turmas)]
-    );
-
-    // nível de risco derivado automaticamente pela função de domínio
-    await client.query(
-      'UPDATE sissa_risco_evasao SET risco = fu_sissa_calcular_risco($1) WHERE estudante_id = $1',
-      [estudanteId]
+         (matricula_id, semestre_saida, semestre_atual, maior_influencia)
+       VALUES ($1,$2,$3,$4)`,
+      [matriculaId, num(semestre_saida), num(semestre_atual),
+       maior_influencia || null]
     );
 
     const vRes = await client.query(
       'SELECT * FROM vw_sissa_estudantes_risco WHERE id = $1',
-      [estudanteId]
+      [matriculaId]
     );
 
     await client.query('COMMIT');
@@ -286,23 +297,37 @@ router.post('/estudantes/importar', async (req, res) => {
     }
     const cursoId = cRes.rows[0].id;
 
-    const eRes = await client.query(
-      'INSERT INTO sissa_estudante (matricula, nome, curso_id, ingresso) VALUES ($1,$2,$3,$4) RETURNING id',
-      [r.matricula_codigo, r.nome, cursoId, r.ingresso]
+    // Achar-ou-criar o aluno (pessoa) pelo email vindo do roster da universidade
+    const aRes = await client.query(
+      `INSERT INTO sissa_aluno (nome, email) VALUES ($1,$2)
+       ON CONFLICT (email) DO UPDATE SET nome = EXCLUDED.nome
+       RETURNING id`,
+      [r.nome, r.email]
     );
-    const estudanteId = eRes.rows[0].id;
+    const alunoId = aRes.rows[0].id;
+
+    // Matrícula (vínculo curso + indicadores acadêmicos vindos da universidade)
+    const mRes = await client.query(
+      `INSERT INTO sissa_matricula
+         (codigo, aluno_id, curso_id, ingresso, naturalidade_uf, forma_ingresso,
+          media_global, reprovacoes, ch_semestre)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+      [r.matricula_codigo, alunoId, cursoId, r.ingresso, r.naturalidade_uf,
+       r.forma_ingresso, r.media_global, r.reprovacoes, r.ch_semestre]
+    );
+    const matriculaId = mRes.rows[0].id;
 
     // 'risco' é definido automaticamente pelo trigger tg_sissa_classificar_risco
     await client.query(
       `INSERT INTO sissa_risco_evasao
-         (estudante_id, media_global, reprovacoes, ch_semestre, turmas, maior_influencia)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [estudanteId, r.media_global, r.reprovacoes, r.ch_semestre, r.turmas, r.maior_influencia]
+         (matricula_id, maior_influencia, percentual)
+       VALUES ($1,$2,$3)`,
+      [matriculaId, r.maior_influencia, r.percentual]
     );
 
     const vRes = await client.query(
       'SELECT * FROM vw_sissa_estudantes_risco WHERE id = $1',
-      [estudanteId]
+      [matriculaId]
     );
 
     await client.query('COMMIT');
@@ -338,12 +363,13 @@ async function getGrupoById(req, res) {
     if (!g.rows.length) return res.status(404).json({ success: false, error: 'Grupo não encontrado' });
 
     const estudantes = await db.query(
-      `SELECT e.id, e.matricula, e.nome, c.nome AS curso_nome
-       FROM sissa_grupo_estudante ge
-       JOIN sissa_estudante e ON e.id = ge.estudante_id
-       JOIN sissa_curso c     ON c.id = e.curso_id
-       WHERE ge.grupo_id = $1
-       ORDER BY e.nome`, [req.params.id]
+      `SELECT m.id, m.codigo AS matricula, a.nome, c.nome AS curso_nome
+       FROM sissa_grupo_matricula gm
+       JOIN sissa_matricula m ON m.id = gm.matricula_id
+       JOIN sissa_aluno a     ON a.id = m.aluno_id
+       JOIN sissa_curso c     ON c.id = m.curso_id
+       WHERE gm.grupo_id = $1
+       ORDER BY a.nome`, [req.params.id]
     );
 
     res.json({ success: true, data: { ...g.rows[0], estudantes: estudantes.rows } });
@@ -354,6 +380,7 @@ async function getGrupoById(req, res) {
 
 async function createGrupo(req, res) {
   if (!await exigirPermissao(req, res, 'grupo_gerenciar')) return;
+  // estudante_ids = ids de MATRÍCULA (o grupo é um favorito de matrículas)
   const { titulo, semestre, observacoes, autoria_id, estudante_ids = [] } = req.body;
   if (!titulo) return res.status(400).json({ success: false, error: 'titulo é obrigatório' });
 
@@ -367,10 +394,10 @@ async function createGrupo(req, res) {
     );
     const grupo = gRes.rows[0];
 
-    for (const eid of estudante_ids) {
+    for (const mid of estudante_ids) {
       await client.query(
-        'INSERT INTO sissa_grupo_estudante (grupo_id, estudante_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
-        [grupo.id, eid]
+        'INSERT INTO sissa_grupo_matricula (grupo_id, matricula_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
+        [grupo.id, mid]
       );
     }
 
@@ -402,11 +429,12 @@ async function updateGrupo(req, res) {
     );
 
     if (Array.isArray(estudante_ids)) {
-      await client.query('DELETE FROM sissa_grupo_estudante WHERE grupo_id = $1', [req.params.id]);
-      for (const eid of estudante_ids) {
+      // estudante_ids = ids de MATRÍCULA
+      await client.query('DELETE FROM sissa_grupo_matricula WHERE grupo_id = $1', [req.params.id]);
+      for (const mid of estudante_ids) {
         await client.query(
-          'INSERT INTO sissa_grupo_estudante (grupo_id, estudante_id) VALUES ($1,$2)',
-          [req.params.id, eid]
+          'INSERT INTO sissa_grupo_matricula (grupo_id, matricula_id) VALUES ($1,$2)',
+          [req.params.id, mid]
         );
       }
     }
@@ -442,20 +470,47 @@ router.delete('/grupos/:id',  deleteGrupo);
 router.get('/grupos/:id/estudantes', async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT e.id, e.matricula, e.nome,
+      `SELECT m.id, m.codigo AS matricula, a.nome,
               c.nome AS curso_nome,
-              r.risco, r.media_global, r.reprovacoes
-       FROM sissa_grupo_estudante ge
-       JOIN sissa_estudante e    ON e.id = ge.estudante_id
-       JOIN sissa_curso c        ON c.id = e.curso_id
-       LEFT JOIN sissa_risco_evasao r ON r.estudante_id = e.id
-       WHERE ge.grupo_id = $1
-       ORDER BY e.nome`,
+              r.risco, m.media_global, m.reprovacoes
+       FROM sissa_grupo_matricula gm
+       JOIN sissa_matricula m    ON m.id = gm.matricula_id
+       JOIN sissa_aluno a        ON a.id = m.aluno_id
+       JOIN sissa_curso c        ON c.id = m.curso_id
+       LEFT JOIN sissa_risco_evasao r ON r.matricula_id = m.id
+       WHERE gm.grupo_id = $1
+       ORDER BY a.nome`,
       [req.params.id]
     );
     res.json({ success: true, data: result.rows });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Fluxo "a partir do grupo": CALL da procedure que cria UMA intervenção
+// individual por matrícula membro do grupo (demonstra a procedure no banco,
+// em vez de refazer a lógica em JS).
+router.post('/grupos/:id/intervencoes', async (req, res) => {
+  const actorId = await exigirPermissao(req, res, 'intervencao_criar');
+  if (!actorId) return;
+  const grupoId = getId(req, res); if (!grupoId) return;
+  const {
+    data_intervencao, semestre_id, disciplina_id, forma_meio, assunto,
+    interacao, tipo, acompanhamento, observacoes
+  } = req.body;
+  const num = (v) => (v === '' || v === undefined || v === null ? null : v);
+  try {
+    const r = await db.query(
+      'CALL pr_sissa_criar_intervencao_grupo($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+      [grupoId, data_intervencao || null, num(semestre_id), num(disciplina_id),
+       forma_meio || null, assunto || null, interacao || null, tipo || null,
+       acompanhamento || null, observacoes || null, 0]
+    );
+    res.json({ success: true, total: r.rows[0] ? r.rows[0].p_total : 0 });
+  } catch (err) {
+    // grupo inexistente → a procedure dá RAISE EXCEPTION
+    res.status(400).json({ success: false, error: err.message });
   }
 });
 
@@ -472,22 +527,28 @@ router.delete('/grupos-intervencao/:id',   deleteGrupo);
 router.get('/intervencoes', async (req, res) => {
   try {
     const { grupo_id, data_min, data_max, busca } = req.query;
+    // Intervenção é individual: 1 linha por matrícula. Inclui rótulos de
+    // disciplina/semestre e o nome do aluno (estudante_nomes como array de 1
+    // elemento mantém o render atual do front).
     let q = `
       SELECT i.*,
-             array_agg(ie.estudante_id ORDER BY ie.estudante_id) FILTER (WHERE ie.estudante_id IS NOT NULL) AS estudante_ids,
-             array_agg(e.nome          ORDER BY e.nome)          FILTER (WHERE e.nome IS NOT NULL)          AS estudante_nomes,
-             g.titulo AS grupo_titulo
+             m.codigo  AS matricula,
+             a.nome    AS estudante_nome,
+             ARRAY[a.nome] AS estudante_nomes,
+             d.nome    AS disciplina,
+             (s.ano || '/' || s.periodo) AS semestre
       FROM sissa_intervencao i
-      LEFT JOIN sissa_intervencao_estudante ie ON ie.intervencao_id = i.id
-      LEFT JOIN sissa_estudante e              ON e.id = ie.estudante_id
-      LEFT JOIN sissa_grupo_intervencao g      ON g.id = i.grupo_id
+      JOIN sissa_matricula m       ON m.id = i.matricula_id
+      JOIN sissa_aluno a           ON a.id = m.aluno_id
+      LEFT JOIN sissa_disciplina d ON d.id = i.disciplina_id
+      LEFT JOIN sissa_semestre s   ON s.id = i.semestre_id
       WHERE 1=1`;
     const p = [];
-    if (grupo_id) { p.push(grupo_id);  q += ` AND i.grupo_id = $${p.length}`; }
+    if (grupo_id) { p.push(grupo_id);  q += ` AND i.matricula_id IN (SELECT matricula_id FROM sissa_grupo_matricula WHERE grupo_id = $${p.length})`; }
     if (data_min) { p.push(data_min);  q += ` AND i.data_intervencao >= $${p.length}`; }
     if (data_max) { p.push(data_max);  q += ` AND i.data_intervencao <= $${p.length}`; }
-    if (busca)    { p.push(`%${busca}%`); q += ` AND (g.titulo ILIKE $${p.length} OR i.observacoes ILIKE $${p.length})`; }
-    q += ' GROUP BY i.id, g.titulo ORDER BY i.data_intervencao DESC';
+    if (busca)    { p.push(`%${busca}%`); q += ` AND (a.nome ILIKE $${p.length} OR i.observacoes ILIKE $${p.length} OR d.nome ILIKE $${p.length})`; }
+    q += ' ORDER BY i.data_intervencao DESC';
 
     const result = await db.query(q, p);
     res.json({ success: true, data: result.rows });
@@ -496,42 +557,43 @@ router.get('/intervencoes', async (req, res) => {
   }
 });
 
+// Intervenção é INDIVIDUAL: selecionar N matrículas cria N intervenções
+// (uma por matrícula). estudante_ids = ids de matrícula.
 router.post('/intervencoes', async (req, res) => {
   const actorId = await exigirPermissao(req, res, 'intervencao_criar');
   if (!actorId) return;
   const {
-    grupo_id, data_intervencao, semestre, disciplina, forma_meio, assunto,
+    estudante_ids = [], disciplina_id, semestre_id, data_intervencao, forma_meio, assunto,
     formato, interacao, tipo, acompanhamento, duracao, objetivo_alcancado,
-    observacoes, encaminhado, encaminhar_para, estudante_ids = []
+    observacoes, encaminhado, encaminhar_para
   } = req.body;
+  if (!Array.isArray(estudante_ids) || estudante_ids.length === 0) {
+    return res.status(400).json({ success: false, error: 'Selecione ao menos uma matrícula (estudante_ids).' });
+  }
+  const num = (v) => (v === '' || v === undefined || v === null ? null : v);
 
   const client = await db.connect();
   try {
     await client.query('BEGIN');
 
+    const criadas = [];
     // autoria_id = usuário logado (permite que o Tutor edite só as próprias)
-    const iRes = await client.query(
-      `INSERT INTO sissa_intervencao
-         (grupo_id, data_intervencao, semestre, disciplina, forma_meio, assunto,
-          formato, interacao, tipo, acompanhamento, duracao, objetivo_alcancado,
-          observacoes, encaminhado, encaminhar_para, autoria_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
-      [grupo_id || null, data_intervencao || null, semestre || null, disciplina || null,
-       forma_meio || null, assunto || null, formato || null, interacao || null,
-       tipo || null, acompanhamento || null, duracao || null, objetivo_alcancado || null,
-       observacoes || null, encaminhado || false, encaminhar_para || null, actorId]
-    );
-    const intervencao = iRes.rows[0];
-
-    for (const eid of estudante_ids) {
-      await client.query(
-        'INSERT INTO sissa_intervencao_estudante (intervencao_id, estudante_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
-        [intervencao.id, eid]
+    for (const mid of estudante_ids) {
+      const iRes = await client.query(
+        `INSERT INTO sissa_intervencao
+           (matricula_id, disciplina_id, semestre_id, data_intervencao, forma_meio, assunto,
+            formato, interacao, tipo, acompanhamento, duracao, objetivo_alcancado,
+            observacoes, encaminhado, encaminhar_para, autoria_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+        [mid, num(disciplina_id), num(semestre_id), data_intervencao || null, forma_meio || null, assunto || null,
+         formato || 'Individual', interacao || null, tipo || null, acompanhamento || null, duracao || null,
+         objetivo_alcancado || null, observacoes || null, encaminhado || false, encaminhar_para || null, actorId]
       );
+      criadas.push(iRes.rows[0]);
     }
 
     await client.query('COMMIT');
-    res.json({ success: true, data: intervencao });
+    res.json({ success: true, data: criadas, total: criadas.length });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ success: false, error: err.message });
@@ -558,18 +620,17 @@ router.put('/intervencoes/:id', async (req, res) => {
   }
 
   const {
-    data_intervencao, semestre, disciplina, forma_meio, assunto, formato,
+    data_intervencao, semestre_id, disciplina_id, forma_meio, assunto, formato,
     interacao, tipo, acompanhamento, duracao, objetivo_alcancado,
-    observacoes, encaminhado, encaminhar_para, estudante_ids
+    observacoes, encaminhado, encaminhar_para
   } = req.body;
-  const client = await db.connect();
   try {
-    await client.query('BEGIN');
-    await client.query(
+    // matricula_id permanece imutável (a intervenção pertence a uma matrícula)
+    await db.query(
       `UPDATE sissa_intervencao SET
          data_intervencao   = COALESCE($1,  data_intervencao),
-         semestre           = COALESCE($2,  semestre),
-         disciplina         = COALESCE($3,  disciplina),
+         semestre_id        = COALESCE($2,  semestre_id),
+         disciplina_id      = COALESCE($3,  disciplina_id),
          forma_meio         = COALESCE($4,  forma_meio),
          assunto            = COALESCE($5,  assunto),
          formato            = COALESCE($6,  formato),
@@ -582,28 +643,13 @@ router.put('/intervencoes/:id', async (req, res) => {
          encaminhado        = COALESCE($13, encaminhado),
          encaminhar_para    = COALESCE($14, encaminhar_para)
        WHERE id = $15`,
-      [data_intervencao, semestre, disciplina, forma_meio, assunto, formato,
+      [data_intervencao, semestre_id, disciplina_id, forma_meio, assunto, formato,
        interacao, tipo, acompanhamento, duracao, objetivo_alcancado,
        observacoes, encaminhado, encaminhar_para, req.params.id]
     );
-
-    if (Array.isArray(estudante_ids)) {
-      await client.query('DELETE FROM sissa_intervencao_estudante WHERE intervencao_id = $1', [req.params.id]);
-      for (const eid of estudante_ids) {
-        await client.query(
-          'INSERT INTO sissa_intervencao_estudante (intervencao_id, estudante_id) VALUES ($1,$2)',
-          [req.params.id, eid]
-        );
-      }
-    }
-
-    await client.query('COMMIT');
     res.json({ success: true });
   } catch (err) {
-    await client.query('ROLLBACK');
     res.status(500).json({ success: false, error: err.message });
-  } finally {
-    client.release();
   }
 });
 
@@ -624,19 +670,22 @@ router.get('/usuarios', async (req, res) => {
   try {
     const { perfil_id, curso_id } = req.query;
     let q = `
-      SELECT u.id, u.nome, u.email_institucional, u.perfil_id, u.ultimo_acesso, u.created_at,
+      SELECT u.id, u.nome, u.email_institucional, u.perfil_id, u.instituicao_id,
+             u.ultimo_acesso, u.created_at,
              p.nome AS perfil_nome, p.nivel AS perfil_nivel,
+             inst.sigla AS instituicao_sigla, inst.nome AS instituicao_nome,
              array_agg(DISTINCT c.id)   FILTER (WHERE c.id IS NOT NULL)   AS curso_ids,
              array_agg(DISTINCT c.nome) FILTER (WHERE c.nome IS NOT NULL) AS cursos
       FROM sissa_usuario_sissa u
       LEFT JOIN sissa_perfil p          ON p.id = u.perfil_id
+      LEFT JOIN sissa_instituicao inst  ON inst.id = u.instituicao_id
       LEFT JOIN sissa_usuario_curso uc  ON uc.usuario_id = u.id
       LEFT JOIN sissa_curso c           ON c.id = uc.curso_id
       WHERE 1=1`;
     const params = [];
     if (perfil_id) { params.push(perfil_id); q += ` AND u.perfil_id = $${params.length}`; }
     if (curso_id)  { params.push(curso_id);  q += ` AND uc.curso_id = $${params.length}`; }
-    q += ' GROUP BY u.id, p.nome, p.nivel ORDER BY u.nome';
+    q += ' GROUP BY u.id, p.nome, p.nivel, inst.sigla, inst.nome ORDER BY u.nome';
     const result = await db.query(q, params);
     res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -751,9 +800,12 @@ router.delete('/usuarios/:id', async (req, res) => {
 router.get('/cursos', async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT c.*, i.nome AS instituicao_nome, i.code_mec
+      SELECT c.*, un.nome AS unidade_nome,
+             i.id AS instituicao_id, i.nome AS instituicao_nome,
+             i.sigla AS instituicao_sigla, i.code_mec
       FROM sissa_curso c
-      JOIN sissa_instituicao i ON i.id = c.instituicao_id
+      JOIN sissa_unidade un     ON un.id = c.unidade_id
+      JOIN sissa_instituicao i  ON i.id = un.instituicao_id
       ORDER BY i.nome, c.nome`);
     res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -800,6 +852,69 @@ router.get('/instituicoes', async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM sissa_instituicao ORDER BY nome');
     res.json({ success: true, data: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Disciplinas (opcionalmente por curso) — alimenta o select da intervenção
+router.get('/disciplinas', async (req, res) => {
+  try {
+    const { curso_id } = req.query;
+    let q = 'SELECT id, nome, codigo, carga_horaria, curso_id FROM sissa_disciplina WHERE 1=1';
+    const p = [];
+    if (curso_id) { p.push(curso_id); q += ` AND curso_id = $${p.length}`; }
+    q += ' ORDER BY nome';
+    const result = await db.query(q, p);
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Semestres — alimenta o select da intervenção
+router.get('/semestres', async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT id, ano, periodo, (ano || '/' || periodo) AS rotulo
+       FROM sissa_semestre ORDER BY ano DESC, periodo DESC`);
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Turmas (opcionalmente por curso) — alimenta o filtro/contador de turma.
+router.get('/turmas', async (req, res) => {
+  try {
+    const { curso_id } = req.query;
+    let q = `
+      SELECT t.id, t.codigo, t.disciplina_id, t.professor_id, t.semestre_id,
+             d.nome AS disciplina_nome, d.curso_id,
+             pr.nome AS professor_nome,
+             (s.ano || '/' || s.periodo) AS semestre_rotulo,
+             (SELECT COUNT(*) FROM sissa_inscricao_turma it WHERE it.turma_id = t.id) AS total_inscritos
+      FROM sissa_turma t
+      JOIN sissa_disciplina d      ON d.id = t.disciplina_id
+      LEFT JOIN sissa_professor pr ON pr.id = t.professor_id
+      LEFT JOIN sissa_semestre s   ON s.id = t.semestre_id
+      WHERE 1=1`;
+    const p = [];
+    if (curso_id) { p.push(curso_id); q += ` AND d.curso_id = $${p.length}`; }
+    q += ' ORDER BY d.nome, t.codigo';
+    const result = await db.query(q, p);
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Rotina de manutenção: CALL da 2ª procedure (inativa grupos antigos).
+router.post('/manutencao/status-grupos', async (req, res) => {
+  if (!await exigirPermissao(req, res, 'grupo_gerenciar')) return;
+  try {
+    const r = await db.query('CALL pr_sissa_atualizar_status_grupos($1)', [0]);
+    res.json({ success: true, total: r.rows[0] ? r.rows[0].p_total : 0 });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
