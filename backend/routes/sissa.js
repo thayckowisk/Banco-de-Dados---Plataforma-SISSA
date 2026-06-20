@@ -867,7 +867,16 @@ router.get('/permissoes', async (req, res) => {
 
 router.get('/instituicoes', async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM sissa_instituicao ORDER BY nome');
+    // ?com_usuario=1 → só instituições que estão de fato na plataforma (têm
+    // ao menos um usuário). Usado pelo seletor de login para não listar
+    // instituições federadas sem cadastro (onde ninguém consegue autenticar).
+    const { com_usuario } = req.query;
+    let q = 'SELECT i.* FROM sissa_instituicao i';
+    if (com_usuario) {
+      q += ` WHERE EXISTS (SELECT 1 FROM sissa_usuario_sissa u WHERE u.instituicao_id = i.id)`;
+    }
+    q += ' ORDER BY i.nome';
+    const result = await db.query(q);
     res.json({ success: true, data: result.rows });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

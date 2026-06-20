@@ -3138,7 +3138,7 @@
   // Carrega as instituições reais (CAFe é provedor de identidade multi-inst).
   async function cafeEnterLogin() {
     try {
-      const res = await sissaFetch('/instituicoes');
+      const res = await sissaFetch('/instituicoes?com_usuario=1');
       sissaState.instituicoes = res.data || [];
     } catch {
       sissaState.instituicoes = [
