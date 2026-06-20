@@ -416,10 +416,35 @@ CREATE TRIGGER tg_sissa_classificar_risco
     FOR EACH ROW
     EXECUTE FUNCTION fn_tg_sissa_classificar_risco();
 
--- NOTA: a antiga tg_sissa_grupo_inativo_auto (reativava o grupo ao
--- receber intervenção via grupo_id) foi removida — intervenção não se
--- vincula mais a grupo. Sua redefinição ("reativar quando todos os
--- membros tiverem intervenção") é a pendência de design do CLAUDE.md.
+-- ----------------------------------------------------------------
+-- TRIGGER 3 – tg_sissa_grupo_inativo_auto
+--   Ao registrar uma intervenção para uma matrícula, REATIVA os grupos
+--   inativos que contêm essa matrícula. Cobre os dois fluxos (intervenção
+--   individual e a criada pela procedure a partir do grupo). Fecha a
+--   pendência de design: intervenção no grupo → grupo volta a ficar Ativo.
+-- ----------------------------------------------------------------
+CREATE OR REPLACE FUNCTION fn_tg_sissa_grupo_inativo_auto()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE sissa_grupo_intervencao g
+    SET    status = 'Ativo'
+    WHERE  g.status = 'Inativo'
+    AND    EXISTS (
+        SELECT 1 FROM sissa_grupo_matricula gm
+        WHERE  gm.grupo_id = g.id
+        AND    gm.matricula_id = NEW.matricula_id
+    );
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tg_sissa_grupo_inativo_auto ON sissa_intervencao;
+CREATE TRIGGER tg_sissa_grupo_inativo_auto
+    AFTER INSERT ON sissa_intervencao
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_tg_sissa_grupo_inativo_auto();
 
 -- ================================================================
 -- FUNÇÕES PostgreSQL do domínio SISSA
@@ -868,49 +893,59 @@ INSERT INTO sissa_nivel_acao (nivel, acao) VALUES
     (4,'estudante_gerenciar'), (4,'usuario_gerenciar'), (4,'usuario_excluir')
 ON CONFLICT DO NOTHING;
 
--- Cursos (5) — cada um pertence a uma unidade
+-- Cursos — multi-instituição. unidade 1/2 = IFSP, unidade 3 = UFG, unidade 4/5 = IFRO/IFMT.
+-- UFG concentra o piloto (Física + Matemática + Agronomia, na unidade 3); IFSP tem o curso de ADS.
 INSERT INTO sissa_curso (codigo, nome, quantidade_semestres, unidade_id) VALUES
-    ('LFI',   'Licenciatura em Física',                                 8,  1),  -- id 1
-    ('LMA',   'Licenciatura em Matemática',                             8,  1),  -- id 2
-    ('12075', 'Técnico em Agroecologia Integrado ao Ensino Médio',      6,  4),  -- id 3
-    ('52921', 'Bacharelado em Agronomia',                             10,  3),  -- id 4
-    ('50',    'Técnico em Administração Subsequente ao Ensino Médio',   4,  4);  -- id 5
+    ('LFI',   'Licenciatura em Física',                                 8,  3),  -- id 1 (UFG)
+    ('LMA',   'Licenciatura em Matemática',                             8,  3),  -- id 2 (UFG)
+    ('12075', 'Técnico em Agroecologia Integrado ao Ensino Médio',      6,  4),  -- id 3 (IFRO)
+    ('52921', 'Bacharelado em Agronomia',                             10,  3),  -- id 4 (UFG)
+    ('50',    'Técnico em Administração Subsequente ao Ensino Médio',   4,  4),  -- id 5 (IFRO)
+    ('ADS',   'Tecnologia em Análise e Desenvolvimento de Sistemas',    6,  1);  -- id 6 (IFSP)
 
--- Usuários SISSA (6 usuários). perfil_id: 1=Tutor 2=Coord.curso 3=Coord.ensino 4=Coord.unidade.
--- instituicao_id é derivado mais abaixo (a partir dos cursos vinculados).
+-- Usuários SISSA. perfil_id: 1=Tutor 2=Coord.curso 3=Coord.ensino 4=Coord.unidade.
+-- instituicao_id é derivado mais abaixo (a partir dos cursos vinculados):
+--   ids 1-6 → cursos da UFG (Física/Matemática) → UFG; ids 7-8 → curso ADS (IFSP) → IFSP.
 INSERT INTO sissa_usuario_sissa (nome, email_institucional, senha, perfil_id, ultimo_acesso) VALUES
-    ('Adailton Araújo',                  'adailton@ufg.com',                    '1234', 2, NOW() - INTERVAL '2 hours'),
-    ('Beatriz de Barros Vianna Cardoso', 'beatriz.de.bastos.vianna@gmail.com',  '2345', 3, NOW() - INTERVAL '30 days'),
-    ('Laís Hauptli Cândido',             'laishcandido@gmail.com',              '3456', 4, NULL),
-    ('Kalebe Xavier',                    'kalebe.xavier@ifsp.edu.br',           '4567', 1, NOW() - INTERVAL '1 day'),
-    ('Juliana Moraes',                   'juliana.moraes@ifsp.edu.br',          '5678', 1, NOW() - INTERVAL '3 hours'),
-    ('Beatriz Cardoso',                  'beatriz.cardoso@ifsp.edu.br',         '6789', 1, NOW() - INTERVAL '6 hours');
+    ('Adailton Araújo',                  'adailton@ufg.com',                    '1234', 2, NOW() - INTERVAL '2 hours'),  -- id 1 UFG
+    ('Beatriz de Barros Vianna Cardoso', 'beatriz.de.bastos.vianna@gmail.com',  '2345', 3, NOW() - INTERVAL '30 days'), -- id 2 UFG
+    ('Laís Hauptli Cândido',             'laishcandido@gmail.com',              '3456', 4, NULL),                        -- id 3 UFG
+    ('Kalebe Xavier',                    'kalebe.xavier@ifsp.edu.br',           '4567', 1, NOW() - INTERVAL '1 day'),    -- id 4 UFG
+    ('Juliana Moraes',                   'juliana.moraes@ifsp.edu.br',          '5678', 1, NOW() - INTERVAL '3 hours'),  -- id 5 UFG
+    ('Beatriz Cardoso',                  'beatriz.cardoso@ifsp.edu.br',         '6789', 1, NOW() - INTERVAL '6 hours'),  -- id 6 UFG
+    ('Ricardo Tavares Lima',             'ricardo.tavares@ifsp.edu.br',         '7890', 4, NOW() - INTERVAL '5 hours'),  -- id 7 IFSP (Coord. unidade)
+    ('Patrícia Nunes Rocha',             'patricia.rocha@ifsp.edu.br',          '8901', 2, NOW() - INTERVAL '20 hours'); -- id 8 IFSP (Coord. curso)
 
 -- Vínculo usuário-curso:
---   user3 (Coord. de unidade) ↔ TODOS os cursos da sua unidade (Câmpus SP: cursos 1 e 2);
---   demais perfis ↔ exatamente um curso (curso 1).
+--   user3 (Coord. de unidade, UFG) ↔ cursos da sua unidade UFG (Física + Matemática);
+--   demais perfis UFG ↔ um curso (Física); usuários IFSP (7,8) ↔ curso ADS (id 6).
 INSERT INTO sissa_usuario_curso (usuario_id, curso_id) VALUES
-    (1, 1), (2, 1), (3, 1), (3, 2), (4, 1), (5, 1), (6, 1);
+    (1, 1), (2, 1), (3, 1), (3, 2), (4, 1), (5, 1), (6, 1),
+    (7, 6), (8, 6);
 
--- Semestres
+-- Semestres (o último ano com 2 períodos alimenta o select de Semestre da intervenção)
 INSERT INTO sissa_semestre (ano, periodo) VALUES
     (2023, 1),  -- id 1
     (2023, 2),  -- id 2
     (2024, 1),  -- id 3
     (2024, 2),  -- id 4
-    (2025, 1);  -- id 5
+    (2025, 1),  -- id 5
+    (2025, 2);  -- id 6
 
--- Disciplinas (curso 1 = Licenciatura em Física; + 1 de Matemática)
+-- Disciplinas (curso 1 = Física UFG; curso 2 = Matemática UFG; curso 6 = ADS IFSP)
 INSERT INTO sissa_disciplina (nome, carga_horaria, codigo, curso_id) VALUES
-    ('Física Geral I',    90, 'FIS101', 1),  -- id 1
-    ('Física Geral II',   90, 'FIS102', 1),  -- id 2
-    ('Eletromagnetismo',  60, 'FIS201', 1),  -- id 3
-    ('Mecânica Clássica', 60, 'FIS202', 1),  -- id 4
-    ('Cálculo I',         90, 'MAT101', 1),  -- id 5
-    ('Álgebra Linear',    60, 'MAT201', 2);  -- id 6
+    ('Física Geral I',         90, 'FIS101', 1),  -- id 1
+    ('Física Geral II',        90, 'FIS102', 1),  -- id 2
+    ('Eletromagnetismo',       60, 'FIS201', 1),  -- id 3
+    ('Mecânica Clássica',      60, 'FIS202', 1),  -- id 4
+    ('Cálculo I',              90, 'MAT101', 1),  -- id 5
+    ('Álgebra Linear',         60, 'MAT201', 2),  -- id 6
+    ('Lógica de Programação',  80, 'ADS101', 6),  -- id 7 (IFSP)
+    ('Banco de Dados',         80, 'ADS201', 6),  -- id 8 (IFSP)
+    ('Engenharia de Software', 80, 'ADS301', 6);  -- id 9 (IFSP)
 
 -- ----------------------------------------------------------------
--- ALUNOS (pessoas) — ids 1..12
+-- ALUNOS (pessoas) — ids 1..12 (UFG/Física) + 13..22 (IFSP/ADS)
 -- ----------------------------------------------------------------
 INSERT INTO sissa_aluno (nome, email) VALUES
     ('Andria De Oliveira Sebastiao',          'andria.sebastiao@discente.ufg.br'),     -- 1
@@ -924,7 +959,18 @@ INSERT INTO sissa_aluno (nome, email) VALUES
     ('Fernanda Cristina Borges',              'fernanda.borges@discente.ufg.br'),      -- 9
     ('Rafael Henrique Oliveira',              'rafael.oliveira@discente.ufg.br'),      -- 10
     ('Thais Regina Monteiro Silva',           'thais.silva@discente.ufg.br'),          -- 11
-    ('Marcos Vinicius Almeida Carvalho',      'marcos.carvalho@discente.ufg.br');      -- 12
+    ('Marcos Vinicius Almeida Carvalho',      'marcos.carvalho@discente.ufg.br'),      -- 12
+    -- IFSP / Tecnologia em ADS
+    ('Bruno Almeida Tavares',                 'bruno.tavares@aluno.ifsp.edu.br'),      -- 13
+    ('Camila Ferreira Dias',                  'camila.dias@aluno.ifsp.edu.br'),        -- 14
+    ('Diego Santos Moraes',                   'diego.moraes@aluno.ifsp.edu.br'),       -- 15
+    ('Eduarda Lima Cardoso',                  'eduarda.cardoso@aluno.ifsp.edu.br'),    -- 16
+    ('Felipe Augusto Ramos',                  'felipe.ramos@aluno.ifsp.edu.br'),       -- 17
+    ('Gabriela Souza Pinto',                  'gabriela.pinto@aluno.ifsp.edu.br'),     -- 18
+    ('Henrique Oliveira Costa',               'henrique.costa@aluno.ifsp.edu.br'),     -- 19
+    ('Isadora Martins Rocha',                 'isadora.rocha@aluno.ifsp.edu.br'),      -- 20
+    ('João Vitor Barbosa',                    'joao.barbosa@aluno.ifsp.edu.br'),       -- 21
+    ('Larissa Mendes Araujo',                 'larissa.araujo@aluno.ifsp.edu.br');     -- 22
 
 -- ----------------------------------------------------------------
 -- MATRÍCULAS — ids 1..12 (todas no curso 1). Os indicadores
@@ -945,7 +991,18 @@ VALUES
     ('2021108029001', 9,  1, 2019, 'Ativa', 'DF', 'SISU',          7.80, 0, 600),  -- Baixo
     ('2021108030001', 10, 1, 2022, 'Ativa', 'GO', 'ENEM',          9.10, 0, 600),  -- Baixo
     ('2021108031001', 11, 1, 2021, 'Ativa', 'MG', 'SISU',          8.00, 0, 600),  -- Baixo
-    ('2021108032001', 12, 1, 2020, 'Ativa', 'GO', 'SISU',          8.90, 0, 600);  -- Baixo
+    ('2021108032001', 12, 1, 2020, 'Ativa', 'GO', 'SISU',          8.90, 0, 600),  -- Baixo
+    -- IFSP / ADS (curso 6) — ids 13..22
+    ('IF2022ADS0013', 13, 6, 2022, 'Ativa', 'SP', 'SISU',          3.50, 3, 600),  -- Alto
+    ('IF2022ADS0014', 14, 6, 2021, 'Ativa', 'SP', 'ENEM',          2.80, 0, 600),  -- Alto
+    ('IF2022ADS0015', 15, 6, 2022, 'Ativa', 'MG', 'Vestibular',    4.20, 4, 600),  -- Alto
+    ('IF2022ADS0016', 16, 6, 2023, 'Ativa', 'SP', 'SISU',          5.00, 1, 600),  -- Médio
+    ('IF2022ADS0017', 17, 6, 2022, 'Ativa', 'SP', 'ENEM',          5.20, 0, 600),  -- Médio
+    ('IF2022ADS0018', 18, 6, 2023, 'Ativa', 'PR', 'SISU',          7.00, 0, 360),  -- Médio
+    ('IF2022ADS0019', 19, 6, 2021, 'Ativa', 'SP', 'SISU',          8.00, 0, 600),  -- Baixo
+    ('IF2022ADS0020', 20, 6, 2022, 'Ativa', 'SP', 'ENEM',          7.50, 0, 600),  -- Baixo
+    ('IF2022ADS0021', 21, 6, 2023, 'Ativa', 'RJ', 'SISU',          9.20, 0, 600),  -- Baixo
+    ('IF2022ADS0022', 22, 6, 2022, 'Ativa', 'SP', 'SISU',          8.80, 0, 600);  -- Baixo
 
 -- ----------------------------------------------------------------
 -- RISCO DE EVASÃO (1 por matrícula). 'risco' é definido pela trigger
@@ -965,7 +1022,18 @@ VALUES
     (9,  5, 3, 'Sem risco identificado',  9.0),
     (10, 6, 2, 'Sem risco identificado',  7.0),
     (11, 5, 2, 'Sem risco identificado', 10.0),
-    (12, 6, 1, 'Sem risco identificado',  8.0);
+    (12, 6, 1, 'Sem risco identificado',  8.0),
+    -- IFSP / ADS
+    (13, 1, 2, 'Reprovações',            68.0),
+    (14, 1, 2, 'Média global',           72.0),
+    (15, 2, 1, 'Reprovações',            80.0),
+    (16, 3, 2, 'Reprovações',            42.0),
+    (17, 2, 1, 'Média global',           36.0),
+    (18, 2, 1, 'CH semestre',            30.0),
+    (19, 5, 3, 'Sem risco identificado', 11.0),
+    (20, 6, 2, 'Sem risco identificado',  9.0),
+    (21, 5, 2, 'Sem risco identificado',  6.0),
+    (22, 6, 1, 'Sem risco identificado',  8.0);
 
 -- ----------------------------------------------------------------
 -- PROFESSORES + TURMAS + INSCRIÇÕES (curso 1 = Física, semestre 2024/1 = id 3).
@@ -984,7 +1052,10 @@ INSERT INTO sissa_turma (codigo, disciplina_id, professor_id, semestre_id) VALUE
     ('A', 3, 3, 3),   -- id 3  Eletromagnetismo
     ('B', 3, 1, 3),   -- id 4  Eletromagnetismo (turma B)
     ('A', 4, 2, 3),   -- id 5  Mecânica Clássica
-    ('A', 5, 4, 3);   -- id 6  Cálculo I
+    ('A', 5, 4, 3),   -- id 6  Cálculo I
+    ('A', 7, 1, 5),   -- id 7  Lógica de Programação (ADS/IFSP, 2025/1)
+    ('A', 8, 3, 5),   -- id 8  Banco de Dados (ADS/IFSP)
+    ('A', 9, 2, 5);   -- id 9  Engenharia de Software (ADS/IFSP)
 
 -- Inscrições (N:N matrícula↔turma); a quantidade por matrícula reproduz o
 -- número de turmas de cada aluno (3 a 5). situacao default = 'Cursando'.
@@ -1000,7 +1071,18 @@ INSERT INTO sissa_inscricao_turma (matricula_id, turma_id) VALUES
     (9,1),(9,2),(9,3),(9,4),(9,6),
     (10,1),(10,2),(10,3),(10,5),(10,6),
     (11,1),(11,2),(11,3),(11,4),(11,6),
-    (12,2),(12,3),(12,4),(12,5),(12,6);
+    (12,2),(12,3),(12,4),(12,5),(12,6),
+    -- IFSP / ADS (turmas 7,8,9)
+    (13,7),(13,8),(13,9),
+    (14,7),(14,8),
+    (15,7),(15,8),(15,9),
+    (16,7),(16,9),
+    (17,7),(17,8),
+    (18,8),(18,9),
+    (19,7),(19,8),(19,9),
+    (20,7),(20,8),
+    (21,7),(21,9),
+    (22,7),(22,8),(22,9);
 
 -- ----------------------------------------------------------------
 -- DERIVADOS DE SEED (multi-instituição + data de matrícula)
@@ -1069,6 +1151,14 @@ VALUES
     (7, 2, 4, '2024-11-12', 'Ligação', 'Conteúdo',
      'Individual', 'Reativa',   'Conteúdo',    'Síncrono',   '0:50', 'Não',
      'Aluno não respondeu às tentativas de contato anteriores', true);
+
+-- ----------------------------------------------------------------
+-- STATUS FINAL DOS GRUPOS — fixado DEPOIS das intervenções de seed (que
+-- disparam tg_sissa_grupo_inativo_auto). Demonstração: 1 ativo / 2 inativos.
+-- (Crie uma intervenção a partir do Grupo B ou C para vê-lo reativar.)
+-- ----------------------------------------------------------------
+UPDATE sissa_grupo_intervencao SET status = 'Ativo'   WHERE titulo = 'Grupo A';
+UPDATE sissa_grupo_intervencao SET status = 'Inativo' WHERE titulo IN ('Grupo B', 'Grupo C');
 
 -- ================================================================
 -- FIM DO ARQUIVO 05_sissa_domain.sql
