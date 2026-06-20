@@ -166,7 +166,7 @@ router.post('/estudantes', async (req, res) => {
   const {
     matricula, nome, curso_id, ingresso,
     semestre_saida, media_global, semestre_atual,
-    reprovacoes, ch_semestre, maior_influencia, turmas
+    reprovacoes, ch_semestre, maior_influencia
   } = req.body;
   if (!matricula || !nome || !curso_id) {
     return res.status(400).json({ success: false, error: 'matricula, nome e curso_id são obrigatórios' });
@@ -198,10 +198,10 @@ router.post('/estudantes', async (req, res) => {
     // 'risco' é derivado pela trigger tg_sissa_classificar_risco (fonte única)
     await client.query(
       `INSERT INTO sissa_risco_evasao
-         (matricula_id, semestre_saida, semestre_atual, maior_influencia, turmas)
-       VALUES ($1,$2,$3,$4,COALESCE($5,0))`,
+         (matricula_id, semestre_saida, semestre_atual, maior_influencia)
+       VALUES ($1,$2,$3,$4)`,
       [matriculaId, num(semestre_saida), num(semestre_atual),
-       maior_influencia || null, num(turmas)]
+       maior_influencia || null]
     );
 
     const vRes = await client.query(
@@ -313,9 +313,9 @@ router.post('/estudantes/importar', async (req, res) => {
     // 'risco' é definido automaticamente pelo trigger tg_sissa_classificar_risco
     await client.query(
       `INSERT INTO sissa_risco_evasao
-         (matricula_id, maior_influencia, percentual, turmas)
-       VALUES ($1,$2,$3,$4)`,
-      [matriculaId, r.maior_influencia, r.percentual, r.turmas]
+         (matricula_id, maior_influencia, percentual)
+       VALUES ($1,$2,$3)`,
+      [matriculaId, r.maior_influencia, r.percentual]
     );
 
     const vRes = await client.query(
@@ -663,19 +663,22 @@ router.get('/usuarios', async (req, res) => {
   try {
     const { perfil_id, curso_id } = req.query;
     let q = `
-      SELECT u.id, u.nome, u.email_institucional, u.perfil_id, u.ultimo_acesso, u.created_at,
+      SELECT u.id, u.nome, u.email_institucional, u.perfil_id, u.instituicao_id,
+             u.ultimo_acesso, u.created_at,
              p.nome AS perfil_nome, p.nivel AS perfil_nivel,
+             inst.sigla AS instituicao_sigla, inst.nome AS instituicao_nome,
              array_agg(DISTINCT c.id)   FILTER (WHERE c.id IS NOT NULL)   AS curso_ids,
              array_agg(DISTINCT c.nome) FILTER (WHERE c.nome IS NOT NULL) AS cursos
       FROM sissa_usuario_sissa u
       LEFT JOIN sissa_perfil p          ON p.id = u.perfil_id
+      LEFT JOIN sissa_instituicao inst  ON inst.id = u.instituicao_id
       LEFT JOIN sissa_usuario_curso uc  ON uc.usuario_id = u.id
       LEFT JOIN sissa_curso c           ON c.id = uc.curso_id
       WHERE 1=1`;
     const params = [];
     if (perfil_id) { params.push(perfil_id); q += ` AND u.perfil_id = $${params.length}`; }
     if (curso_id)  { params.push(curso_id);  q += ` AND uc.curso_id = $${params.length}`; }
-    q += ' GROUP BY u.id, p.nome, p.nivel ORDER BY u.nome';
+    q += ' GROUP BY u.id, p.nome, p.nivel, inst.sigla, inst.nome ORDER BY u.nome';
     const result = await db.query(q, params);
     res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -790,7 +793,9 @@ router.delete('/usuarios/:id', async (req, res) => {
 router.get('/cursos', async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT c.*, un.nome AS unidade_nome, i.nome AS instituicao_nome, i.code_mec
+      SELECT c.*, un.nome AS unidade_nome,
+             i.id AS instituicao_id, i.nome AS instituicao_nome,
+             i.sigla AS instituicao_sigla, i.code_mec
       FROM sissa_curso c
       JOIN sissa_unidade un     ON un.id = c.unidade_id
       JOIN sissa_instituicao i  ON i.id = un.instituicao_id
@@ -866,6 +871,31 @@ router.get('/semestres', async (req, res) => {
     const result = await db.query(
       `SELECT id, ano, periodo, (ano || '/' || periodo) AS rotulo
        FROM sissa_semestre ORDER BY ano DESC, periodo DESC`);
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Turmas (opcionalmente por curso) — alimenta o filtro/contador de turma.
+router.get('/turmas', async (req, res) => {
+  try {
+    const { curso_id } = req.query;
+    let q = `
+      SELECT t.id, t.codigo, t.disciplina_id, t.professor_id, t.semestre_id,
+             d.nome AS disciplina_nome, d.curso_id,
+             pr.nome AS professor_nome,
+             (s.ano || '/' || s.periodo) AS semestre_rotulo,
+             (SELECT COUNT(*) FROM sissa_inscricao_turma it WHERE it.turma_id = t.id) AS total_inscritos
+      FROM sissa_turma t
+      JOIN sissa_disciplina d      ON d.id = t.disciplina_id
+      LEFT JOIN sissa_professor pr ON pr.id = t.professor_id
+      LEFT JOIN sissa_semestre s   ON s.id = t.semestre_id
+      WHERE 1=1`;
+    const p = [];
+    if (curso_id) { p.push(curso_id); q += ` AND d.curso_id = $${p.length}`; }
+    q += ' ORDER BY d.nome, t.codigo';
+    const result = await db.query(q, p);
     res.json({ success: true, data: result.rows });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
