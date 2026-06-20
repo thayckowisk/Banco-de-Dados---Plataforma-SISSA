@@ -3125,16 +3125,19 @@
   ══════════════════════════════════════════ */
   // Carrega as instituições reais (CAFe é provedor de identidade multi-inst).
   async function cafeEnterLogin() {
+    // Fallback SÍNCRONO primeiro: a busca já funciona na hora, mesmo se o fetch
+    // demorar ou falhar. O fetch abaixo só sobrescreve se vier dado válido.
+    sissaState.instituicoes = [
+      { id:1, code_mec:'26358', nome:'Instituto Federal de São Paulo', sigla:'IFSP', tipo:'Instituto Federal' },
+      { id:2, code_mec:'579',   nome:'Universidade Federal de Goiás',   sigla:'UFG',  tipo:'Universidade' }
+    ];
+    cafeReset();
     try {
       const res = await sissaFetch('/instituicoes?com_usuario=1');
-      sissaState.instituicoes = res.data || [];
-    } catch {
-      sissaState.instituicoes = [
-        { id:1, code_mec:'26358', nome:'Instituto Federal de São Paulo', sigla:'IFSP', tipo:'Instituto Federal' },
-        { id:2, code_mec:'579',   nome:'Universidade Federal de Goiás',   sigla:'UFG',  tipo:'Universidade' }
-      ];
-    }
-    cafeReset();
+      if (res && res.success && Array.isArray(res.data) && res.data.length) {
+        sissaState.instituicoes = res.data;
+      }
+    } catch { /* mantém o fallback */ }
   }
 
   function cafeSearch(val) {
