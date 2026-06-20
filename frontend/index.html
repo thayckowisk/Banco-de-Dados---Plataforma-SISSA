@@ -4801,7 +4801,6 @@
         }
       });
     }
-    populateEstDatalist('sissa-est-datalist2');
     renderGrupoEstTags();
     sissaOpenModal('sissa-modal-grupo');
   }
@@ -4822,7 +4821,6 @@
       const res = await sissaFetch(`/grupos/${id}/estudantes`);
       (res.data||[]).forEach(e => sissaState.grupoEstudanteTags.push({id:e.id,nome:e.nome,matricula:e.matricula||''}));
     } catch {}
-    populateEstDatalist('sissa-est-datalist2');
     renderGrupoEstTags();
     sissaOpenModal('sissa-modal-grupo');
   }
@@ -5021,7 +5019,6 @@
       const est = sissaState.estudantes.find(e=>e.id===id);
       if (est) sissaState.intEstudanteTags.push({id:est.id, nome:est.nome, matricula:est.matricula});
     });
-    populateEstDatalist('sissa-est-datalist');
     renderIntEstTags();
     sissaOpenModal('sissa-modal-intervencao');
   }
@@ -5296,14 +5293,6 @@
   /* ══════════════════════════════════════════
      SISSA – TAGS (estudantes para formulários)
   ══════════════════════════════════════════ */
-  function populateEstDatalist(listId) {
-    const dl = document.getElementById(listId);
-    if (!dl) return;
-    dl.innerHTML = sissaState.estudantes.map(e =>
-      `<option value="${escHtml(e.nome)} - ${escHtml(e.matricula)}" data-id="${e.id}">`
-    ).join('');
-  }
-
   /* ══════════════════════════════════════════
      SISSA – AUTOCOMPLETE DE ALUNOS (intervenção / grupo)
   ══════════════════════════════════════════ */
@@ -5369,6 +5358,7 @@
     const wrap = document.getElementById('sissa-int-estudantes-tags');
     if (!wrap) return;
     const inp = document.getElementById('sissa-int-estudante-input');
+    const dd  = document.getElementById('sissa-int-ac');   // preserva o dropdown do autocomplete
     wrap.innerHTML = '';
     sissaState.intEstudanteTags.forEach((t,idx) => {
       const tag = document.createElement('span');
@@ -5377,12 +5367,14 @@
       wrap.appendChild(tag);
     });
     wrap.appendChild(inp);
+    if (dd) wrap.appendChild(dd);                          // re-anexa (innerHTML='' o tinha removido)
   }
 
   function renderGrupoEstTags() {
     const wrap = document.getElementById('sissa-grupo-est-tags');
     if (!wrap) return;
     const inp = document.getElementById('sissa-grupo-est-input');
+    const dd  = document.getElementById('sissa-grupo-ac');   // preserva o dropdown do autocomplete
     wrap.innerHTML = '';
     sissaState.grupoEstudanteTags.forEach((t,idx) => {
       const tag = document.createElement('span');
@@ -5391,6 +5383,7 @@
       wrap.appendChild(tag);
     });
     wrap.appendChild(inp);
+    if (dd) wrap.appendChild(dd);                            // re-anexa (innerHTML='' o tinha removido)
   }
 
   function removeIntEstTag(idx) {
