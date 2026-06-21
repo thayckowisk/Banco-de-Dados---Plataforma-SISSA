@@ -1542,18 +1542,6 @@
   font-size: 14px; color: #333; outline: none; margin-bottom: 12px;
 }
 .sissa-search-input:focus { border-color: var(--s-primary); }
-.sissa-inst-list { list-style: none; margin-bottom: 20px; }
-.sissa-inst-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px; border: 1px solid var(--s-border);
-  border-radius: 8px; margin-bottom: 6px; cursor: pointer;
-  transition: border-color .15s, background .15s;
-}
-.sissa-inst-item:hover,
-.sissa-inst-item.selected { border-color: var(--s-primary); background: var(--s-primary-l); }
-.sissa-inst-item svg { flex-shrink: 0; }
-.sissa-inst-name { font-size: 13px; font-weight: 500; color: #333; }
-.sissa-inst-code { font-size: 11px; color: #aaa; }
 .sissa-login-sep {
   text-align: center; font-size: 11px; color: #ccc;
   margin: 14px 0; position: relative;
@@ -2030,18 +2018,14 @@
         <svg class="cafe-search-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
-        <div id="cafe-dropdown" class="cafe-dropdown" style="display:none;">
-          <div class="cafe-dropdown-item" onclick="cafeSelectUFG()">
-            UFG - Universidade Federal de Goias
-          </div>
-        </div>
+        <div id="cafe-dropdown" class="cafe-dropdown" style="display:none;"></div>
       </div>
 
       <div id="cafe-ufg-result" class="cafe-result-block" style="display:none;">
-        <p class="cafe-result-short">UFG</p>
-        <p class="cafe-result-full">Universidade Federal de Goias</p>
-        <button class="cafe-prosseguir-btn" onclick="cafeProsseguir()">
-          Prosseguir para login em UFG
+        <p class="cafe-result-short" id="cafe-result-sigla">UFG</p>
+        <p class="cafe-result-full"  id="cafe-result-nome">Universidade Federal de Goiás</p>
+        <button class="cafe-prosseguir-btn" id="cafe-result-btn" onclick="cafeProsseguir()">
+          Prosseguir para login
         </button>
       </div>
 
@@ -2077,7 +2061,7 @@
     </div>
     <div class="cafe-redirect-card">
       <p class="cafe-redir-label">Redirecionando para:</p>
-      <p class="cafe-redir-inst">UFG</p>
+      <p class="cafe-redir-inst" id="cafe-redir-inst">UFG</p>
       <div class="cafe-redir-logos">
         <div class="cafe-redir-fed">
           <span class="cafe-chimarro-ico" style="font-size:22px;">🧉</span>
@@ -2086,7 +2070,7 @@
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1a56d9" stroke-width="2.5">
           <path d="M5 12h14M12 5l7 7-7 7"/>
         </svg>
-        <span class="cafe-redir-to-inst">UFG</span>
+        <span class="cafe-redir-to-inst" id="cafe-redir-to-inst">UFG</span>
       </div>
       <div class="cafe-progress-outer">
         <div class="cafe-progress-inner" id="cafe-progress"></div>
@@ -2104,18 +2088,14 @@
       <p class="cafe-ufg-access">Acesso pela instituição:</p>
 
       <div class="cafe-ufg-logo-row">
-        <!-- Logo UFG aproximado em SVG -->
-        <svg width="70" height="64" viewBox="0 0 70 64" fill="#1a4080">
-          <polygon points="35,3 43.7,8 43.7,18 35,23 26.3,18 26.3,8"/>
-          <polygon points="18,13 26.7,18 26.7,28 18,33 9.3,28 9.3,18"/>
-          <polygon points="52,13 60.7,18 60.7,28 52,33 43.3,28 43.3,18"/>
-          <polygon points="18,35 26.7,40 26.7,50 18,55 9.3,50 9.3,40"/>
-          <polygon points="35,25 43.7,30 43.7,40 35,45 26.3,40 26.3,30"/>
-          <polygon points="52,35 60.7,40 60.7,50 52,55 43.3,50 43.3,40"/>
+        <!-- Ícone genérico de instituição (serve a qualquer instituição) -->
+        <svg width="58" height="58" viewBox="0 0 24 24" fill="none" stroke="#1a4080" stroke-width="1.6">
+          <path d="M3 21h18M4 21V10l8-5 8 5v11M9 21v-6h6v6"/>
+          <path d="M2 10l10-6 10 6"/>
         </svg>
         <div class="cafe-ufg-name">
-          <span class="cafe-ufg-abbr">UFG</span>
-          <span class="cafe-ufg-fullname">UNIVERSIDADE<br>FEDERAL DE GOIAS</span>
+          <span class="cafe-ufg-abbr" id="cafe-s4-sigla">UFG</span>
+          <span class="cafe-ufg-fullname" id="cafe-s4-nome">Universidade Federal de Goiás</span>
         </div>
       </div>
 
@@ -3143,34 +3123,60 @@
   /* ══════════════════════════════════════════
      CAFe INSTITUTION FLOW
   ══════════════════════════════════════════ */
+  // Carrega as instituições reais (CAFe é provedor de identidade multi-inst).
+  async function cafeEnterLogin() {
+    // Fallback SÍNCRONO primeiro: a busca já funciona na hora, mesmo se o fetch
+    // demorar ou falhar. O fetch abaixo só sobrescreve se vier dado válido.
+    sissaState.instituicoes = [
+      { id:1, code_mec:'26358', nome:'Instituto Federal de São Paulo', sigla:'IFSP', tipo:'Instituto Federal' },
+      { id:2, code_mec:'579',   nome:'Universidade Federal de Goiás',   sigla:'UFG',  tipo:'Universidade' }
+    ];
+    cafeReset();
+    try {
+      const res = await sissaFetch('/instituicoes?com_usuario=1');
+      if (res && res.success && Array.isArray(res.data) && res.data.length) {
+        sissaState.instituicoes = res.data;
+      }
+    } catch { /* mantém o fallback */ }
+  }
+
   function cafeSearch(val) {
     const q = val.toLowerCase().trim();
     const dropdown = document.getElementById('cafe-dropdown');
     const result   = document.getElementById('cafe-ufg-result');
-    if (q.length === 0) {
-      dropdown.style.display = 'none';
-      result.style.display   = 'none';
-      return;
-    }
-    const matches = 'ufg'.startsWith(q) ||
-                    'universidade federal de goias'.includes(q) ||
-                    q.includes('ufg');
-    if (matches) {
-      dropdown.style.display = 'block';
-      result.style.display   = 'none';
-    } else {
-      dropdown.style.display = 'none';
-      result.style.display   = 'none';
-    }
+    result.style.display = 'none';
+    const list = sissaState.instituicoes || [];
+    const matches = q.length === 0 ? [] : list.filter(i =>
+        (i.sigla||'').toLowerCase().includes(q) ||
+        (i.nome ||'').toLowerCase().includes(q) ||
+        (i.code_mec||'').includes(q));
+    if (!matches.length) { dropdown.style.display = 'none'; dropdown.innerHTML = ''; return; }
+    dropdown.innerHTML = matches.map(i =>
+      `<div class="cafe-dropdown-item" onclick="cafeSelectInst(${i.id})">${escHtml(i.sigla||'')} - ${escHtml(i.nome||'')}</div>`
+    ).join('');
+    dropdown.style.display = 'block';
   }
 
-  function cafeSelectUFG() {
-    document.getElementById('cafe-search').value = 'UFG - Universidade Federal de Goias';
-    document.getElementById('cafe-dropdown').style.display = 'none';
+  function cafeSelectInst(id) {
+    const inst = (sissaState.instituicoes || []).find(i => i.id === id);
+    if (!inst) return;
+    sissaSession.instSelecionada = inst;
+    document.getElementById('cafe-search').value = `${inst.sigla||''} - ${inst.nome||''}`;
+    document.getElementById('cafe-dropdown').style.display   = 'none';
+    document.getElementById('cafe-result-sigla').textContent = inst.sigla || '';
+    document.getElementById('cafe-result-nome').textContent  = inst.nome  || '';
+    document.getElementById('cafe-result-btn').textContent   = `Prosseguir para login em ${inst.sigla||''}`;
     document.getElementById('cafe-ufg-result').style.display = 'block';
   }
 
   function cafeProsseguir() {
+    const inst  = sissaSession.instSelecionada || {};
+    const sigla = inst.sigla || '';
+    const set = (elId, txt) => { const el = document.getElementById(elId); if (el) el.textContent = txt; };
+    set('cafe-redir-inst', sigla);
+    set('cafe-redir-to-inst', sigla);
+    set('cafe-s4-sigla', sigla);
+    set('cafe-s4-nome', inst.nome || '');
     document.getElementById('cafe-s12').style.display = 'none';
     document.getElementById('cafe-s3').style.display  = 'flex';
     const bar = document.getElementById('cafe-progress');
@@ -3927,7 +3933,6 @@
     disciplinas: [],
     turmas: [],
     instituicoes: [],
-    riscoestat: null,          // dados da API /estatisticas/risco
     roster: [],                // alunos do cadastro acadêmico (importação)
     intGrupoId: null,          // grupo de origem ao criar intervenção a partir de um grupo
     selectedEstudanteIds: new Set(),
@@ -3985,7 +3990,7 @@
   function sissaPode(acao) {
     return sissaSession.permissoes.has(acao);
   }
-  // Nível (1..5) do usuário logado; 0 se público/visitante.
+  // Nível (1..4) do usuário logado; 0 se público/visitante.
   function sissaNivel() {
     return sissaSession.usuario?.perfil_nivel || 0;
   }
@@ -4019,86 +4024,6 @@
     'juliana.moraes@ufg.br':              { id: 5, nivel: 1, perfil: 'Tutor' },
     'beatriz.cardoso@ufg.br':             { id: 6, nivel: 1, perfil: 'Tutor' }
   };
-
-  /* ══════════════════════════════════════════
-     SISSA – PASSO 1: SELEÇÃO DE INSTITUIÇÃO
-  ══════════════════════════════════════════ */
-  async function loadSissaInst() {
-    const ul = document.getElementById('sissa-inst-list');
-    if (ul) ul.innerHTML = '<li style="text-align:center;color:#ccc;font-size:13px;padding:16px 0;">Carregando...</li>';
-    try {
-      const res = await sissaFetch('/instituicoes');
-      sissaState.instituicoes = res.data || [];
-    } catch {
-      sissaState.instituicoes = [
-        { id:1, code_mec:'26358', nome:'Instituto Federal de São Paulo',  tipo:'Instituto Federal' },
-        { id:2, code_mec:'579',   nome:'Universidade Federal de Goiás',    tipo:'Universidade' },
-        { id:3, code_mec:'12075', nome:'Instituto Federal de Rondônia',    tipo:'Instituto Federal' }
-      ];
-    }
-    renderSissaInstList(sissaState.instituicoes);
-    // Reset ao chegar na tela
-    sissaSession.instSelecionada = null;
-    document.getElementById('sissa-btn-entrar-fed').disabled = true;
-    sissaVoltarStep1();
-  }
-
-  function renderSissaInstList(list) {
-    const ul = document.getElementById('sissa-inst-list');
-    if (!ul) return;
-    if (!list.length) {
-      ul.innerHTML = '<li style="text-align:center;color:#ccc;font-size:13px;padding:16px 0;">Nenhuma instituição encontrada.</li>';
-      return;
-    }
-    ul.innerHTML = list.map(i => `
-      <li class="sissa-inst-item" data-id="${i.id}"
-          data-nome="${escAttr(i.nome)}" data-tipo="${escAttr(i.tipo||'')}" data-code="${escAttr(i.code_mec||'')}"
-          onclick="selectSissaInst(this, ${i.id}, '${escAttr(i.nome)}', '${escAttr(i.tipo||'')}', '${escAttr(i.code_mec||'')}')">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--s-primary)" stroke-width="2">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-          <polyline points="9,22 9,12 15,12 15,22"/>
-        </svg>
-        <div>
-          <div class="sissa-inst-name">${escHtml(i.nome)}</div>
-          <div class="sissa-inst-code">${escHtml(i.tipo||'')} · Cód. MEC: ${escHtml(i.code_mec||'')}</div>
-        </div>
-      </li>`).join('');
-  }
-
-  function selectSissaInst(el, id, nome, tipo, code_mec) {
-    document.querySelectorAll('.sissa-inst-item').forEach(li => li.classList.remove('selected'));
-    el.classList.add('selected');
-    sissaSession.instSelecionada = { id, nome, tipo, code_mec };
-    document.getElementById('sissa-btn-entrar-fed').disabled = false;
-  }
-
-  function filterSissaInst(term) {
-    const q = term.toLowerCase().trim();
-    const filtered = q
-      ? sissaState.instituicoes.filter(i => i.nome.toLowerCase().includes(q) || (i.code_mec||'').includes(q))
-      : sissaState.instituicoes;
-    renderSissaInstList(filtered);
-  }
-
-  function sissaGoToStep2() {
-    if (!sissaSession.instSelecionada) return;
-    // Preenche header do passo 2
-    document.getElementById('sissa-cafe-inst-display').textContent      = sissaSession.instSelecionada.nome;
-    document.getElementById('sissa-cafe-inst-type-display').textContent = sissaSession.instSelecionada.tipo || '';
-    document.getElementById('sissa-cafe-login').value = '';
-    document.getElementById('sissa-cafe-senha').value = '';
-    document.getElementById('sissa-cafe-error').classList.remove('visible');
-    // Troca os painéis
-    document.getElementById('sissa-step1').classList.add('hidden');
-    document.getElementById('sissa-step2').classList.remove('hidden');
-    document.getElementById('sissa-cafe-login').focus();
-  }
-
-  function sissaVoltarStep1() {
-    document.getElementById('sissa-step1').classList.remove('hidden');
-    document.getElementById('sissa-step2').classList.add('hidden');
-    document.getElementById('sissa-cafe-error').classList.remove('visible');
-  }
 
   /* ══════════════════════════════════════════
      SISSA – PASSO 2: AUTENTICAÇÃO CAFe
@@ -4166,7 +4091,7 @@
       if (isPrivado) {
         sissaAplicarPermissoes();
         loadSissaMockData();
-        sissaSession.cursoSelecionado = { id: 1, nome: 'Licenciatura em Física', instituicao_sigla: 'IFSP' };
+        sissaSession.cursoSelecionado = { id: 1, nome: 'Licenciatura em Física', instituicao_sigla: 'UFG' };
         applyCursoContext();
         sissaAplicarPermissoes();
         showScreen('sissa-estudantes');
@@ -4251,7 +4176,6 @@
     sissaState.usuarios = [];
     sissaState.cursos = [];
     sissaState.perfis = [];
-    sissaState.riscoestat = null;
     sissaState.selectedEstudanteIds.clear();
     sissaState.intEstudanteTags = [];
     sissaState.grupoEstudanteTags = [];
@@ -4326,8 +4250,8 @@
     try {
       const [eRes, gRes, iRes, uRes, cRes, pRes, semRes, discRes, tRes] = await Promise.all([
         sissaFetch('/estudantes' + qs),
-        sissaFetch('/grupos'),
-        sissaFetch('/intervencoes'),
+        sissaFetch('/grupos' + qs),
+        sissaFetch('/intervencoes' + qs),
         sissaFetch('/usuarios' + qs),
         sissaFetch('/cursos'),
         sissaFetch('/perfis'),
@@ -4423,16 +4347,22 @@
     } catch { renderSissaEstudantes(sissaState.estudantes); }
   }
 
+  // Querystring do curso ativo (escopo das telas de grupos/intervenções).
+  function cursoQS() {
+    const cid = sissaSession.cursoSelecionado?.id;
+    return cid ? `?curso_id=${cid}` : '';
+  }
+
   async function reloadSissaGrupos() {
     try {
-      const r = await sissaFetch('/grupos');
+      const r = await sissaFetch('/grupos' + cursoQS());
       if (r.success) { sissaState.grupos = r.data || []; renderSissaGrupos(sissaState.grupos); }
     } catch {}
   }
 
   async function reloadSissaIntervencoes() {
     try {
-      const r = await sissaFetch('/intervencoes');
+      const r = await sissaFetch('/intervencoes' + cursoQS());
       if (r.success) { sissaState.intervencoes = r.data || []; renderSissaIntervencoes(sissaState.intervencoes); }
     } catch {}
   }
@@ -4840,7 +4770,7 @@
       const res = await sissaFetch('/manutencao/status-grupos', { method:'POST' });
       if (res.success) {
         showSissaNotif(`${res.total||0} grupo(s) inativado(s) pela manutenção`);
-        const rg = await sissaFetch('/grupos');
+        const rg = await sissaFetch('/grupos' + cursoQS());
         if (rg.success) { sissaState.grupos = rg.data||[]; renderSissaGrupos(sissaState.grupos); }
       } else {
         showToast(res.error||'Falha na manutenção de grupos.','error');
@@ -4869,7 +4799,6 @@
         }
       });
     }
-    populateEstDatalist('sissa-est-datalist2');
     renderGrupoEstTags();
     sissaOpenModal('sissa-modal-grupo');
   }
@@ -4890,7 +4819,6 @@
       const res = await sissaFetch(`/grupos/${id}/estudantes`);
       (res.data||[]).forEach(e => sissaState.grupoEstudanteTags.push({id:e.id,nome:e.nome,matricula:e.matricula||''}));
     } catch {}
-    populateEstDatalist('sissa-est-datalist2');
     renderGrupoEstTags();
     sissaOpenModal('sissa-modal-grupo');
   }
@@ -4924,7 +4852,7 @@
 
         // Reload groups
         try {
-          const r2 = await sissaFetch('/grupos');
+          const r2 = await sissaFetch('/grupos' + cursoQS());
           if (r2.success) { sissaState.grupos = r2.data||[]; renderSissaGrupos(sissaState.grupos); }
         } catch { loadSissaMockData(); }
       } else {
@@ -5089,7 +5017,6 @@
       const est = sissaState.estudantes.find(e=>e.id===id);
       if (est) sissaState.intEstudanteTags.push({id:est.id, nome:est.nome, matricula:est.matricula});
     });
-    populateEstDatalist('sissa-est-datalist');
     renderIntEstTags();
     sissaOpenModal('sissa-modal-intervencao');
   }
@@ -5179,10 +5106,10 @@
         sissaCloseModal('sissa-modal-intervencao');
         sissaState.selectedEstudanteIds.clear();
         document.getElementById('sissa-sel-bar').classList.remove('visible');
-        const r2 = await sissaFetch('/intervencoes');
+        const r2 = await sissaFetch('/intervencoes' + cursoQS());
         if (r2.success) { sissaState.intervencoes = r2.data||[]; renderSissaIntervencoes(sissaState.intervencoes); }
         // recarrega grupos: o trigger pode ter reativado o grupo de origem
-        const rg = await sissaFetch('/grupos');
+        const rg = await sissaFetch('/grupos' + cursoQS());
         if (rg.success) { sissaState.grupos = rg.data||[]; renderSissaGrupos(sissaState.grupos); }
       } else {
         showToast(res.error||'Erro ao salvar intervenção.','error');
@@ -5364,14 +5291,6 @@
   /* ══════════════════════════════════════════
      SISSA – TAGS (estudantes para formulários)
   ══════════════════════════════════════════ */
-  function populateEstDatalist(listId) {
-    const dl = document.getElementById(listId);
-    if (!dl) return;
-    dl.innerHTML = sissaState.estudantes.map(e =>
-      `<option value="${escHtml(e.nome)} - ${escHtml(e.matricula)}" data-id="${e.id}">`
-    ).join('');
-  }
-
   /* ══════════════════════════════════════════
      SISSA – AUTOCOMPLETE DE ALUNOS (intervenção / grupo)
   ══════════════════════════════════════════ */
@@ -5437,6 +5356,7 @@
     const wrap = document.getElementById('sissa-int-estudantes-tags');
     if (!wrap) return;
     const inp = document.getElementById('sissa-int-estudante-input');
+    const dd  = document.getElementById('sissa-int-ac');   // preserva o dropdown do autocomplete
     wrap.innerHTML = '';
     sissaState.intEstudanteTags.forEach((t,idx) => {
       const tag = document.createElement('span');
@@ -5445,12 +5365,14 @@
       wrap.appendChild(tag);
     });
     wrap.appendChild(inp);
+    if (dd) wrap.appendChild(dd);                          // re-anexa (innerHTML='' o tinha removido)
   }
 
   function renderGrupoEstTags() {
     const wrap = document.getElementById('sissa-grupo-est-tags');
     if (!wrap) return;
     const inp = document.getElementById('sissa-grupo-est-input');
+    const dd  = document.getElementById('sissa-grupo-ac');   // preserva o dropdown do autocomplete
     wrap.innerHTML = '';
     sissaState.grupoEstudanteTags.forEach((t,idx) => {
       const tag = document.createElement('span');
@@ -5459,6 +5381,7 @@
       wrap.appendChild(tag);
     });
     wrap.appendChild(inp);
+    if (dd) wrap.appendChild(dd);                            // re-anexa (innerHTML='' o tinha removido)
   }
 
   function removeIntEstTag(idx) {
@@ -5476,7 +5399,7 @@
   ══════════════════════════════════════════ */
   function sissaScreenHook(id) {
     if (id === 'sissa-login') {
-      loadSissaInst();
+      cafeEnterLogin();
       return;
     }
     // First visit: load everything

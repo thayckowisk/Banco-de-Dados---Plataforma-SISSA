@@ -35,7 +35,7 @@ const DB_CONFIG = {
   host:     process.env.PGHOST     || 'localhost',
   port:     parseInt(process.env.PGPORT || '5432'),
   database: process.env.PGDATABASE || 'sissa',
-  user:     process.env.PGUSER     || 'thiagohonoratoferreira',
+  user:     process.env.PGUSER,
   password: process.env.PGPASSWORD || '',
 };
 const POLL_TIMEOUT_MS = 8000;
@@ -98,14 +98,14 @@ async function api(path, opts = {}) {
   const json = await res.json().catch(() => ({}));
   return { status: res.status, body: json };
 }
-// Ator padrão das chamadas mutadoras: Coordenador de unidade (nível 5, acesso total).
+// Ator padrão das chamadas mutadoras: Coordenador de unidade (nível 4, acesso total).
 // Resolvido em main(). Passe `actor` explícito para testar outros níveis; passe null p/ 401.
 let ACTOR = null;
 function actorHeader(actor) {
   const a = actor === undefined ? ACTOR : actor;
   return a ? { 'x-sissa-usuario-id': String(a) } : {};
 }
-const GET    = (p)                    => api(p);
+const GET    = (p, actor)             => api(p, { headers: actorHeader(actor) });
 const POST   = (p, body, actor)       => api(p, { method: 'POST',   body, headers: actorHeader(actor) });
 const PUT    = (p, body, actor)       => api(p, { method: 'PUT',    body, headers: actorHeader(actor) });
 const DELETE = (p, actor)             => api(p, { method: 'DELETE',       headers: actorHeader(actor) });
@@ -327,6 +327,49 @@ async function suiteFuncoes() {
     const r = await q(`SELECT * FROM fu_sissa_resumo_curso(999999)`);
     assertEqual(r.rows.length, 0);
   });
+
+  // fu_sissa_dias_sem_intervencao — fonte única da regra de "abandono" de grupo,
+  // extraída da procedure pr_sissa_atualizar_status_grupos (que agora delega a ela).
+  await test('fu_sissa_dias_sem_intervencao é FUNCTION (prokind=f) e retorna INTEGER', async () => {
+    const r = await q(`SELECT prokind::text k, prorettype::regtype::text t
+                       FROM pg_proc WHERE proname='fu_sissa_dias_sem_intervencao'`);
+    assert(r.rows.length === 1, 'função inexistente');
+    assertEqual(r.rows[0].k, 'f');
+    assertEqual(r.rows[0].t, 'integer');
+  });
+  await test('fu_sissa_dias_sem_intervencao: intervenção hoje → 0 dias', async () => {
+    const m   = await mkMatricula(0, 8.0, 600);
+    const gid = await scalar(`INSERT INTO sissa_grupo_intervencao(titulo,status) VALUES('ZZ Dias Hoje','Ativo') RETURNING id`);
+    tmp.grupoIds.push(gid);
+    await q(`INSERT INTO sissa_grupo_matricula(grupo_id,matricula_id) VALUES($1,$2)`, [gid, m]);
+    await q(`INSERT INTO sissa_intervencao(matricula_id,data_intervencao,formato) VALUES($1,CURRENT_DATE,'Individual')`, [m]);
+    assertEqual(Number(await scalar(`SELECT fu_sissa_dias_sem_intervencao($1)`, [gid])), 0);
+  });
+  await test('fu_sissa_dias_sem_intervencao: sem intervenção conta desde a criação', async () => {
+    const gid = await scalar(
+      `INSERT INTO sissa_grupo_intervencao(titulo,status,created_at) VALUES('ZZ Dias Criacao','Ativo', NOW()-INTERVAL '200 days') RETURNING id`);
+    tmp.grupoIds.push(gid);
+    assertEqual(Number(await scalar(`SELECT fu_sissa_dias_sem_intervencao($1)`, [gid])), 200);
+  });
+  await test('fu_sissa_dias_sem_intervencao: usa a intervenção mais recente do grupo', async () => {
+    const m   = await mkMatricula(0, 8.0, 600);
+    const gid = await scalar(`INSERT INTO sissa_grupo_intervencao(titulo,status) VALUES('ZZ Dias MaisRecente','Ativo') RETURNING id`);
+    tmp.grupoIds.push(gid);
+    await q(`INSERT INTO sissa_grupo_matricula(grupo_id,matricula_id) VALUES($1,$2)`, [gid, m]);
+    await q(`INSERT INTO sissa_intervencao(matricula_id,data_intervencao,formato)
+             VALUES($1,CURRENT_DATE-100,'Individual'),($1,CURRENT_DATE-10,'Individual')`, [m]);
+    assertEqual(Number(await scalar(`SELECT fu_sissa_dias_sem_intervencao($1)`, [gid])), 10);
+  });
+  await test('fu_sissa_dias_sem_intervencao: grupo inexistente → NULL', async () => {
+    assertEqual(await scalar(`SELECT fu_sissa_dias_sem_intervencao(999999)`), null);
+  });
+
+  // a procedure de manutenção passou a DELEGAR o cálculo à função (fonte única)
+  await test('pr_sissa_atualizar_status_grupos delega a fu_sissa_dias_sem_intervencao', async () => {
+    const src = await scalar(`SELECT pg_get_functiondef(p.oid)
+                              FROM pg_proc p WHERE p.proname='pr_sissa_atualizar_status_grupos'`);
+    assertTrue(/fu_sissa_dias_sem_intervencao/.test(src), 'procedure deveria chamar a função');
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -354,21 +397,22 @@ async function suiteProcedimentos() {
 
   await test('CALL pr_sissa_criar_intervencao_grupo retorna p_total (INOUT)', async () => {
     const r = await q(
-      `CALL pr_sissa_criar_intervencao_grupo($1, CURRENT_DATE, 5, 1, 'Chat', 'Apoio', 'Pró-ativa', 'Conteúdo', 'Síncrono', 'ZZ proc teste', 0)`,
+      `CALL pr_sissa_criar_intervencao_grupo($1, CURRENT_DATE, 5, 1, 'Chat', 'Apoio', 'Pró-ativa', 'Conteúdo', 'Síncrono', 'ZZ proc teste', 1, 0)`,
       [grupoId]);
     assertEqual(Number(r.rows[0].p_total), 2);
   });
-  await test('Procedimento cria 1 intervenção individual por matrícula do grupo', async () => {
-    const rows = (await q(`SELECT id, matricula_id, formato FROM sissa_intervencao WHERE observacoes='ZZ proc teste' ORDER BY matricula_id`)).rows;
+  await test('Procedimento cria 1 intervenção individual por matrícula do grupo (com autoria)', async () => {
+    const rows = (await q(`SELECT id, matricula_id, formato, autoria_id FROM sissa_intervencao WHERE observacoes='ZZ proc teste' ORDER BY matricula_id`)).rows;
     rows.forEach(r => tmp.intervencaoIds.push(r.id));
     assertEqual(rows.length, 2);
     assertTrue(rows.every(r => r.formato === 'Individual'));
+    assertTrue(rows.every(r => Number(r.autoria_id) === 1), 'cada intervenção do grupo grava o autor (p_autoria_id)');
     assertEqual([Number(rows[0].matricula_id), Number(rows[1].matricula_id)].sort((a,b)=>a-b).join(','),
                 [m1, m2].sort((a,b)=>a-b).join(','));
   });
   await test('CALL pr_sissa_criar_intervencao_grupo com grupo inexistente → erro', async () => {
     await assertRejects(() => q(
-      `CALL pr_sissa_criar_intervencao_grupo(999999, CURRENT_DATE, 5, 1, 'Chat','x','Reativa','Conteúdo','Síncrono','x',0)`));
+      `CALL pr_sissa_criar_intervencao_grupo(999999, CURRENT_DATE, 5, 1, 'Chat','x','Reativa','Conteúdo','Síncrono','x',NULL,0)`));
   });
 
   await test('CALL pr_sissa_atualizar_status_grupos retorna total (INOUT)', async () => {
@@ -686,6 +730,18 @@ async function suiteApiAuth() {
     const { status, body } = await POST('/api/sissa/auth', {});
     assertEqual(status, 400); assertFalse(body.success);
   });
+  await test('Leitura privada sem ator (anônimo) → 401', async () => {
+    // actor=null força ausência do header x-sissa-usuario-id (área pública não
+    // acessa dados nominais). Fecha o vazamento anônimo de dados de aluno.
+    for (const ep of ['/api/sissa/estudantes?curso_id=1', '/api/sissa/usuarios', '/api/sissa/intervencoes']) {
+      assertEqual((await GET(ep, null)).status, 401, `${ep} deveria exigir ator`);
+    }
+  });
+  await test('Curso de outra instituição (fora do escopo do ator) → 403', async () => {
+    // ACTOR = Laís (UFG, cursos 1+2) tentando o curso 6 (ADS/IFSP).
+    assertEqual((await GET('/api/sissa/estudantes?curso_id=6')).status, 403);
+    assertEqual((await GET('/api/sissa/resumo-curso/6')).status, 403);
+  });
   await test('POST /auth usuário cadastrado + senha correta → privado', async () => {
     const { body } = await POST('/api/sissa/auth', { email: 'adailton@ufg.com', senha: '1234' });
     assertTrue(body.success); assertEqual(body.tipo, 'privado');
@@ -720,7 +776,7 @@ async function suiteApiAuth() {
 // SUITE 9 — API: ESTUDANTES & ESTATÍSTICAS
 // ═══════════════════════════════════════════════════════════════════════════════
 async function suiteApiEstudantes() {
-  startSuite('API — Estudantes & Estatísticas');
+  startSuite('API — Estudantes');
 
   await test('GET /estudantes retorna array', async () => {
     const { body } = await GET('/api/sissa/estudantes');
@@ -752,21 +808,6 @@ async function suiteApiEstudantes() {
   await test('POST /estudantes sem campos obrigatórios → 400', async () => {
     const { status, body } = await POST('/api/sissa/estudantes', { nome: 'x' });
     assertEqual(status, 400); assertFalse(body.success);
-  });
-  await test('GET /estatisticas/risco soma total = alto+medio+baixo', async () => {
-    const { body } = await GET('/api/sissa/estatisticas/risco');
-    assertTrue(body.success);
-    assertEqual(body.data.total, body.data.alto + body.data.medio + body.data.baixo);
-  });
-  await test('GET /estatisticas/risco percentuais entre 0 e 100', async () => {
-    const { body } = await GET('/api/sissa/estatisticas/risco');
-    for (const k of ['pct_alto','pct_medio','pct_baixo']) {
-      assert(body.data[k] >= 0 && body.data[k] <= 100);
-    }
-  });
-  await test('GET /estatisticas/risco?curso_id=1 filtra', async () => {
-    const { body } = await GET('/api/sissa/estatisticas/risco?curso_id=1');
-    assertTrue(body.success); assert(body.data.total >= 0);
   });
 }
 
@@ -877,6 +918,18 @@ async function suiteApiGrupos() {
     const { status, body } = await GET('/api/sissa/grupos/999999');
     assertEqual(status, 404); assertFalse(body.success);
   });
+  await test('GET /grupos?curso_id escopa por curso do ator (curso de outra inst → 403)', async () => {
+    // ACTOR = Laís (Coord. unidade UFG, cursos 1+2). mkMatricula usa curso 1.
+    const m1     = await mkMatricula(0, 8, 600);
+    const gCurso = await scalar(`INSERT INTO sissa_grupo_intervencao(titulo,status) VALUES('ZZ Grupo Curso1','Ativo') RETURNING id`);
+    tmp.grupoIds.push(gCurso);
+    await q(`INSERT INTO sissa_grupo_matricula(grupo_id,matricula_id) VALUES($1,$2)`, [gCurso, m1]);
+
+    const c1 = (await GET('/api/sissa/grupos?curso_id=1')).body.data.map(g => g.id);  // curso do ator
+    assertTrue(c1.includes(gCurso), 'grupo com membro do curso 1 aparece para a ATOR do curso 1');
+    // curso 6 (ADS/IFSP) não pertence à ATOR UFG → 403 (isola instituições)
+    assertEqual((await GET('/api/sissa/grupos?curso_id=6')).status, 403);
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -931,11 +984,20 @@ async function suiteApiIntervencoes() {
       acompanhamento: 'Síncrono', observacoes: 'ZZ via proc',
     });
     assertTrue(body.success, body.error); assertEqual(body.total, 1);
+    // a procedure grava o autor = ator logado (ACTOR), via p_autoria_id
+    const autoria = await scalar(`SELECT autoria_id FROM sissa_intervencao WHERE observacoes='ZZ via proc' ORDER BY id DESC LIMIT 1`);
+    assertEqual(Number(autoria), ACTOR);
   });
   await test('GET /intervencoes?grupo_id filtra pelos membros do grupo', async () => {
     const { body } = await GET(`/api/sissa/intervencoes?grupo_id=${grupoX}`);
     assertTrue(body.success);
     assertTrue(body.data.every(i => i.matricula_id === mX));
+  });
+  await test('GET /intervencoes?curso_id escopa por curso do ator (curso de outra inst → 403)', async () => {
+    const c1 = (await GET('/api/sissa/intervencoes?curso_id=1')).body.data;  // mX é curso 1 (curso do ator)
+    assertTrue(c1.some(i => i.id === intId), 'intervenção de matrícula do curso 1 aparece para a ATOR do curso 1');
+    // curso 6 (ADS/IFSP) não pertence à ATOR UFG → 403
+    assertEqual((await GET('/api/sissa/intervencoes?curso_id=6')).status, 403);
   });
   await test('GET /intervencoes?busca filtra por texto', async () => {
     const { body } = await GET('/api/sissa/intervencoes?busca=teste');
@@ -1207,7 +1269,12 @@ async function runCleanup() {
     await q(`DROP TABLE IF EXISTS sissa_bench_chk CASCADE`).catch(()=>{});
     await q(`DROP TABLE IF EXISTS sissa_bench_matricula CASCADE`).catch(()=>{});
     await q(`DROP TABLE IF EXISTS sissa_bench_risco CASCADE`).catch(()=>{});
-    console.log(`  ${ok('Dados de teste removidos')}`);
+    // Restaura o status dos grupos do seed: a procedure de manutenção
+    // (pr_sissa_atualizar_status_grupos) é global e inativa o Grupo A ao rodar.
+    // Espelha o UPDATE final do sql/05 para o banco voltar ao estado de seed.
+    await q(`UPDATE sissa_grupo_intervencao SET status='Ativo'   WHERE titulo='Grupo A'`).catch(()=>{});
+    await q(`UPDATE sissa_grupo_intervencao SET status='Inativo' WHERE titulo IN ('Grupo B','Grupo C')`).catch(()=>{});
+    console.log(`  ${ok('Dados de teste removidos; grupos do seed restaurados')}`);
   } catch (err) {
     console.log(`  ${fail('Limpeza parcial: ' + err.message)}`);
   }
@@ -1263,7 +1330,7 @@ async function main() {
   await q('SELECT 1');
   console.log(`${C.green}OK${C.reset}`);
 
-  // Ator padrão das chamadas mutadoras = Coordenador de unidade (nível 5)
+  // Ator padrão das chamadas mutadoras = Coordenador de unidade (nível 4)
   ACTOR = Number(await scalar(
     `SELECT id FROM sissa_usuario_sissa WHERE email_institucional='laishcandido@gmail.com'`));
 
