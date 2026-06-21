@@ -138,14 +138,20 @@ Abra **http://localhost:3000** no navegador.
 
 #### Acesso à área privada (e-mails cadastrados)
 
-| Nome | E-mail | Senha | Perfil |
-|------|--------|-------|--------|
-| Adailton Araújo | `adailton@ufg.com` | `1234` | Coordenador de curso |
-| Beatriz de Barros Vianna Cardoso | `beatriz.de.bastos.vianna@gmail.com` | `2345` | Coordenador de ensino |
-| Laís Hauptli Cândido | `laishcandido@gmail.com` | `3456` | Coordenador de unidade |
-| Kalebe Xavier | `kalebe.xavier@ifsp.edu.br` | `4567` | Tutor Físico |
-| Juliana Moraes | `juliana.moraes@ifsp.edu.br` | `5678` | Tutor |
-| Beatriz Cardoso | `beatriz.cardoso@ifsp.edu.br` | `6789` | Tutor |
+A instituição vem do **cadastro do usuário** (o login CAFe é só provedor de identidade): logar como usuário da UFG mostra a UFG; como IFSP, o IFSP.
+
+| Instituição | Nome | E-mail | Senha | Perfil |
+|:---:|------|--------|-------|--------|
+| UFG | Laís Hauptli Cândido | `laishcandido@gmail.com` | `3456` | Coordenador de unidade |
+| UFG | Beatriz de Barros Vianna Cardoso | `beatriz.de.bastos.vianna@gmail.com` | `2345` | Coordenador de ensino |
+| UFG | Adailton Araújo | `adailton@ufg.com` | `1234` | Coordenador de curso |
+| UFG | Kalebe Xavier | `kalebe.xavier@ufg.br` | `4567` | Tutor |
+| UFG | Juliana Moraes | `juliana.moraes@ufg.br` | `5678` | Tutor |
+| UFG | Beatriz Cardoso | `beatriz.cardoso@ufg.br` | `6789` | Tutor |
+| IFSP | Ricardo Tavares Lima | `ricardo.tavares@ifsp.edu.br` | `7890` | Coordenador de unidade |
+| IFSP | Patrícia Nunes Rocha | `patricia.rocha@ifsp.edu.br` | `8901` | Coordenador de curso |
+
+> Cadastro completo (cursos, alunos, grupos) e roteiro de demonstração: ver **`GUIA_DEMONSTRACAO.md`**.
 
 #### Acesso à área pública
 
@@ -183,27 +189,37 @@ auditoria  ←── triggers em todas as tabelas acima
 
 ```
 sissa_instituicao
-  └── sissa_curso
-        ├── sissa_estudante ──→ sissa_risco_evasao (1:1, trigger updated_at)
-        │         └── sissa_grupo_estudante ←── sissa_grupo_intervencao ──→ sissa_intervencao
-        │                                                                          └── sissa_intervencao_estudante
-        └── sissa_usuario_sissa ──→ sissa_usuario_curso
-              └── sissa_perfil
+  └── sissa_unidade
+        └── sissa_curso
+              ├── sissa_aluno ──→ sissa_matricula        (pessoa + vínculo no curso; matrícula guarda os indicadores)
+              │                     ├──→ sissa_risco_evasao      (1:1; triggers: classifica risco + updated_at)
+              │                     ├──→ sissa_inscricao_turma ──→ sissa_turma   (← sissa_professor, sissa_semestre, sissa_disciplina)
+              │                     ├──→ sissa_grupo_matricula ──→ sissa_grupo_intervencao   (grupo = favorito de matrículas)
+              │                     └──→ sissa_intervencao        (individual: 1 linha por matrícula)
+              └── sissa_usuario_sissa ──→ sissa_usuario_curso    (escopo de acesso por curso)
+                    └── sissa_perfil   (4 níveis · matriz sissa_nivel_acao)
 ```
 
 | Tabela | Descrição |
 |--------|-----------|
-| `sissa_instituicao` | Instituições (código MEC, nome, tipo) |
-| `sissa_curso` | Cursos vinculados a uma instituição |
-| `sissa_perfil` | Perfis de usuário SISSA |
-| `sissa_usuario_sissa` | Usuários da plataforma SISSA |
-| `sissa_usuario_curso` | N:N usuário ↔ curso |
-| `sissa_estudante` | Estudantes matriculados |
-| `sissa_risco_evasao` | Indicadores de risco (1:1 com estudante) |
-| `sissa_grupo_intervencao` | Grupos pedagógicos de intervenção |
-| `sissa_grupo_estudante` | N:N grupo ↔ estudante |
-| `sissa_intervencao` | Registros de intervenção realizadas |
-| `sissa_intervencao_estudante` | N:N intervenção ↔ estudante |
+| `sissa_instituicao` | Instituições (código MEC, **sigla**, nome, tipo) |
+| `sissa_unidade` | Unidades (campus/regional) de uma instituição |
+| `sissa_curso` | Cursos vinculados a uma **unidade** |
+| `sissa_semestre` | Semestres letivos (ex.: 2025/1) |
+| `sissa_disciplina` | Disciplinas de um curso |
+| `sissa_professor` | Professores (responsáveis pelas turmas) |
+| `sissa_turma` | Turmas: disciplina + professor + semestre |
+| `sissa_aluno` | Aluno (pessoa) |
+| `sissa_matricula` | Matrícula do aluno num curso (guarda os indicadores de risco) |
+| `sissa_inscricao_turma` | N:N matrícula ↔ turma (com situação) |
+| `sissa_risco_evasao` | Indicadores de risco (1:1 com **matrícula**) |
+| `sissa_perfil` | Perfis de usuário SISSA (4 níveis) |
+| `sissa_usuario_sissa` | Usuários da plataforma (cada um pertence a uma instituição) |
+| `sissa_usuario_curso` | N:N usuário ↔ curso (escopo de acesso) |
+| `sissa_nivel_acao` | Matriz nível × ação (permissões, data-driven) |
+| `sissa_grupo_intervencao` | Grupos pedagógicos (favorito de matrículas) |
+| `sissa_grupo_matricula` | N:N grupo ↔ matrícula |
+| `sissa_intervencao` | Intervenções realizadas (individual, 1 por matrícula) |
 
 ---
 
@@ -213,14 +229,14 @@ Esta é a frente ativa do projeto (módulo **"Sistema Sissa →"**). Todo o dom�
 
 | Req | Conceito | Cenário identificado nos requisitos | Implementação |
 |-----|----------|--------------------------------------|---------------|
-| **1** | 2 **funções** | Calcular o risco de um estudante; consolidar KPIs de risco de um curso | `fu_sissa_calcular_risco(estudante_id)` · `fu_sissa_resumo_curso(curso_id)` |
+| **1** | 2 **funções** | Classificar o risco de uma matrícula; medir o tempo sem intervenção (abandono) de um grupo | `fu_sissa_calcular_risco(matricula_id)` · `fu_sissa_dias_sem_intervencao(grupo_id)` |
 | **2** | 2 **procedimentos** | Registrar intervenção a partir de um grupo (uma intervenção individual por aluno, com autoria); manutenção em lote do ciclo de vida dos grupos | `CALL pr_sissa_criar_intervencao_grupo(...)` · `CALL pr_sissa_atualizar_status_grupos(...)` (PROCEDURE reais, `INOUT`) |
 | **3** | 2+ **triggers** | Classificar risco automaticamente; manter `updated_at`; reativar grupo ao receber intervenção | `tg_sissa_classificar_risco` · `tg_sissa_risco_evasao_timestamp` · `tg_sissa_grupo_inativo_auto` |
 | **4** | 2+ **views** | Lista de risco dos alunos do curso; resumo gerencial de intervenções; **view anônima** de risco | `vw_sissa_estudantes_risco` · `vw_sissa_grupos` · `vw_sissa_resumo_intervencoes` · `vw_sissa_risco_anonimo` |
 | **5** | 2 **índices** + massa + ganho ≥ 20 % | Consulta de risco por curso; identificação por matrícula | `(curso_id, risco)` → **≈84 %** · `(matricula)` → **≈99 %** (benchmark em `07`, massa de 500 mil linhas) |
 | **6** | 3 **grupos de usuários** (segurança) | Admin total; leitura geral; acesso externo **sem dados que identifiquem o aluno** | `admin_sissa` (CRUD) · `leitura_sissa` (SELECT) · `risco_anonimo_sissa` (SELECT só em `vw_sissa_risco_anonimo`) |
 
-> Os detalhes de cada objeto (assinaturas, colunas, eventos) estão na seção **Objetos SQL implementados → Trabalho em Grupo — Domínio SISSA**. A verificação automatizada de todos esses requisitos está em `test-sissa.js` (**190 testes**, ver [Testes](#testes)).
+> Os detalhes de cada objeto (assinaturas, colunas, eventos) estão na seção **Objetos SQL implementados → Trabalho em Grupo — Domínio SISSA**. A verificação automatizada de todos esses requisitos está em `test-sissa.js` (**232 testes**, ver [Testes](#testes)).
 
 Como extensão de segurança, cada perfil tem um **nível de permissão** hierárquico (ver [Níveis de permissão por perfil](#níveis-de-permissão-por-perfil-controle-de-acesso-hierárquico)): o coordenador edita tudo e, à medida que o cargo diminui, menos ações ficam disponíveis (um tutor não altera um coordenador).
 
@@ -268,11 +284,15 @@ Como extensão de segurança, cada perfil tem um **nível de permissão** hierá
 
 #### Funções
 
+As **duas funções do Requisito 1** são `fu_sissa_calcular_risco` (risco da matrícula) e `fu_sissa_dias_sem_intervencao` (abandono do grupo); as demais dão suporte (fonte única de limiares, KPIs do gauge, controle de acesso).
+
 | Objeto | Entrada | Saída | Descrição |
 |--------|---------|-------|-----------|
-| `fu_sissa_calcular_risco` | `estudante_id INTEGER` | `VARCHAR` | Calcula nível de risco (Alto/Médio/Baixo) pelos indicadores acadêmicos do estudante |
-| `fu_sissa_resumo_curso` | `curso_id INTEGER` | `TABLE` | Retorna KPIs do curso: total de estudantes, contagem por risco, média de reprovações, % alto risco |
-| `fu_sissa_nivel_usuario` | `usuario_id INTEGER` | `INTEGER` | Nível (1..5) do perfil do usuário (controle de acesso) |
+| `fu_sissa_calcular_risco` | `matricula_id INTEGER` | `VARCHAR` | Classifica o risco (Alto/Médio/Baixo) lendo os indicadores da matrícula; delega os limiares a `fu_sissa_classificar` (fonte única) |
+| `fu_sissa_dias_sem_intervencao` | `grupo_id INTEGER` | `INTEGER` | Dias desde a última intervenção dos membros do grupo (ou desde a criação, se nunca houve); `NULL` se o grupo não existe. Fonte única da regra de "abandono", usada pela procedure de manutenção |
+| `fu_sissa_classificar` | `reprovacoes, media_global, ch_semestre` | `TEXT` | **Fonte única** dos limiares de risco (`IMMUTABLE`); usada pela função de risco e pela trigger de classificação |
+| `fu_sissa_resumo_curso` | `curso_id INTEGER` | `TABLE` | KPIs do curso (total, contagem por risco, média de reprovações, % alto risco) — alimenta o gauge da tela |
+| `fu_sissa_nivel_usuario` | `usuario_id INTEGER` | `INTEGER` | Nível (1..4) do perfil do usuário (controle de acesso) |
 | `fu_sissa_pode` | `usuario_id, acao` | `BOOLEAN` | Se o nível do usuário possui a ação na matriz `sissa_nivel_acao` |
 | `fu_sissa_pode_gerenciar_usuario` | `ator_id, alvo_id` | `BOOLEAN` | Regra hierárquica: só gerencia quem é de nível estritamente menor |
 
@@ -283,7 +303,7 @@ Implementados como **`CREATE PROCEDURE`** reais do PostgreSQL (invocados com **`
 | Objeto | Invocação | Descrição |
 |--------|-----------|-----------|
 | `pr_sissa_criar_intervencao_grupo(grupo_id, data, semestre_id, disciplina_id, forma_meio, assunto, interacao, tipo, acompanhamento, obs, autoria_id, INOUT total)` | `CALL pr_sissa_criar_intervencao_grupo(1, CURRENT_DATE, 5, 1, 'Chat', 'Apoio', 'Pró-ativa', 'Conteúdo', 'Síncrono', 'obs', 3, 0);` | Percorre as matrículas do grupo e cria **uma intervenção individual por matrícula** (intervenção é individual), gravando o autor (`autoria_id`) em cada uma; devolve a **quantidade criada** em `INOUT total` |
-| `pr_sissa_atualizar_status_grupos(INOUT total)` | `CALL pr_sissa_atualizar_status_grupos(0);` | Rotina de manutenção em lote: inativa grupos sem intervenção há mais de 180 dias; devolve o total inativado em `INOUT total` |
+| `pr_sissa_atualizar_status_grupos(INOUT total)` | `CALL pr_sissa_atualizar_status_grupos(0);` | Rotina de manutenção em lote: inativa grupos parados há mais de 180 dias. A medição (dias sem intervenção) é delegada à função **`fu_sissa_dias_sem_intervencao`** (fonte única); a procedure aplica só a política do limiar. Devolve o total inativado em `INOUT total` |
 
 #### Triggers
 
@@ -305,17 +325,16 @@ Implementados como **`CREATE PROCEDURE`** reais do PostgreSQL (invocados com **`
 
 #### Níveis de permissão por perfil (controle de acesso hierárquico)
 
-Cada perfil tem um **nível** (`sissa_perfil.nivel`, 5 = mais alto). A matriz de ações fica na tabela **`sissa_nivel_acao`** (data-driven) e é aplicada por funções no banco, validada no **backend** (header `x-sissa-usuario-id`) e refletida no **frontend** (botões ocultos conforme a permissão). Regra-chave: **ninguém edita/exclui um usuário de nível igual ou superior ao seu** (um tutor não altera um coordenador).
+Cada perfil tem um **nível** (`sissa_perfil.nivel`, 4 = mais alto). A matriz de ações fica na tabela **`sissa_nivel_acao`** (data-driven) e é aplicada por funções no banco, validada no **backend** (header `x-sissa-usuario-id`) e refletida no **frontend** (botões ocultos conforme a permissão). Regra-chave: **ninguém edita/exclui um usuário de nível igual ou superior ao seu** (um tutor não altera um coordenador).
 
 | Nível | Perfil | ver | criar interv. | editar interv. | excluir interv. | gerenciar grupo | excluir grupo | gerenciar estud. | gerenciar usuário | excluir usuário |
 |:---:|--------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **5** | Coordenador de unidade | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **4** | Coordenador de ensino  | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **3** | Coordenador de curso   | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — |
-| **2** | Tutor Físico           | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | — |
+| **4** | Coordenador de unidade | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **3** | Coordenador de ensino  | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **2** | Coordenador de curso   | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — |
 | **1** | Tutor                  | ✅ | ✅ | ✅¹ | — | — | — | — | — | — |
 
-¹ O Tutor só edita **as próprias** intervenções (campo `autoria_id`). Funções de apoio: `fu_sissa_pode(usuario_id, acao)`, `fu_sissa_pode_gerenciar_usuario(ator_id, alvo_id)`, `fu_sissa_nivel_usuario(usuario_id)`. Coord. de unidade e de ensino têm o mesmo conjunto de ações, mas o de unidade (nível 5) pode **gerenciar** o de ensino (nível 4), e não o contrário.
+¹ O Tutor só edita **as próprias** intervenções (campo `autoria_id`). Funções de apoio: `fu_sissa_pode(usuario_id, acao)`, `fu_sissa_pode_gerenciar_usuario(ator_id, alvo_id)`, `fu_sissa_nivel_usuario(usuario_id)`. Coord. de unidade (nível 4) e de ensino (nível 3) têm o mesmo conjunto de ações, mas o de unidade pode **gerenciar** o de ensino (nível maior gerencia o menor) e enxerga **todos os cursos da sua unidade**, enquanto os demais perfis veem um único curso.
 
 #### Índices de performance (Requisito 5)
 
@@ -326,7 +345,7 @@ Duas necessidades de índice identificadas nos requisitos, validadas por **bench
 | 1 | "Consulta de risco de evasão dos alunos do curso" (filtro curso + risco) | `(curso_id, risco)` | `WHERE curso_id=? AND risco=?` | ~210 ms | ~34 ms | **≈ 84 %** |
 | 2 | Identificação do estudante por matrícula (importação / vínculo único) | `(matricula)` | `WHERE matricula=?` | ~213 ms | ~0,3 ms | **≈ 99 %** |
 
-> Ambos superam com folga o mínimo de **20 %** exigido. O `EXPLAIN ANALYZE` confirma a troca de **Seq Scan → Index/Bitmap Index Scan**. Os índices reais equivalentes já estão criados no schema: `idx_sissa_est_curso_nome (curso_id, nome)`, `idx_sissa_risco_comp (risco, estudante_id, media_global)` e `idx_sissa_estudante_mat (matricula)`.
+> Ambos superam com folga o mínimo de **20 %** exigido. O `EXPLAIN ANALYZE` confirma a troca de **Seq Scan → Index/Bitmap Index Scan**. Os índices reais equivalentes já estão no schema: `idx_sissa_risco_comp (risco, matricula_id)` e `idx_sissa_matricula_curso (curso_id)` para o filtro de risco por curso; a coluna `codigo` da matrícula é **UNIQUE** (índice implícito) para a identificação por matrícula.
 
 Para reexecutar o benchmark a qualquer momento:
 
@@ -377,8 +396,7 @@ SELECT * FROM fu_sissa_benchmark_indice(500000, 25);
 | `POST` | `/api/sissa/estudantes` | Cria estudante (risco derivado por trigger/função) |
 | `GET` | `/api/sissa/roster` | Lista alunos do cadastro acadêmico (origem da importação) |
 | `POST` | `/api/sissa/estudantes/importar` | Importa aluno do roster para a plataforma |
-| `GET` | `/api/sissa/estatisticas/risco` | Contagem e % por nível de risco (gauge) |
-| `GET` | `/api/sissa/resumo-curso/:curso_id` | KPIs do curso via `fu_sissa_resumo_curso` |
+| `GET` | `/api/sissa/resumo-curso/:curso_id` | KPIs do curso via `fu_sissa_resumo_curso` (alimenta o gauge) |
 | `GET` | `/api/sissa/grupos` | Lista grupos de intervenção |
 | `POST` | `/api/sissa/grupos` | Cria grupo com estudantes |
 | `GET` | `/api/sissa/grupos/:id` | Detalhe do grupo com estudantes |
@@ -460,7 +478,7 @@ psql -U SEU_USUARIO -d sissa -f sql/04_audit_assertions.sql
 
 ```bash
 node test-sissa.js
-# → 190/190 testes passando  (servidor precisa estar rodando)
+# → 232/232 testes passando  (servidor precisa estar rodando)
 ```
 
 Cobertura do `test-sissa.js` (14 suítes): schema/DDL e constraints, **funções**, **procedimentos** (`CALL`), **triggers**, **views** (incluindo o anonimato da `vw_sissa_risco_anonimo`), **índices** (com benchmark de ganho ≥ 20 %), **segurança/roles** (incl. `SET ROLE` bloqueando acesso indevido), **níveis de permissão** (gradiente de ações por perfil + regra hierárquica) e todas as rotas `/api/sissa/*` (autenticação, estudantes, roster/importação, grupos, intervenções e usuários). Os dados de teste são removidos automaticamente ao final.
