@@ -327,6 +327,49 @@ async function suiteFuncoes() {
     const r = await q(`SELECT * FROM fu_sissa_resumo_curso(999999)`);
     assertEqual(r.rows.length, 0);
   });
+
+  // fu_sissa_dias_sem_intervencao — fonte única da regra de "abandono" de grupo,
+  // extraída da procedure pr_sissa_atualizar_status_grupos (que agora delega a ela).
+  await test('fu_sissa_dias_sem_intervencao é FUNCTION (prokind=f) e retorna INTEGER', async () => {
+    const r = await q(`SELECT prokind::text k, prorettype::regtype::text t
+                       FROM pg_proc WHERE proname='fu_sissa_dias_sem_intervencao'`);
+    assert(r.rows.length === 1, 'função inexistente');
+    assertEqual(r.rows[0].k, 'f');
+    assertEqual(r.rows[0].t, 'integer');
+  });
+  await test('fu_sissa_dias_sem_intervencao: intervenção hoje → 0 dias', async () => {
+    const m   = await mkMatricula(0, 8.0, 600);
+    const gid = await scalar(`INSERT INTO sissa_grupo_intervencao(titulo,status) VALUES('ZZ Dias Hoje','Ativo') RETURNING id`);
+    tmp.grupoIds.push(gid);
+    await q(`INSERT INTO sissa_grupo_matricula(grupo_id,matricula_id) VALUES($1,$2)`, [gid, m]);
+    await q(`INSERT INTO sissa_intervencao(matricula_id,data_intervencao,formato) VALUES($1,CURRENT_DATE,'Individual')`, [m]);
+    assertEqual(Number(await scalar(`SELECT fu_sissa_dias_sem_intervencao($1)`, [gid])), 0);
+  });
+  await test('fu_sissa_dias_sem_intervencao: sem intervenção conta desde a criação', async () => {
+    const gid = await scalar(
+      `INSERT INTO sissa_grupo_intervencao(titulo,status,created_at) VALUES('ZZ Dias Criacao','Ativo', NOW()-INTERVAL '200 days') RETURNING id`);
+    tmp.grupoIds.push(gid);
+    assertEqual(Number(await scalar(`SELECT fu_sissa_dias_sem_intervencao($1)`, [gid])), 200);
+  });
+  await test('fu_sissa_dias_sem_intervencao: usa a intervenção mais recente do grupo', async () => {
+    const m   = await mkMatricula(0, 8.0, 600);
+    const gid = await scalar(`INSERT INTO sissa_grupo_intervencao(titulo,status) VALUES('ZZ Dias MaisRecente','Ativo') RETURNING id`);
+    tmp.grupoIds.push(gid);
+    await q(`INSERT INTO sissa_grupo_matricula(grupo_id,matricula_id) VALUES($1,$2)`, [gid, m]);
+    await q(`INSERT INTO sissa_intervencao(matricula_id,data_intervencao,formato)
+             VALUES($1,CURRENT_DATE-100,'Individual'),($1,CURRENT_DATE-10,'Individual')`, [m]);
+    assertEqual(Number(await scalar(`SELECT fu_sissa_dias_sem_intervencao($1)`, [gid])), 10);
+  });
+  await test('fu_sissa_dias_sem_intervencao: grupo inexistente → NULL', async () => {
+    assertEqual(await scalar(`SELECT fu_sissa_dias_sem_intervencao(999999)`), null);
+  });
+
+  // a procedure de manutenção passou a DELEGAR o cálculo à função (fonte única)
+  await test('pr_sissa_atualizar_status_grupos delega a fu_sissa_dias_sem_intervencao', async () => {
+    const src = await scalar(`SELECT pg_get_functiondef(p.oid)
+                              FROM pg_proc p WHERE p.proname='pr_sissa_atualizar_status_grupos'`);
+    assertTrue(/fu_sissa_dias_sem_intervencao/.test(src), 'procedure deveria chamar a função');
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

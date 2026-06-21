@@ -582,6 +582,44 @@ BEGIN
 END;
 $$;
 
+-- ----------------------------------------------------------------
+-- FUNÇÃO 6 – fu_sissa_dias_sem_intervencao
+--   IN:  p_grupo_id — id do grupo de intervenção
+--   OUT: nº de dias desde a última intervenção registrada para QUALQUER
+--        matrícula membro do grupo; se o grupo nunca recebeu intervenção,
+--        conta a partir da sua criação. NULL se o grupo não existe.
+--   É a FONTE ÚNICA da regra de "abandono" de um grupo: a procedure
+--   pr_sissa_atualizar_status_grupos delega a ela a medição (e aplica só a
+--   política do limiar). Mesmo padrão de fu_sissa_classificar ↔ trigger.
+-- ----------------------------------------------------------------
+CREATE OR REPLACE FUNCTION fu_sissa_dias_sem_intervencao(p_grupo_id INTEGER)
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_criado DATE;
+    v_ultima DATE;
+BEGIN
+    SELECT created_at::DATE
+    INTO   v_criado
+    FROM   sissa_grupo_intervencao
+    WHERE  id = p_grupo_id;
+
+    IF NOT FOUND THEN
+        RETURN NULL;                       -- grupo inexistente
+    END IF;
+
+    SELECT MAX(i.data_intervencao)
+    INTO   v_ultima
+    FROM   sissa_intervencao i
+    JOIN   sissa_grupo_matricula gm ON gm.matricula_id = i.matricula_id
+    WHERE  gm.grupo_id = p_grupo_id;
+
+    -- sem intervenção (v_ultima IS NULL) → mede desde a criação do grupo
+    RETURN NOW()::DATE - COALESCE(v_ultima, v_criado);
+END;
+$$;
+
 -- ================================================================
 -- PROCEDIMENTOS do domínio SISSA
 -- ================================================================
@@ -634,10 +672,11 @@ $$;
 
 -- ----------------------------------------------------------------
 -- PROCEDURE 2 – pr_sissa_atualizar_status_grupos
---   Rotina de manutenção em lote: inativa grupos ATIVOS cuja última
---   intervenção (entre as matrículas membros) tem mais de 180 dias, ou
---   que não têm intervenção e foram criados há mais de 180 dias. O total
---   inativado volta pelo INOUT p_total.
+--   Rotina de manutenção em lote: inativa os grupos ATIVOS "abandonados" —
+--   parados há mais de 180 dias. A medição (dias desde a última intervenção
+--   dos membros, ou desde a criação se nunca houve) é delegada à função
+--   fu_sissa_dias_sem_intervencao (fonte única); aqui aplicamos só a política
+--   do limiar. O total inativado volta pelo INOUT p_total.
 -- ----------------------------------------------------------------
 CREATE OR REPLACE PROCEDURE pr_sissa_atualizar_status_grupos(
     INOUT p_total INTEGER DEFAULT 0
@@ -645,8 +684,7 @@ CREATE OR REPLACE PROCEDURE pr_sissa_atualizar_status_grupos(
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_rec    RECORD;
-    v_ultima DATE;
+    v_rec RECORD;
 BEGIN
     p_total := 0;
     FOR v_rec IN
@@ -654,14 +692,7 @@ BEGIN
         FROM sissa_grupo_intervencao g
         WHERE g.status = 'Ativo'
     LOOP
-        SELECT MAX(i.data_intervencao)
-        INTO   v_ultima
-        FROM   sissa_intervencao i
-        JOIN   sissa_grupo_matricula gm ON gm.matricula_id = i.matricula_id
-        WHERE  gm.grupo_id = v_rec.id;
-
-        IF (v_ultima IS NULL AND (NOW()::DATE - (SELECT created_at::DATE FROM sissa_grupo_intervencao WHERE id=v_rec.id)) > 180)
-        OR (v_ultima IS NOT NULL AND (NOW()::DATE - v_ultima) > 180) THEN
+        IF fu_sissa_dias_sem_intervencao(v_rec.id) > 180 THEN
             UPDATE sissa_grupo_intervencao
             SET    status = 'Inativo'
             WHERE  id = v_rec.id;
