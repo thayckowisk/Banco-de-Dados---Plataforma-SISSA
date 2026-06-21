@@ -776,7 +776,7 @@ async function suiteApiAuth() {
 // SUITE 9 — API: ESTUDANTES & ESTATÍSTICAS
 // ═══════════════════════════════════════════════════════════════════════════════
 async function suiteApiEstudantes() {
-  startSuite('API — Estudantes & Estatísticas');
+  startSuite('API — Estudantes');
 
   await test('GET /estudantes retorna array', async () => {
     const { body } = await GET('/api/sissa/estudantes');
@@ -808,21 +808,6 @@ async function suiteApiEstudantes() {
   await test('POST /estudantes sem campos obrigatórios → 400', async () => {
     const { status, body } = await POST('/api/sissa/estudantes', { nome: 'x' });
     assertEqual(status, 400); assertFalse(body.success);
-  });
-  await test('GET /estatisticas/risco soma total = alto+medio+baixo', async () => {
-    const { body } = await GET('/api/sissa/estatisticas/risco');
-    assertTrue(body.success);
-    assertEqual(body.data.total, body.data.alto + body.data.medio + body.data.baixo);
-  });
-  await test('GET /estatisticas/risco percentuais entre 0 e 100', async () => {
-    const { body } = await GET('/api/sissa/estatisticas/risco');
-    for (const k of ['pct_alto','pct_medio','pct_baixo']) {
-      assert(body.data[k] >= 0 && body.data[k] <= 100);
-    }
-  });
-  await test('GET /estatisticas/risco?curso_id=1 filtra', async () => {
-    const { body } = await GET('/api/sissa/estatisticas/risco?curso_id=1');
-    assertTrue(body.success); assert(body.data.total >= 0);
   });
 }
 

@@ -138,45 +138,6 @@ router.post('/auth', async (req, res) => {
 });
 
 /* ══════════════════════════════════════════
-   ESTATÍSTICAS DE RISCO (para gauge)
-══════════════════════════════════════════ */
-router.get('/estatisticas/risco', async (req, res) => {
-  try {
-    const { curso_id } = req.query;
-    const esc = await exigirEscopoCurso(req, res, curso_id);
-    if (!esc) return;
-    let q = `
-      SELECT
-        COUNT(*)                                        AS total,
-        COUNT(*) FILTER (WHERE r.risco = 'Alto')       AS alto,
-        COUNT(*) FILTER (WHERE r.risco = 'Médio')      AS medio,
-        COUNT(*) FILTER (WHERE r.risco = 'Baixo')      AS baixo
-      FROM sissa_risco_evasao r
-      JOIN sissa_matricula m ON m.id = r.matricula_id
-      WHERE 1=1`;
-    const p = [];
-    p.push(esc.cursoIds); q += ` AND m.curso_id = ANY($${p.length})`;
-    const result = await db.query(q, p);
-    const row = result.rows[0];
-    const total = parseInt(row.total) || 0;
-    const alto  = parseInt(row.alto)  || 0;
-    const medio = parseInt(row.medio) || 0;
-    const baixo = parseInt(row.baixo) || 0;
-    res.json({
-      success: true,
-      data: {
-        total,
-        alto,  pct_alto:  total ? Math.round(alto  / total * 100) : 0,
-        medio, pct_medio: total ? Math.round(medio / total * 100) : 0,
-        baixo, pct_baixo: total ? Math.round(baixo / total * 100) : 0
-      }
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-/* ══════════════════════════════════════════
    ESTUDANTES
 ══════════════════════════════════════════ */
 router.get('/estudantes', async (req, res) => {
