@@ -1,9 +1,8 @@
-# Guia de Demonstração — SISSA
+# Guia de Demonstração — SISSA (na tela)
 
-Tudo que você precisa para demonstrar a plataforma: como subir, com quais
-credenciais entrar e o que está cadastrado em cada instituição. Os dados vêm do
-seed (`sql/05_sissa_domain.sql` + `sql/06_roster_universidade.sql`); reconstrua o
-banco antes de demonstrar para garantir o estado abaixo.
+Roteiro para demonstrar a plataforma **no frontend**: como subir, com quais credenciais
+entrar e o que clicar em cada tela. Para ver **o que cada passo faz no banco** (o SQL por
+trás de cada objeto), use o `GUIA_APRESENTACAO.md`.
 
 ## Como subir
 ```bash
@@ -13,14 +12,12 @@ psql -d sissa -f sql/05_sissa_domain.sql
 psql -d sissa -f sql/06_roster_universidade.sql
 cd backend && node server.js          # http://localhost:3000
 ```
-> Conexão local por *peer auth* (socket): rode o servidor com
-> `PGHOST=/var/run/postgresql node server.js` se o `localhost` pedir senha.
 
 ## Logins (área privada)
-O login CAFe é só um provedor de identidade; a **instituição vem do cadastro do
-usuário**. Na tela de login, busque **UFG** ou **IFSP**, prossiga e use:
+O login CAFe é só um provedor de identidade; a **instituição vem do cadastro do usuário**.
+Na tela de login, busque **UFG** ou **IFSP**, prossiga e use:
 
-### UFG — Licenciatura em Física (piloto)
+### UFG — Licenciatura em Física / Matemática
 | Nome | E-mail | Senha | Perfil | Nível | Cursos |
 |------|--------|-------|--------|:----:|--------|
 | Laís Hauptli Cândido | `laishcandido@gmail.com` | `3456` | Coordenador de unidade | 4 | Física + Matemática |
@@ -30,88 +27,45 @@ usuário**. Na tela de login, busque **UFG** ou **IFSP**, prossiga e use:
 | Juliana Moraes | `juliana.moraes@ufg.br` | `5678` | Tutor | 1 | Física |
 | Beatriz Cardoso | `beatriz.cardoso@ufg.br` | `6789` | Tutor | 1 | Física |
 
-### IFSP — Tecnologia em Análise e Desenvolvimento de Sistemas (ADS)
+### IFSP — Tecnologia em ADS
 | Nome | E-mail | Senha | Perfil | Nível | Cursos |
 |------|--------|-------|--------|:----:|--------|
 | Ricardo Tavares Lima | `ricardo.tavares@ifsp.edu.br` | `7890` | Coordenador de unidade | 4 | ADS |
 | Patrícia Nunes Rocha | `patricia.rocha@ifsp.edu.br` | `8901` | Coordenador de curso | 2 | ADS |
 
-**O que cada perfil pode fazer** (matriz `sissa_nivel_acao`): Tutor (1) registra/edita
-as próprias intervenções; Coordenador de curso (2) gerencia grupos, estudantes e
-usuários; Coordenador de ensino (3) acrescenta excluir usuário; Coordenador de
-unidade (4) idem e enxerga **todos os cursos da sua unidade** (por isso Laís vê
-Física **e** Matemática). Os demais perfis enxergam **um curso**.
+**O que cada perfil pode fazer:** Tutor (1) registra/edita as próprias intervenções;
+Coordenador de curso (2) gerencia grupos, estudantes e usuários; Coordenador de ensino (3)
+acrescenta excluir usuário; Coordenador de unidade (4) idem e enxerga **todos os cursos da
+sua unidade** (por isso Laís vê Física **e** Matemática). Os demais perfis enxergam **um curso**.
 
 ### Área pública (sem login)
-Use qualquer e-mail **não cadastrado** (ex.: `visitante@qualquer.com`, senha
-livre) → cai na **área pública**, que mostra risco de evasão **anonimizado**
-(sem nome/matrícula), servido pela view `vw_sissa_risco_anonimo`.
+Use qualquer e-mail **não cadastrado** (ex.: `visitante@qualquer.com`, senha livre) → cai
+na **área pública**, que mostra risco de evasão **anonimizado** (sem nome/matrícula).
 
-## O que está cadastrado
+> Cadastro completo (instituições, unidades, cursos, semestres, alunos, grupos) está no
+> `GUIA_APRESENTACAO.md` → **Visão geral do cadastro**.
 
-### Instituições (4) e unidades (5)
-| Instituição | Sigla | Unidade(s) | Tem dados de piloto? |
-|-------------|:----:|-----------|:--------------------:|
-| Universidade Federal de Goiás | UFG | Regional Goiânia (GYN) | ✅ |
-| Instituto Federal de São Paulo | IFSP | Câmpus São Paulo (SPO), Câmpus Guarulhos (GRU) | ✅ |
-| Instituto Federal de Rondônia | IFRO | Câmpus Colorado do Oeste (COL) | — (cursos sem alunos/usuários) |
-| Instituto Federal do Mato Grosso | IFMT | Câmpus Cuiabá (CBA) | — |
+## Roteiro de demonstração (na tela)
+Cada passo aponta a seção do `GUIA_APRESENTACAO.md` que mostra o **mesmo efeito no banco**.
 
-> Só **UFG** e **IFSP** têm usuários, então só elas aparecem no seletor de login.
-> IFRO/IFMT existem para mostrar que o modelo é multi-instituição de verdade.
+1. **Isolamento multi-instituição.** Entre como `juliana.moraes@ufg.br` → cabeçalho **UFG**,
+   curso Física, grupos A/B/C e 6 intervenções. Saia, entre como `ricardo.tavares@ifsp.edu.br`
+   → cabeçalho **IFSP**, curso ADS, sem grupos/intervenções. *(no banco: §4 Views e §6 Roles)*
+2. **Coordenador de unidade vê 2 cursos.** Entre como `laishcandido@gmail.com` → a seleção de
+   curso oferece **Física e Matemática**; os outros perfis caem direto em um único curso.
+   *(no banco: Visão geral do cadastro)*
+3. **Permissão por nível.** Como **Tutor** (Kalebe), os botões de gerenciar usuário / excluir
+   grupo **não aparecem**; como **Coordenador**, aparecem. *(no banco: §4 `vw_sissa_perfil_permissoes`)*
+4. **Gauge de risco.** Na tela de Estudantes, veja o **% Alto/Médio/Baixo** do curso e a coluna
+   de risco de cada aluno. *(no banco: §1 Funções — `fu_sissa_resumo_curso` / `fu_sissa_calcular_risco`)*
+5. **Intervenção a partir de um grupo.** Abra um grupo e use *"nova intervenção a partir do
+   grupo"*: cria **uma intervenção por aluno** do grupo de uma vez. *(no banco: §2 Procedimentos)*
+6. **Reativação automática.** Registre uma intervenção para um aluno de um grupo **Inativo** →
+   o grupo volta a **Ativo** sozinho. *(no banco: §3 Triggers)*
+7. **Manutenção de grupos.** O botão **Manutenção** inativa grupos parados há muito tempo (no
+   seed recém-criado, inativa o Grupo A). *(no banco: §2 Procedimentos)*
+8. **Área pública.** Saia e entre com um e-mail **não cadastrado** → risco **anonimizado**, sem
+   nome nem matrícula. *(no banco: §4 `vw_sissa_risco_anonimo` e §6 Roles)*
 
-### Cursos (6)
-| Curso | Código | Instituição | Semestres | Alunos |
-|-------|:------:|:----------:|:--------:|:-----:|
-| Licenciatura em Física | LFI | UFG | 8 | **12** |
-| Licenciatura em Matemática | LMA | UFG | 8 | **6** |
-| Bacharelado em Agronomia | 52921 | UFG | 10 | 0 |
-| Tecnologia em ADS | ADS | IFSP | 6 | **10** |
-| Técnico em Agroecologia | 12075 | IFRO | 6 | 0 |
-| Técnico em Administração | 50 | IFRO | 4 | 0 |
-
-### Alunos e risco de evasão (28 no total)
-| Curso | Alunos | Alto risco | Médio | Baixo |
-|-------|:-----:|:---------:|:----:|:----:|
-| Física (UFG) | 12 | 4 | 4 | 4 |
-| Matemática (UFG) | 6 | 2 | 2 | 2 |
-| ADS (IFSP) | 10 | 3 | 3 | 4 |
-
-O nível de risco (Alto/Médio/Baixo) é calculado pela função
-`fu_sissa_classificar` a partir de média global, reprovações e carga horária,
-e gravado automaticamente por trigger.
-
-### Disciplinas, turmas e semestres
-- **Semestres:** 2023/1, 2023/2, 2024/1, 2024/2, 2025/1, 2025/2.
-- **Disciplinas:** Física (5: Física Geral I/II, Eletromagnetismo, Mecânica
-  Clássica, Cálculo I) · Matemática (3: Álgebra Linear, Cálculo II, Geometria
-  Analítica) · ADS (3: Lógica de Programação, Banco de Dados, Engenharia de Software).
-- **Turmas:** 11 turmas, 4 professores; o nº de turmas de um aluno é **derivado**
-  de `sissa_inscricao_turma` (88 inscrições no total).
-
-### Grupos de intervenção (3, todos de Física)
-| Grupo | Status | Membros |
-|-------|:------:|:------:|
-| Grupo A | **Ativo** | 4 |
-| Grupo B | Inativo | 4 |
-| Grupo C | Inativo | 5 |
-
-Há **6 intervenções** semeadas (todas em Física). Grupo é só um *favorito* de
-matrículas; a intervenção é **individual** (uma linha por aluno).
-
-## Roteiro sugerido de demonstração
-1. **Multi-instituição:** logar como `juliana.moraes@ufg.br` → cabeçalho **UFG**,
-   curso Física, grupos A/B/C e 6 intervenções. Sair, logar como
-   `ricardo.tavares@ifsp.edu.br` → cabeçalho **IFSP**, curso ADS, grupos e
-   intervenções vazios. Mostra a isolação por instituição/curso.
-2. **Coordenador de unidade vê 2 cursos:** logar como `laishcandido@gmail.com`
-   → a seleção de curso oferece **Física e Matemática**.
-3. **Permissão por nível:** como **Tutor** (Kalebe) os botões de gerenciar
-   usuário/excluir grupo não aparecem; como **Coordenador** aparecem.
-4. **Gauge de risco** na tela de estudantes: % Alto/Médio/Baixo do curso
-   (alimentado por `fu_sissa_resumo_curso`).
-5. **Intervenção a partir de um grupo:** dá `CALL` na procedure
-   `pr_sissa_criar_intervencao_grupo` (uma intervenção individual por membro).
-6. **Reativação automática:** registrar uma intervenção para um membro de um
-   grupo `Inativo` o reativa (trigger `tg_sissa_grupo_inativo_auto`).
-7. **Área pública:** entrar com e-mail não cadastrado → risco anonimizado.
+> Os passos 5–7 **alteram dados**. Para reapresentar do zero, reconstrua o banco (bloco
+> **Como subir**) — o Grupo A volta a Ativo e as intervenções originais voltam.
