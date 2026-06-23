@@ -624,6 +624,7 @@ SELECT * FROM fu_sissa_benchmark_indice(500000, 25);        # reexecutar o teste
 ```
 > Código-fonte: `sql/07_sissa_indices_performance.sql:58-191` (a função de benchmark, com o
 > `EXPLAIN ANALYZE` com e sem índice de cada um dos 2 cenários).
+![alt text](image.png)
 
 ### 6. Segurança — roles (Requisito 6) — 3 roles
 `admin_sissa` (CRUD), `leitura_sissa` (SELECT) e `risco_anonimo_sissa` (só a view anônima).
